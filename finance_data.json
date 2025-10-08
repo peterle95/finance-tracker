@@ -1,0 +1,14 @@
+{
+  "expenses": [
+    {
+      "date": "2025-10-05",
+      "amount": 550.0,
+      "category": "Housing",
+      "type": "fixed",
+      "description": ""
+    }
+  ],
+  "budget_settings": {
+    "monthly_income": 1500.0
+  }
+}
