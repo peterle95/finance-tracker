@@ -47,6 +47,48 @@
             "amount": 28.2,
             "category": "Food",
             "description": "La Maison"
+        },
+        {
+            "date": "2025-10-08",
+            "amount": 28.5,
+            "category": "Food",
+            "description": "Pizzeria Il Forno"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 112.07,
+            "category": "Transportation",
+            "description": "BLN-IST (Liliia)"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 94.07,
+            "category": "Transportation",
+            "description": "BLN-IST (Peter)"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 737.75,
+            "category": "Transportation",
+            "description": "Pune - Phuket"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 171.14,
+            "category": "Transportation",
+            "description": "IST - Mumbai (Liliia)"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 171.14,
+            "category": "Transportation",
+            "description": "IST - Mumbai (Peter)"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 894.51,
+            "category": "Transportation",
+            "description": "BKK - Berlin"
         }
     ],
     "incomes": [
@@ -61,6 +103,12 @@
             "amount": 29.29,
             "category": "Other",
             "description": "PayPal"
+        },
+        {
+            "date": "2025-10-17",
+            "amount": 442.65,
+            "category": "Other",
+            "description": "Phuket (guys)"
         }
     ],
     "budget_settings": {
@@ -77,6 +125,14 @@
             {
                 "desc": "Telekom",
                 "amount": 37.95
+            },
+            {
+                "desc": "Vattenfall",
+                "amount": 60.0
+            },
+            {
+                "desc": "HKK",
+                "amount": 254.54
             }
         ]
     }

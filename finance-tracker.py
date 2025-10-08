@@ -294,17 +294,29 @@ class FinanceTracker:
     def update_summary(self):
         """Update summary statistics for the filtered month"""
         filter_month = self.month_filter.get()
-        monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
-        monthly_incomes = [i['amount'] for i in self.incomes if i['date'].startswith(filter_month)]
 
-        total_expenses = sum(monthly_expenses)
-        total_incomes = sum(monthly_incomes)
-        net = total_incomes - total_expenses
+        # Get base income from settings, default to 0 if not set
+        base_income = self.budget_settings.get('monthly_income', 0)
         
-        summary_text = (f"Total Income: €{total_incomes:.2f}  |  "
+        # Calculate flexible income (from transactions) for the month
+        monthly_flexible_incomes = [i['amount'] for i in self.incomes if i['date'].startswith(filter_month)]
+        total_flexible_income = sum(monthly_flexible_incomes)
+        
+        # Total income is base + flexible
+        total_income = base_income + total_flexible_income
+
+        # Calculate expenses for the month
+        monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
+        total_expenses = sum(monthly_expenses)
+        
+        # Calculate net result
+        net = total_income - total_expenses
+        
+        summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
                         f"Net: €{net:.2f}")
         self.summary_label.config(text=summary_text)
+
 
     def delete_transaction(self):
         """Delete selected transaction"""
