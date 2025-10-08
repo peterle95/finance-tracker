@@ -1,0 +1,83 @@
+{
+    "expenses": [
+        {
+            "date": "2025-10-01",
+            "amount": 4.95,
+            "category": "Other",
+            "description": "ENTGELTABSCHLUSS"
+        },
+        {
+            "date": "2025-10-01",
+            "amount": 71.07,
+            "category": "Other",
+            "description": "ABSCHLUSS"
+        },
+        {
+            "date": "2025-10-01",
+            "amount": 55.08,
+            "category": "Other",
+            "description": "Rundfunk"
+        },
+        {
+            "date": "2025-10-01",
+            "amount": 40.95,
+            "category": "Other",
+            "description": "Klarna"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 116.4,
+            "category": "Other",
+            "description": "Anyfin"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 40.0,
+            "category": "Other",
+            "description": "PayPal"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 25.5,
+            "category": "Other",
+            "description": "Bar"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 28.2,
+            "category": "Food",
+            "description": "La Maison"
+        }
+    ],
+    "incomes": [
+        {
+            "date": "2025-10-08",
+            "amount": 100.0,
+            "category": "Side Gig",
+            "description": "Italiano"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 29.29,
+            "category": "Other",
+            "description": "PayPal"
+        }
+    ],
+    "budget_settings": {
+        "monthly_income": 1500.0,
+        "fixed_costs": [
+            {
+                "desc": "House",
+                "amount": 1100.0
+            },
+            {
+                "desc": "Gym",
+                "amount": 30.0
+            },
+            {
+                "desc": "Telekom",
+                "amount": 37.95
+            }
+        ]
+    }
+}
