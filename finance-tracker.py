@@ -431,13 +431,21 @@ class FinanceTracker:
         monthly_flexible_incomes = [i['amount'] for i in self.incomes if i['date'].startswith(filter_month)]
         total_flexible_income = sum(monthly_flexible_incomes)
         total_income = base_income + total_flexible_income
+        
+        # Calculate flexible expenses for the selected month
         monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
-        total_expenses = sum(monthly_expenses)
+        total_flexible_expenses = sum(monthly_expenses)
+        
+        # Add fixed costs to the total expenses
+        total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
+        total_expenses = total_flexible_expenses + total_fixed_costs
+        
         net = total_income - total_expenses
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
                         f"Net: €{net:.2f}")
         self.summary_label.config(text=summary_text)
+
 
     def delete_transaction(self):
         selected_item = self.transaction_tree.selection()
