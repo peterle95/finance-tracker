@@ -2,12 +2,6 @@
     "expenses": [
         {
             "date": "2025-10-01",
-            "amount": 4.95,
-            "category": "Other",
-            "description": "ENTGELTABSCHLUSS"
-        },
-        {
-            "date": "2025-10-01",
             "amount": 71.07,
             "category": "Other",
             "description": "ABSCHLUSS"
@@ -55,40 +49,34 @@
             "description": "Pizzeria Il Forno"
         },
         {
-            "date": "2025-10-17",
+            "date": "2025-10-09",
             "amount": 112.07,
-            "category": "Transportation",
+            "category": "Food",
             "description": "BLN-IST (Liliia)"
         },
         {
-            "date": "2025-10-17",
+            "date": "2025-10-09",
             "amount": 94.07,
             "category": "Transportation",
             "description": "BLN-IST (Peter)"
         },
         {
-            "date": "2025-10-17",
+            "date": "2025-10-09",
             "amount": 737.75,
             "category": "Transportation",
-            "description": "Pune - Phuket"
+            "description": "Pune-Phuket"
         },
         {
-            "date": "2025-10-17",
-            "amount": 171.14,
+            "date": "2025-10-09",
+            "amount": 342.28,
             "category": "Transportation",
-            "description": "IST - Mumbai (Liliia)"
+            "description": "IST-Mumbai"
         },
         {
-            "date": "2025-10-17",
-            "amount": 171.14,
-            "category": "Transportation",
-            "description": "IST - Mumbai (Peter)"
-        },
-        {
-            "date": "2025-10-17",
+            "date": "2025-10-09",
             "amount": 894.51,
             "category": "Transportation",
-            "description": "BKK - Berlin"
+            "description": "BKK-BLN"
         }
     ],
     "incomes": [
@@ -109,6 +97,18 @@
             "amount": 442.65,
             "category": "Other",
             "description": "Phuket (guys)"
+        },
+        {
+            "date": "2025-10-08",
+            "amount": 26.0,
+            "category": "Other",
+            "description": "Portafoglio"
+        },
+        {
+            "date": "2025-10-09",
+            "amount": 550.0,
+            "category": "Other",
+            "description": "Liliia Rent"
         }
     ],
     "budget_settings": {
@@ -133,6 +133,22 @@
             {
                 "desc": "HKK",
                 "amount": 254.54
+            },
+            {
+                "desc": "GASAG",
+                "amount": 340.0
+            },
+            {
+                "desc": "Netflix ",
+                "amount": 4.99
+            },
+            {
+                "desc": "Barmenia Cino",
+                "amount": 30.9
+            },
+            {
+                "desc": "ENTGELDABSCHLUSS",
+                "amount": 4.95
             }
         ]
     }

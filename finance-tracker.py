@@ -9,7 +9,7 @@ class FinanceTracker:
     def __init__(self, root):
         self.root = root
         self.root.title("Personal Finance Tracker")
-        self.root.geometry("1000x700")
+        self.root.geometry("1200x700") ## MODIFIED: Increased window size for new widgets
 
         # Data file
         self.data_file = Path("finance_data_v2.json")
@@ -26,6 +26,7 @@ class FinanceTracker:
         self.create_widgets()
         self.refresh_transaction_list()
         self.refresh_fixed_costs_tree()
+        self.refresh_category_list() ## NEW: Initial population of the category list
 
     def load_data(self):
         """Load data from JSON file or create new structure"""
@@ -34,23 +35,34 @@ class FinanceTracker:
                 data = json.load(f)
                 self.expenses = data.get('expenses', [])
                 self.incomes = data.get('incomes', [])
-                # Ensure backward compatibility and new structure
                 self.budget_settings = data.get('budget_settings', {})
-                if 'fixed_costs' not in self.budget_settings:
-                    self.budget_settings['fixed_costs'] = []
-                if 'monthly_income' not in self.budget_settings:
-                    self.budget_settings['monthly_income'] = 0
+                self.categories = data.get('categories', {}) ## NEW: Load categories
         else:
             self.expenses = []
             self.incomes = []
-            self.budget_settings = {'monthly_income': 0, 'fixed_costs': []}
+            self.budget_settings = {}
+            self.categories = {} ## NEW: Initialize categories
+
+        # Ensure backward compatibility and new structure for budget_settings
+        if 'fixed_costs' not in self.budget_settings:
+            self.budget_settings['fixed_costs'] = []
+        if 'monthly_income' not in self.budget_settings:
+            self.budget_settings['monthly_income'] = 0
+            
+        ## NEW: Define default categories if they don't exist
+        if 'Expense' not in self.categories or not self.categories['Expense']:
+            self.categories['Expense'] = ["Food", "Transportation", "Entertainment", "Utilities", "Shopping", "Healthcare", "Other"]
+        if 'Income' not in self.categories or not self.categories['Income']:
+            self.categories['Income'] = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
+
 
     def save_data(self):
         """Save data to JSON file"""
         data = {
             'expenses': self.expenses,
             'incomes': self.incomes,
-            'budget_settings': self.budget_settings
+            'budget_settings': self.budget_settings,
+            'categories': self.categories ## NEW: Add categories to save data
         }
         with open(self.data_file, 'w') as f:
             json.dump(data, f, indent=4)
@@ -118,14 +130,15 @@ class FinanceTracker:
     def update_categories(self):
         """Updates the category combobox based on transaction type"""
         transaction_type = self.transaction_type_var.get()
-        if transaction_type == "Expense":
-            categories = ["Food", "Transportation", "Entertainment", "Utilities", "Shopping", "Healthcare", "Other"]
-            self.category_combo.config(values=categories)
-            self.category_combo.set("Food")
-        else: # Income
-            categories = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
-            self.category_combo.config(values=categories)
-            self.category_combo.set("Side Gig")
+        
+        ## MODIFIED: Get categories from the loaded data
+        categories = self.categories.get(transaction_type, [])
+        self.category_combo.config(values=categories)
+        if categories:
+            self.category_combo.set(categories[0])
+        else:
+            self.category_combo.set("")
+
 
     def create_view_transactions_tab(self):
         """Create the view transactions list for expenses and income"""
@@ -169,7 +182,7 @@ class FinanceTracker:
         main_frame = ttk.Frame(self.budget_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
 
-        # Top frame for settings and fixed costs
+        # Top frame for settings and management
         top_frame = ttk.Frame(main_frame)
         top_frame.pack(fill='x', pady=(0, 10))
 
@@ -185,10 +198,14 @@ class FinanceTracker:
 
         ttk.Button(settings_frame, text="Save Income", command=self.save_base_income).grid(
             row=1, column=1, pady=10, sticky='e')
+            
+        ## NEW ##: Management frame to hold both Fixed Costs and Categories
+        management_frame = ttk.Frame(top_frame)
+        management_frame.pack(side='left', fill='both', expand=True)
 
         # --- Fixed Costs Frame ---
-        fixed_costs_frame = ttk.LabelFrame(top_frame, text="Manage Fixed Monthly Costs", padding="10")
-        fixed_costs_frame.pack(side='left', fill='both', expand=True)
+        fixed_costs_frame = ttk.LabelFrame(management_frame, text="Manage Fixed Monthly Costs", padding="10")
+        fixed_costs_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
 
         # Treeview for fixed costs
         fc_tree_frame = ttk.Frame(fixed_costs_frame)
@@ -216,8 +233,13 @@ class FinanceTracker:
         fc_btn_frame = ttk.Frame(fixed_costs_frame)
         fc_btn_frame.pack(fill='x')
         ttk.Button(fc_btn_frame, text="Add", command=self.add_fixed_cost).pack(side='left', padx=5)
-        ttk.Button(fc_btn_frame, text="Update Selected", command=self.update_fixed_cost).pack(side='left', padx=5)
-        ttk.Button(fc_btn_frame, text="Delete Selected", command=self.delete_fixed_cost).pack(side='left', padx=5)
+        ttk.Button(fc_btn_frame, text="Update", command=self.update_fixed_cost).pack(side='left', padx=5)
+        ttk.Button(fc_btn_frame, text="Delete", command=self.delete_fixed_cost).pack(side='left', padx=5)
+
+        ## NEW ##: Category management frame
+        categories_frame = ttk.LabelFrame(management_frame, text="Manage Categories", padding="10")
+        categories_frame.pack(side='left', fill='both', expand=True)
+        self.create_category_management_widgets(categories_frame)
 
 
         # --- Report Generation Frame ---
@@ -234,6 +256,42 @@ class FinanceTracker:
 
         self.budget_text = tk.Text(report_frame, height=20, width=90, font=('Courier New', 9))
         self.budget_text.pack(fill='both', expand=True, pady=10)
+
+    ## NEW ##: Method to create the category management UI
+    def create_category_management_widgets(self, parent_frame):
+        # Radio buttons to select type
+        self.cat_type_var = tk.StringVar(value="Expense")
+        cat_type_frame = ttk.Frame(parent_frame)
+        cat_type_frame.pack(fill='x', pady=2)
+        ttk.Label(cat_type_frame, text="Type:").pack(side='left')
+        ttk.Radiobutton(cat_type_frame, text="Expense", variable=self.cat_type_var,
+                        value="Expense", command=self.refresh_category_list).pack(side='left', padx=5)
+        ttk.Radiobutton(cat_type_frame, text="Income", variable=self.cat_type_var,
+                        value="Income", command=self.refresh_category_list).pack(side='left', padx=5)
+
+        # Treeview for categories
+        cat_tree_frame = ttk.Frame(parent_frame)
+        cat_tree_frame.pack(fill='x', pady=5)
+        self.category_tree = ttk.Treeview(cat_tree_frame, columns=('Category',), show='headings', height=5)
+        self.category_tree.heading('Category', text='Category Name')
+        self.category_tree.column('Category', width=180)
+        self.category_tree.pack(side='left', fill='x', expand=True)
+        cat_scrollbar = ttk.Scrollbar(cat_tree_frame, orient='vertical', command=self.category_tree.yview)
+        cat_scrollbar.pack(side='right', fill='y')
+        self.category_tree.configure(yscrollcommand=cat_scrollbar.set)
+
+        # Entry form for new category
+        cat_form_frame = ttk.Frame(parent_frame)
+        cat_form_frame.pack(fill='x', pady=5)
+        ttk.Label(cat_form_frame, text="Name:").pack(side='left', padx=(0,5))
+        self.cat_name_entry = ttk.Entry(cat_form_frame, width=25)
+        self.cat_name_entry.pack(side='left')
+
+        # Buttons
+        cat_btn_frame = ttk.Frame(parent_frame)
+        cat_btn_frame.pack(fill='x', pady=5)
+        ttk.Button(cat_btn_frame, text="Add", command=self.add_category).pack(side='left', padx=5)
+        ttk.Button(cat_btn_frame, text="Delete Selected", command=self.delete_category).pack(side='left', padx=5)
 
     def add_transaction(self):
         """Add a new expense or income"""
@@ -417,6 +475,58 @@ class FinanceTracker:
         self.budget_settings['fixed_costs'].remove(target_cost)
         self.save_data()
         self.refresh_fixed_costs_tree()
+
+    ## NEW ##: Method to refresh the category list in the settings tab
+    def refresh_category_list(self):
+        """Populate the categories treeview"""
+        for item in self.category_tree.get_children():
+            self.category_tree.delete(item)
+        
+        cat_type = self.cat_type_var.get()
+        for category in self.categories.get(cat_type, []):
+            self.category_tree.insert('', 'end', values=(category,))
+
+    ## NEW ##: Method to add a new category
+    def add_category(self):
+        cat_type = self.cat_type_var.get()
+        new_cat = self.cat_name_entry.get().strip()
+
+        if not new_cat:
+            messagebox.showerror("Error", "Category name cannot be empty.")
+            return
+        
+        # Check for duplicates (case-insensitive)
+        if new_cat.lower() in [c.lower() for c in self.categories[cat_type]]:
+            messagebox.showwarning("Warning", "This category already exists.")
+            return
+        
+        self.categories[cat_type].append(new_cat)
+        self.categories[cat_type].sort() # Keep it sorted
+        self.save_data()
+        self.refresh_category_list()
+        self.update_categories() # Refresh the dropdown in the Add Transaction tab
+        self.cat_name_entry.delete(0, tk.END)
+
+    ## NEW ##: Method to delete a selected category
+    def delete_category(self):
+        selected = self.category_tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a category to delete.")
+            return
+
+        cat_type = self.cat_type_var.get()
+        category_to_delete = self.category_tree.item(selected[0])['values'][0]
+
+        # Prevent deletion of "Other"
+        if category_to_delete.lower() == "other":
+            messagebox.showerror("Error", "Cannot delete the 'Other' category.")
+            return
+        
+        if messagebox.askyesno("Confirm", f"Are you sure you want to delete the '{category_to_delete}' category? \nExisting transactions with this category will not be changed."):
+            self.categories[cat_type].remove(category_to_delete)
+            self.save_data()
+            self.refresh_category_list()
+            self.update_categories() # Refresh dropdown
 
     def generate_daily_budget(self):
         """Generate daily budget report based on all settings and transactions"""
