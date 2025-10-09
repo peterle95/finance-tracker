@@ -31,30 +31,6 @@
             "description": "PayPal"
         },
         {
-            "date": "2025-10-06",
-            "amount": 25.5,
-            "category": "Other",
-            "description": "Bar"
-        },
-        {
-            "date": "2025-10-06",
-            "amount": 28.2,
-            "category": "Food",
-            "description": "La Maison"
-        },
-        {
-            "date": "2025-10-08",
-            "amount": 28.5,
-            "category": "Food",
-            "description": "Pizzeria Il Forno"
-        },
-        {
-            "date": "2025-10-09",
-            "amount": 112.07,
-            "category": "Food",
-            "description": "BLN-IST (Liliia)"
-        },
-        {
             "date": "2025-10-09",
             "amount": 94.07,
             "category": "Transportation",
@@ -77,15 +53,33 @@
             "amount": 894.51,
             "category": "Transportation",
             "description": "BKK-BLN"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 25.5,
+            "category": "Restaurant or Bar",
+            "description": "Bar"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 28.5,
+            "category": "Restaurant or Bar",
+            "description": "Pizzeria il Forno"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 112.07,
+            "category": "Transportation",
+            "description": "BLN-IST (Liliia)"
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 28.2,
+            "category": "Restaurant or Bar",
+            "description": "La Maison"
         }
     ],
     "incomes": [
-        {
-            "date": "2025-10-08",
-            "amount": 100.0,
-            "category": "Side Gig",
-            "description": "Italiano"
-        },
         {
             "date": "2025-10-06",
             "amount": 29.29,
@@ -99,16 +93,22 @@
             "description": "Phuket (guys)"
         },
         {
-            "date": "2025-10-08",
-            "amount": 26.0,
-            "category": "Other",
-            "description": "Portafoglio"
+            "date": "2025-10-06",
+            "amount": 550.0,
+            "category": "Liliia Rent",
+            "description": ""
         },
         {
-            "date": "2025-10-09",
-            "amount": 550.0,
-            "category": "Other",
-            "description": "Liliia Rent"
+            "date": "2025-10-06",
+            "amount": 100.0,
+            "category": "Italiano",
+            "description": ""
+        },
+        {
+            "date": "2025-10-06",
+            "amount": 26.0,
+            "category": "Cash",
+            "description": ""
         }
     ],
     "budget_settings": {
@@ -150,6 +150,28 @@
                 "desc": "ENTGELDABSCHLUSS",
                 "amount": 4.95
             }
+        ]
+    },
+    "categories": {
+        "Expense": [
+            "Cinema",
+            "Entertainment",
+            "Groceries",
+            "Healthcare",
+            "Other",
+            "Restaurant or Bar",
+            "Shopping",
+            "Transportation",
+            "Utilities"
+        ],
+        "Income": [
+            "Cash",
+            "Gift",
+            "Investment",
+            "Italiano",
+            "Liliia Rent",
+            "Other",
+            "Salary"
         ]
     }
 }
