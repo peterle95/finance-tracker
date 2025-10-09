@@ -15,7 +15,6 @@ class FinanceTracker:
     def __init__(self, root):
         self.root = root
         self.root.title("Personal Finance Tracker")
-        ## MODIFIED: Increased width for better layout
         self.root.geometry("1250x750")
 
         # Data file
@@ -84,7 +83,6 @@ class FinanceTracker:
         notebook.add(self.view_transactions_tab, text="View Transactions")
         self.create_view_transactions_tab()
 
-        ## NEW ##: Add the Reports Tab
         self.reports_tab = ttk.Frame(notebook)
         notebook.add(self.reports_tab, text="Reports")
         self.create_reports_tab()
@@ -93,44 +91,70 @@ class FinanceTracker:
         notebook.add(self.budget_tab, text="Budget & Settings")
         self.create_budget_tab()
     
-    ## NEW ##: Method to create the new Reports tab
+    ## MODIFIED ##: Reworked the layout and added new options
     def create_reports_tab(self):
         """Create the UI for the reports tab with a pie chart"""
         main_frame = ttk.Frame(self.reports_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
 
-        # --- Controls Frame ---
         controls_frame = ttk.LabelFrame(main_frame, text="Chart Options", padding="10")
         controls_frame.pack(fill='x', pady=5)
 
         # Month selection
-        ttk.Label(controls_frame, text="Select Month:").pack(side='left', padx=(0, 5))
-        self.chart_month_entry = ttk.Entry(controls_frame, width=15)
+        month_frame = ttk.Frame(controls_frame)
+        month_frame.pack(side='left', padx=10, fill='y')
+        ttk.Label(month_frame, text="Select Month:").pack(side='left')
+        self.chart_month_entry = ttk.Entry(month_frame, width=15)
         self.chart_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.chart_month_entry.pack(side='left', padx=5)
 
         # Transaction type selection
-        ttk.Label(controls_frame, text="Chart Type:").pack(side='left', padx=(20, 5))
+        type_frame = ttk.Frame(controls_frame)
+        type_frame.pack(side='left', padx=10, fill='y')
+        ttk.Label(type_frame, text="Chart Type:").pack(side='left')
         self.chart_type_var = tk.StringVar(value="Expense")
-        ttk.Radiobutton(controls_frame, text="Expenses", variable=self.chart_type_var, value="Expense").pack(side='left')
-        ttk.Radiobutton(controls_frame, text="Incomes", variable=self.chart_type_var, value="Income").pack(side='left', padx=5)
+        ttk.Radiobutton(type_frame, text="Expenses", variable=self.chart_type_var, value="Expense", command=self._update_report_options_ui).pack(side='left')
+        ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income", command=self._update_report_options_ui).pack(side='left', padx=5)
 
-        # Value type selection (Total vs Percentage)
-        ttk.Label(controls_frame, text="Display As:").pack(side='left', padx=(20, 5))
+        ## NEW ##: Dynamic frame for fixed item checkboxes
+        self.fixed_item_frame = ttk.Frame(controls_frame)
+        self.fixed_item_frame.pack(side='left', padx=10, fill='y')
+        self.include_fixed_costs_var = tk.BooleanVar(value=False)
+        self.fixed_costs_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Fixed Costs", variable=self.include_fixed_costs_var)
+        self.include_base_income_var = tk.BooleanVar(value=False)
+        self.base_income_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Base Income", variable=self.include_base_income_var)
+        self._update_report_options_ui() # Initial UI state update
+
+        # Value type selection
+        value_type_frame = ttk.Frame(controls_frame)
+        value_type_frame.pack(side='left', padx=10, fill='y')
+        ttk.Label(value_type_frame, text="Display As:").pack(side='left')
         self.chart_value_type_var = tk.StringVar(value="Percentage")
-        ttk.Radiobutton(controls_frame, text="Percentage", variable=self.chart_value_type_var, value="Percentage").pack(side='left')
-        ttk.Radiobutton(controls_frame, text="Total Amount", variable=self.chart_value_type_var, value="Total").pack(side='left', padx=5)
+        ttk.Radiobutton(value_type_frame, text="Percentage", variable=self.chart_value_type_var, value="Percentage").pack(side='left')
+        ttk.Radiobutton(value_type_frame, text="Total Amount", variable=self.chart_value_type_var, value="Total").pack(side='left', padx=5)
         
-        ttk.Button(controls_frame, text="Generate Chart", command=self.generate_pie_chart).pack(side='left', padx=20)
+        ttk.Button(controls_frame, text="Generate Chart", command=self.generate_pie_chart).pack(side='left', padx=20, fill='y')
 
-        # --- Chart Frame ---
         self.chart_frame = ttk.Frame(main_frame)
         self.chart_frame.pack(fill='both', expand=True, pady=10)
-        
-        # Placeholder for the canvas
         self.canvas = None
 
-    ## NEW ##: Method to generate and display the pie chart
+    ## NEW ##: Method to dynamically show the correct checkbox
+    def _update_report_options_ui(self):
+        """Shows or hides the relevant checkbutton based on the selected chart type."""
+        chart_type = self.chart_type_var.get()
+        
+        # Unpack both to clear the frame before repacking the correct one
+        self.fixed_costs_checkbutton.pack_forget()
+        self.base_income_checkbutton.pack_forget()
+
+        if chart_type == "Expense":
+            self.fixed_costs_checkbutton.pack()
+        else: # Income
+            self.base_income_checkbutton.pack()
+
+
+    ## MODIFIED ##: Updated logic to include fixed costs/income
     def generate_pie_chart(self):
         month_str = self.chart_month_entry.get()
         chart_type = self.chart_type_var.get()
@@ -142,54 +166,57 @@ class FinanceTracker:
             messagebox.showerror("Error", "Invalid month format. Please use YYYY-MM.")
             return
 
+        category_totals = {}
         if chart_type == "Expense":
             data = self.expenses
-            title = f"Expenses by Category for {month_str}"
+            title = f"Expenses for {month_str}"
+            if self.include_fixed_costs_var.get():
+                total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
+                if total_fixed_costs > 0:
+                    category_totals['Fixed Costs'] = total_fixed_costs
         else:
             data = self.incomes
-            title = f"Incomes by Category for {month_str}"
+            title = f"Incomes for {month_str}"
+            if self.include_base_income_var.get():
+                base_income = self.budget_settings.get('monthly_income', 0)
+                if base_income > 0:
+                    category_totals['Base Income'] = base_income
             
-        # Filter data for the selected month
         month_data = [item for item in data if item['date'].startswith(month_str)]
 
-        if not month_data:
-            messagebox.showinfo("No Data", f"No {chart_type.lower()} data found for {month_str}.")
-            return
-
-        # Aggregate data by category
-        category_totals = {}
+        # Aggregate flexible transaction data
         for item in month_data:
             category = item['category']
             amount = item['amount']
             category_totals[category] = category_totals.get(category, 0) + amount
 
+        if not category_totals:
+            messagebox.showinfo("No Data", f"No data to display for {month_str}.")
+            return
+
         labels = category_totals.keys()
         sizes = category_totals.values()
         
-        # --- Matplotlib Chart Creation ---
-        # Clear previous chart if it exists
         if self.canvas:
             self.canvas.get_tk_widget().destroy()
 
         fig = Figure(figsize=(8, 6), dpi=100)
         ax = fig.add_subplot(111)
         
-        # Define autopct format based on user choice
         if value_type == "Percentage":
             autopct = '%1.1f%%'
-        else: # Total Amount
+        else:
             def absolute_value(val):
-                a  = (val/100.) * sum(sizes)
+                a = (val/100.) * sum(sizes)
                 return f'€{a:.2f}'
             autopct = absolute_value
             
         wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140,
                                           textprops=dict(color="w"))
 
-        ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle.
+        ax.axis('equal')
         ax.set_title(title)
         
-        # Add a legend
         ax.legend(wedges, labels,
                   title="Categories",
                   loc="center left",
@@ -198,11 +225,9 @@ class FinanceTracker:
         plt.setp(autotexts, size=8, weight="bold")
         fig.tight_layout()
 
-        # Embed the chart in Tkinter
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True)
-
 
     def create_add_transaction_tab(self):
         frame = ttk.Frame(self.add_transaction_tab, padding="20")
