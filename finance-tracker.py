@@ -56,6 +56,8 @@ class FinanceTracker:
             self.budget_settings['monthly_income'] = 0
         if 'bank_account_balance' not in self.budget_settings:
             self.budget_settings['bank_account_balance'] = 0
+        if 'daily_savings_goal' not in self.budget_settings:
+            self.budget_settings['daily_savings_goal'] = 0
 
         if 'Expense' not in self.categories or not self.categories['Expense']:
             self.categories['Expense'] = ["Food", "Transportation", "Entertainment", "Utilities", "Shopping",
@@ -99,7 +101,6 @@ class FinanceTracker:
         notebook.add(self.projection_tab, text="Projection")
         self.create_projection_tab()
 
-    ## MODIFIED ##: Reworked the layout and added new options
     def create_reports_tab(self):
         """Create the UI for the reports tab with a pie chart"""
         main_frame = ttk.Frame(self.reports_tab, padding="10")
@@ -126,7 +127,6 @@ class FinanceTracker:
         ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income",
                         command=self._update_report_options_ui).pack(side='left', padx=5)
 
-        ## NEW ##: Dynamic frame for fixed item checkboxes
         self.fixed_item_frame = ttk.Frame(controls_frame)
         self.fixed_item_frame.pack(side='left', padx=10, fill='y')
         self.include_fixed_costs_var = tk.BooleanVar(value=False)
@@ -135,7 +135,7 @@ class FinanceTracker:
         self.include_base_income_var = tk.BooleanVar(value=False)
         self.base_income_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Base Income",
                                                        variable=self.include_base_income_var)
-        self._update_report_options_ui()  # Initial UI state update
+        self._update_report_options_ui()
 
         # Value type selection
         value_type_frame = ttk.Frame(controls_frame)
@@ -154,21 +154,18 @@ class FinanceTracker:
         self.chart_frame.pack(fill='both', expand=True, pady=10)
         self.canvas = None
 
-    ## NEW ##: Method to dynamically show the correct checkbox
     def _update_report_options_ui(self):
         """Shows or hides the relevant checkbutton based on the selected chart type."""
         chart_type = self.chart_type_var.get()
 
-        # Unpack both to clear the frame before repacking the correct one
         self.fixed_costs_checkbutton.pack_forget()
         self.base_income_checkbutton.pack_forget()
 
         if chart_type == "Expense":
             self.fixed_costs_checkbutton.pack()
-        else:  # Income
+        else:
             self.base_income_checkbutton.pack()
 
-    ## MODIFIED ##: Updated logic to include fixed costs/income
     def generate_pie_chart(self):
         month_str = self.chart_month_entry.get()
         chart_type = self.chart_type_var.get()
@@ -198,7 +195,6 @@ class FinanceTracker:
 
         month_data = [item for item in data if item['date'].startswith(month_str)]
 
-        # Aggregate flexible transaction data
         for item in month_data:
             category = item['category']
             amount = item['amount']
@@ -223,20 +219,13 @@ class FinanceTracker:
             def absolute_value(val):
                 a = (val / 100.) * sum(sizes)
                 return f'€{a:.2f}'
-
             autopct = absolute_value
 
         wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140,
                                           textprops=dict(color="w"))
-
         ax.axis('equal')
         ax.set_title(title)
-
-        ax.legend(wedges, labels,
-                  title="Categories",
-                  loc="center left",
-                  bbox_to_anchor=(1, 0, 0.5, 1))
-
+        ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
         plt.setp(autotexts, size=8, weight="bold")
         fig.tight_layout()
 
@@ -332,16 +321,22 @@ class FinanceTracker:
         if 'bank_account_balance' in self.budget_settings:
             self.bank_account_entry.insert(0, str(self.budget_settings['bank_account_balance']))
 
+        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=2, column=0, sticky='w', pady=5)
+        self.daily_savings_entry = ttk.Entry(settings_frame, width=15)
+        self.daily_savings_entry.grid(row=2, column=1, pady=5)
+        if 'daily_savings_goal' in self.budget_settings:
+            self.daily_savings_entry.insert(0, str(self.budget_settings['daily_savings_goal']))
+
         ttk.Button(settings_frame, text="Save Settings", command=self.save_settings).grid(
-            row=2, column=1, pady=10, sticky='e')
+            row=3, column=1, pady=10, sticky='e')
+
         management_frame = ttk.Frame(top_frame)
         management_frame.pack(side='left', fill='both', expand=True)
         fixed_costs_frame = ttk.LabelFrame(management_frame, text="Manage Fixed Monthly Costs", padding="10")
         fixed_costs_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
         fc_tree_frame = ttk.Frame(fixed_costs_frame)
         fc_tree_frame.pack(fill='x')
-        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount'), show='headings',
-                                             height=5)
+        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount'), show='headings', height=5)
         self.fixed_costs_tree.heading('Description', text='Description')
         self.fixed_costs_tree.heading('Amount', text='Amount (€)')
         self.fixed_costs_tree.column('Description', width=200)
@@ -408,28 +403,31 @@ class FinanceTracker:
             return
 
         current_balance = self.budget_settings.get('bank_account_balance', 0)
-        monthly_income = self.budget_settings.get('monthly_income', 0)
-        fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
-        net_monthly = monthly_income - fixed_costs
+        daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
 
         report = f"{'='*80}\n"
         report += f"BANK ACCOUNT PROJECTION\n"
         report += f"{'='*80}\n\n"
-        report += f"Starting Balance: €{current_balance:10.2f}\n"
-        report += f"Monthly Income:   €{monthly_income:10.2f}\n"
-        report += f"Fixed Costs:      -€{fixed_costs:10.2f}\n"
-        report += f"Net Monthly:      €{net_monthly:10.2f}\n"
+        report += f"This report projects your bank balance based on your current settings,\n"
+        report += f"assuming you meet your daily savings goal every day.\n\n"
+        report += f"Starting Balance:          €{current_balance:>10.2f}\n"
+        report += f"Target Daily Savings:      €{daily_savings_goal:>10.2f}\n"
         report += f"{'-'*80}\n\n"
-        report += f"{'Month':<15} {'Projected Balance'}\n"
+        report += f"{'Month':<15} {'Monthly Change':<20} {'Projected Balance'}\n"
         report += f"{'-'*80}\n"
 
         projected_balance = current_balance
         current_date = date.today()
 
         for i in range(num_months):
-            projected_balance += net_monthly
-            current_date += relativedelta(months=1)
-            report += f"{current_date.strftime('%Y-%m'):<15} €{projected_balance:10.2f}\n"
+            next_month_date = current_date + relativedelta(months=1)
+            days_in_month = (next_month_date - current_date).days
+            monthly_savings = daily_savings_goal * days_in_month
+            projected_balance += monthly_savings
+            
+            report += f"{current_date.strftime('%Y-%m'):<15} €{monthly_savings:<18.2f} €{projected_balance:10.2f}\n"
+            current_date = next_month_date
+
 
         report += f"{'-'*80}\n"
 
@@ -514,11 +512,9 @@ class FinanceTracker:
         total_flexible_income = sum(monthly_flexible_incomes)
         total_income = base_income + total_flexible_income
 
-        # Calculate flexible expenses for the selected month
         monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
         total_flexible_expenses = sum(monthly_expenses)
 
-        # Add fixed costs to the total expenses
         total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
         total_expenses = total_flexible_expenses + total_fixed_costs
 
@@ -554,12 +550,15 @@ class FinanceTracker:
         try:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
             bank_balance = float(self.bank_account_entry.get()) if self.bank_account_entry.get() else 0
+            savings_goal = float(self.daily_savings_entry.get()) if self.daily_savings_entry.get() else 0
+
             self.budget_settings['monthly_income'] = income
             self.budget_settings['bank_account_balance'] = bank_balance
+            self.budget_settings['daily_savings_goal'] = savings_goal
             self.save_data()
             messagebox.showinfo("Success", "Settings saved!")
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount.")
+            messagebox.showerror("Error", "Invalid amount in one of the fields.")
 
     def refresh_fixed_costs_tree(self):
         for item in self.fixed_costs_tree.get_children():
@@ -654,6 +653,7 @@ class FinanceTracker:
             self.refresh_category_list()
             self.update_categories()
 
+    ## MODIFIED ##: Removed the 50% target column and adjusted formatting
     def generate_daily_budget(self):
         month_str = self.budget_month.get()
         try:
@@ -661,36 +661,52 @@ class FinanceTracker:
         except ValueError:
             messagebox.showerror("Error", "Invalid month format. Use YYYY-MM.")
             return
+
+        # --- Data Gathering ---
         base_income = self.budget_settings.get('monthly_income', 0)
+        daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
         flex_income_month = sum(i['amount'] for i in self.incomes if i['date'].startswith(month_str))
         total_income = base_income + flex_income_month
         fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
         days_in_month = calendar.monthrange(year, month)[1]
-        flexible_budget = total_income - fixed_costs
+        
+        # --- Core Calculations ---
+        monthly_savings_goal = daily_savings_goal * days_in_month
+        original_flexible_budget = total_income - fixed_costs
+        spending_flexible_budget = original_flexible_budget - monthly_savings_goal
+
         if days_in_month == 0:
-            messagebox.showerror("Error", "Cannot divide by zero days in month.")
-            return
-        base_daily_budget = flexible_budget / days_in_month
+             messagebox.showerror("Error", "Cannot divide by zero days in month.")
+             return
+        
+        original_daily_budget = original_flexible_budget / days_in_month
+        spending_daily_budget = spending_flexible_budget / days_in_month
+        
         flex_expenses_month = [e for e in self.expenses if e['date'].startswith(month_str)]
         daily_expenses = {}
         for expense in flex_expenses_month:
             date = expense['date']
             daily_expenses.setdefault(date, []).append(expense)
-        report = f"{'=' * 80}\n"
+
+        # --- Report Generation ---
+        report = f"{'='*80}\n"
         report += f"DAILY BUDGET REPORT - {calendar.month_name[month]} {year}\n"
-        report += f"{'=' * 80}\n\n"
-        report += f"Base Monthly Income:       €{base_income:>10.2f}\n"
-        report += f"Flexible Income (Month):   €{flex_income_month:>10.2f}\n"
-        report += f"TOTAL INCOME:              €{total_income:>10.2f}\n"
-        report += f"Total Fixed Costs:        -€{fixed_costs:>10.2f}\n"
-        report += f"{'-' * 35}\n"
-        report += f"Available for Spending:    €{flexible_budget:>10.2f}\n"
-        report += f"Base Daily Budget:         €{base_daily_budget:>10.2f} (for {days_in_month} days)\n"
-        report += f"{'-' * 80}\n\n"
-        report += f"DAILY BREAKDOWN\n"
-        report += f"{'-' * 80}\n"
+        report += f"{'='*80}\n\n"
+        report += f"Base Monthly Income:                     €{base_income:>10.2f}\n"
+        report += f"Flexible Income (This Month):            €{flex_income_month:>10.2f}\n"
+        report += f"TOTAL INCOME:                            €{total_income:>10.2f}\n"
+        report += f"Total Fixed Costs:                      -€{fixed_costs:>10.2f}\n"
+        report += f"{'-'*50}\n"
+        report += f"Original Available for Spending:         €{original_flexible_budget:>10.2f} (Original Daily: €{original_daily_budget:.2f})\n"
+        report += f"Target Monthly Savings Goal:            -€{monthly_savings_goal:>10.2f} (Daily Goal: €{daily_savings_goal:.2f})\n"
+        report += f"{'-'*50}\n"
+        report += f"Net Available for SPENDING:              €{spending_flexible_budget:>10.2f} (TARGET DAILY SPENDING: €{spending_daily_budget:.2f})\n"
+        report += f"{'-'*80}\n\n"
+        report += f"DAILY BREAKDOWN (Based on your TARGET DAILY SPENDING budget)\n"
+        report += f"{'-'*80}\n"
         report += f"{'Date':<12} {'Budget':<12} {'Spent':<12} {'Saved':<12} {'Cumulative':<12} {'Status'}\n"
-        report += f"{'-' * 80}\n"
+        report += f"{'-'*80}\n"
+
         cumulative_savings = 0
         today = datetime.now().date()
         for day in range(1, days_in_month + 1):
@@ -698,31 +714,38 @@ class FinanceTracker:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
             if date_obj > today:
                 break
+            
             remaining_days = days_in_month - day
+            # Adjusts budget for the rest of the month based on past performance
             if remaining_days > 0:
-                adjusted_budget = base_daily_budget + (cumulative_savings / (remaining_days + 1))
+                adjusted_spending_budget = spending_daily_budget + (cumulative_savings / (remaining_days + 1))
             else:
-                adjusted_budget = base_daily_budget + cumulative_savings
+                adjusted_spending_budget = spending_daily_budget + cumulative_savings
+            
             day_total_spent = sum(e['amount'] for e in daily_expenses.get(date_str, []))
-            day_savings = adjusted_budget - day_total_spent
+            day_savings = adjusted_spending_budget - day_total_spent
             cumulative_savings += day_savings
             status = "✓ Under" if day_savings > 0 else ("✗ Over" if day_savings < 0 else "✓ Exact")
             if day_total_spent == 0: status = "- No spending"
-            report += (f"{date_str:<12} €{adjusted_budget:<10.2f} €{day_total_spent:<10.2f} "
+
+            report += (f"{date_str:<12} €{adjusted_spending_budget:<10.2f} €{day_total_spent:<10.2f} "
                        f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
-        report += f"{'-' * 80}\n\n"
+        report += f"{'-'*80}\n\n"
+
+        # --- Forecast Section ---
         if today.year == year and today.month == month and today.day < days_in_month:
             remaining_days_forecast = days_in_month - today.day
             if remaining_days_forecast > 0:
-                future_daily_budget = base_daily_budget + (cumulative_savings / remaining_days_forecast)
+                future_daily_budget = spending_daily_budget + (cumulative_savings / remaining_days_forecast)
                 report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
-                report += f"{'-' * 80}\n"
-                report += f"Your new recommended daily budget is: €{future_daily_budget:.2f}\n"
+                report += f"{'-'*80}\n"
+                report += f"Your new recommended daily SPENDING budget is: €{future_daily_budget:.2f}\n"
                 if cumulative_savings > 0:
                     report += "Great job! Your savings have been spread out, giving you more to spend each day.\n"
                 else:
                     report += "You're over budget. Try to stick to this lower daily amount to get back on track.\n"
-                report += f"{'-' * 80}\n"
+                report += f"{'-'*80}\n"
+
         self.budget_text.delete(1.0, tk.END)
         self.budget_text.insert(1.0, report)
 
