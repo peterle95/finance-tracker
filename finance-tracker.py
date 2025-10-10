@@ -1,9 +1,10 @@
 import tkinter as tk
 from tkinter import ttk, messagebox
 import json
-from datetime import datetime
+from datetime import datetime, date
 from pathlib import Path
 import calendar
+from dateutil.relativedelta import relativedelta
 
 ## NEW ##: Import matplotlib for charting
 from matplotlib.figure import Figure
@@ -18,7 +19,7 @@ class FinanceTracker:
         self.root.geometry("1250x750")
 
         # Data file
-        self.data_file = Path("finance_data_v2.json")
+        self.data_file = Path("finance_data.json")
         self.load_data()
 
         # UI Styling
@@ -53,9 +54,12 @@ class FinanceTracker:
             self.budget_settings['fixed_costs'] = []
         if 'monthly_income' not in self.budget_settings:
             self.budget_settings['monthly_income'] = 0
-            
+        if 'bank_account_balance' not in self.budget_settings:
+            self.budget_settings['bank_account_balance'] = 0
+
         if 'Expense' not in self.categories or not self.categories['Expense']:
-            self.categories['Expense'] = ["Food", "Transportation", "Entertainment", "Utilities", "Shopping", "Healthcare", "Other"]
+            self.categories['Expense'] = ["Food", "Transportation", "Entertainment", "Utilities", "Shopping",
+                                          "Healthcare", "Other"]
         if 'Income' not in self.categories or not self.categories['Income']:
             self.categories['Income'] = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
 
@@ -90,7 +94,11 @@ class FinanceTracker:
         self.budget_tab = ttk.Frame(notebook)
         notebook.add(self.budget_tab, text="Budget & Settings")
         self.create_budget_tab()
-    
+
+        self.projection_tab = ttk.Frame(notebook)
+        notebook.add(self.projection_tab, text="Projection")
+        self.create_projection_tab()
+
     ## MODIFIED ##: Reworked the layout and added new options
     def create_reports_tab(self):
         """Create the UI for the reports tab with a pie chart"""
@@ -113,27 +121,34 @@ class FinanceTracker:
         type_frame.pack(side='left', padx=10, fill='y')
         ttk.Label(type_frame, text="Chart Type:").pack(side='left')
         self.chart_type_var = tk.StringVar(value="Expense")
-        ttk.Radiobutton(type_frame, text="Expenses", variable=self.chart_type_var, value="Expense", command=self._update_report_options_ui).pack(side='left')
-        ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income", command=self._update_report_options_ui).pack(side='left', padx=5)
+        ttk.Radiobutton(type_frame, text="Expenses", variable=self.chart_type_var, value="Expense",
+                        command=self._update_report_options_ui).pack(side='left')
+        ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income",
+                        command=self._update_report_options_ui).pack(side='left', padx=5)
 
         ## NEW ##: Dynamic frame for fixed item checkboxes
         self.fixed_item_frame = ttk.Frame(controls_frame)
         self.fixed_item_frame.pack(side='left', padx=10, fill='y')
         self.include_fixed_costs_var = tk.BooleanVar(value=False)
-        self.fixed_costs_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Fixed Costs", variable=self.include_fixed_costs_var)
+        self.fixed_costs_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Fixed Costs",
+                                                      variable=self.include_fixed_costs_var)
         self.include_base_income_var = tk.BooleanVar(value=False)
-        self.base_income_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Base Income", variable=self.include_base_income_var)
-        self._update_report_options_ui() # Initial UI state update
+        self.base_income_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Base Income",
+                                                       variable=self.include_base_income_var)
+        self._update_report_options_ui()  # Initial UI state update
 
         # Value type selection
         value_type_frame = ttk.Frame(controls_frame)
         value_type_frame.pack(side='left', padx=10, fill='y')
         ttk.Label(value_type_frame, text="Display As:").pack(side='left')
         self.chart_value_type_var = tk.StringVar(value="Percentage")
-        ttk.Radiobutton(value_type_frame, text="Percentage", variable=self.chart_value_type_var, value="Percentage").pack(side='left')
-        ttk.Radiobutton(value_type_frame, text="Total Amount", variable=self.chart_value_type_var, value="Total").pack(side='left', padx=5)
-        
-        ttk.Button(controls_frame, text="Generate Chart", command=self.generate_pie_chart).pack(side='left', padx=20, fill='y')
+        ttk.Radiobutton(value_type_frame, text="Percentage", variable=self.chart_value_type_var,
+                        value="Percentage").pack(side='left')
+        ttk.Radiobutton(value_type_frame, text="Total Amount", variable=self.chart_value_type_var,
+                        value="Total").pack(side='left', padx=5)
+
+        ttk.Button(controls_frame, text="Generate Chart", command=self.generate_pie_chart).pack(side='left', padx=20,
+                                                                                                 fill='y')
 
         self.chart_frame = ttk.Frame(main_frame)
         self.chart_frame.pack(fill='both', expand=True, pady=10)
@@ -143,16 +158,15 @@ class FinanceTracker:
     def _update_report_options_ui(self):
         """Shows or hides the relevant checkbutton based on the selected chart type."""
         chart_type = self.chart_type_var.get()
-        
+
         # Unpack both to clear the frame before repacking the correct one
         self.fixed_costs_checkbutton.pack_forget()
         self.base_income_checkbutton.pack_forget()
 
         if chart_type == "Expense":
             self.fixed_costs_checkbutton.pack()
-        else: # Income
+        else:  # Income
             self.base_income_checkbutton.pack()
-
 
     ## MODIFIED ##: Updated logic to include fixed costs/income
     def generate_pie_chart(self):
@@ -181,7 +195,7 @@ class FinanceTracker:
                 base_income = self.budget_settings.get('monthly_income', 0)
                 if base_income > 0:
                     category_totals['Base Income'] = base_income
-            
+
         month_data = [item for item in data if item['date'].startswith(month_str)]
 
         # Aggregate flexible transaction data
@@ -196,27 +210,28 @@ class FinanceTracker:
 
         labels = category_totals.keys()
         sizes = category_totals.values()
-        
+
         if self.canvas:
             self.canvas.get_tk_widget().destroy()
 
         fig = Figure(figsize=(8, 6), dpi=100)
         ax = fig.add_subplot(111)
-        
+
         if value_type == "Percentage":
             autopct = '%1.1f%%'
         else:
             def absolute_value(val):
-                a = (val/100.) * sum(sizes)
+                a = (val / 100.) * sum(sizes)
                 return f'€{a:.2f}'
+
             autopct = absolute_value
-            
+
         wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140,
                                           textprops=dict(color="w"))
 
         ax.axis('equal')
         ax.set_title(title)
-        
+
         ax.legend(wedges, labels,
                   title="Categories",
                   loc="center left",
@@ -304,20 +319,29 @@ class FinanceTracker:
         top_frame.pack(fill='x', pady=(0, 10))
         settings_frame = ttk.LabelFrame(top_frame, text="Monthly Settings", padding="10")
         settings_frame.pack(side='left', fill='y', padx=(0, 10), anchor='n')
+
         ttk.Label(settings_frame, text="Base Monthly Income:").grid(row=0, column=0, sticky='w', pady=5)
         self.income_entry = ttk.Entry(settings_frame, width=15)
         self.income_entry.grid(row=0, column=1, pady=5)
         if 'monthly_income' in self.budget_settings:
             self.income_entry.insert(0, str(self.budget_settings['monthly_income']))
-        ttk.Button(settings_frame, text="Save Income", command=self.save_base_income).grid(
-            row=1, column=1, pady=10, sticky='e')
+
+        ttk.Label(settings_frame, text="Bank Account Balance:").grid(row=1, column=0, sticky='w', pady=5)
+        self.bank_account_entry = ttk.Entry(settings_frame, width=15)
+        self.bank_account_entry.grid(row=1, column=1, pady=5)
+        if 'bank_account_balance' in self.budget_settings:
+            self.bank_account_entry.insert(0, str(self.budget_settings['bank_account_balance']))
+
+        ttk.Button(settings_frame, text="Save Settings", command=self.save_settings).grid(
+            row=2, column=1, pady=10, sticky='e')
         management_frame = ttk.Frame(top_frame)
         management_frame.pack(side='left', fill='both', expand=True)
         fixed_costs_frame = ttk.LabelFrame(management_frame, text="Manage Fixed Monthly Costs", padding="10")
         fixed_costs_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
         fc_tree_frame = ttk.Frame(fixed_costs_frame)
         fc_tree_frame.pack(fill='x')
-        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount'), show='headings', height=5)
+        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount'), show='headings',
+                                             height=5)
         self.fixed_costs_tree.heading('Description', text='Description')
         self.fixed_costs_tree.heading('Amount', text='Amount (€)')
         self.fixed_costs_tree.column('Description', width=200)
@@ -328,10 +352,10 @@ class FinanceTracker:
         self.fixed_costs_tree.configure(yscrollcommand=fc_scrollbar.set)
         fc_form_frame = ttk.Frame(fixed_costs_frame)
         fc_form_frame.pack(fill='x', pady=10)
-        ttk.Label(fc_form_frame, text="Desc:").pack(side='left', padx=(0,5))
+        ttk.Label(fc_form_frame, text="Desc:").pack(side='left', padx=(0, 5))
         self.fc_desc_entry = ttk.Entry(fc_form_frame, width=20)
         self.fc_desc_entry.pack(side='left')
-        ttk.Label(fc_form_frame, text="Amount:").pack(side='left', padx=(10,5))
+        ttk.Label(fc_form_frame, text="Amount:").pack(side='left', padx=(10, 5))
         self.fc_amount_entry = ttk.Entry(fc_form_frame, width=10)
         self.fc_amount_entry.pack(side='left')
         fc_btn_frame = ttk.Frame(fixed_costs_frame)
@@ -350,9 +374,67 @@ class FinanceTracker:
         self.budget_month = ttk.Entry(month_frame, width=15)
         self.budget_month.insert(0, datetime.now().strftime("%Y-%m"))
         self.budget_month.pack(side='left', padx=5)
-        ttk.Button(month_frame, text="Generate Report", command=self.generate_daily_budget).pack(side='left', padx=10)
+        ttk.Button(month_frame, text="Generate Report", command=self.generate_daily_budget).pack(side='left',
+                                                                                                  padx=10)
         self.budget_text = tk.Text(report_frame, height=20, width=90, font=('Courier New', 9))
         self.budget_text.pack(fill='both', expand=True, pady=10)
+
+    def create_projection_tab(self):
+        main_frame = ttk.Frame(self.projection_tab, padding="10")
+        main_frame.pack(fill='both', expand=True)
+
+        controls_frame = ttk.LabelFrame(main_frame, text="Projection Options", padding="10")
+        controls_frame.pack(fill='x', pady=5)
+
+        ttk.Label(controls_frame, text="Number of months to project:").pack(side='left', padx=5)
+        self.projection_months_entry = ttk.Entry(controls_frame, width=10)
+        self.projection_months_entry.insert(0, "12")
+        self.projection_months_entry.pack(side='left', padx=5)
+
+        ttk.Button(controls_frame, text="Generate Projection", command=self.generate_projection).pack(side='left',
+                                                                                                        padx=20)
+
+        self.projection_text = tk.Text(main_frame, height=20, width=90, font=('Courier New', 9))
+        self.projection_text.pack(fill='both', expand=True, pady=10)
+
+    def generate_projection(self):
+        try:
+            num_months = int(self.projection_months_entry.get())
+            if num_months <= 0:
+                messagebox.showerror("Error", "Number of months must be positive.")
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Invalid number of months.")
+            return
+
+        current_balance = self.budget_settings.get('bank_account_balance', 0)
+        monthly_income = self.budget_settings.get('monthly_income', 0)
+        fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
+        net_monthly = monthly_income - fixed_costs
+
+        report = f"{'='*80}\n"
+        report += f"BANK ACCOUNT PROJECTION\n"
+        report += f"{'='*80}\n\n"
+        report += f"Starting Balance: €{current_balance:10.2f}\n"
+        report += f"Monthly Income:   €{monthly_income:10.2f}\n"
+        report += f"Fixed Costs:      -€{fixed_costs:10.2f}\n"
+        report += f"Net Monthly:      €{net_monthly:10.2f}\n"
+        report += f"{'-'*80}\n\n"
+        report += f"{'Month':<15} {'Projected Balance'}\n"
+        report += f"{'-'*80}\n"
+
+        projected_balance = current_balance
+        current_date = date.today()
+
+        for i in range(num_months):
+            projected_balance += net_monthly
+            current_date += relativedelta(months=1)
+            report += f"{current_date.strftime('%Y-%m'):<15} €{projected_balance:10.2f}\n"
+
+        report += f"{'-'*80}\n"
+
+        self.projection_text.delete(1.0, tk.END)
+        self.projection_text.insert(1.0, report)
 
     def create_category_management_widgets(self, parent_frame):
         self.cat_type_var = tk.StringVar(value="Expense")
@@ -374,7 +456,7 @@ class FinanceTracker:
         self.category_tree.configure(yscrollcommand=cat_scrollbar.set)
         cat_form_frame = ttk.Frame(parent_frame)
         cat_form_frame.pack(fill='x', pady=5)
-        ttk.Label(cat_form_frame, text="Name:").pack(side='left', padx=(0,5))
+        ttk.Label(cat_form_frame, text="Name:").pack(side='left', padx=(0, 5))
         self.cat_name_entry = ttk.Entry(cat_form_frame, width=25)
         self.cat_name_entry.pack(side='left')
         cat_btn_frame = ttk.Frame(parent_frame)
@@ -431,21 +513,20 @@ class FinanceTracker:
         monthly_flexible_incomes = [i['amount'] for i in self.incomes if i['date'].startswith(filter_month)]
         total_flexible_income = sum(monthly_flexible_incomes)
         total_income = base_income + total_flexible_income
-        
+
         # Calculate flexible expenses for the selected month
         monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
         total_flexible_expenses = sum(monthly_expenses)
-        
+
         # Add fixed costs to the total expenses
         total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
         total_expenses = total_flexible_expenses + total_fixed_costs
-        
+
         net = total_income - total_expenses
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
                         f"Net: €{net:.2f}")
         self.summary_label.config(text=summary_text)
-
 
     def delete_transaction(self):
         selected_item = self.transaction_tree.selection()
@@ -469,15 +550,17 @@ class FinanceTracker:
             self.save_data()
             self.refresh_transaction_list()
 
-    def save_base_income(self):
+    def save_settings(self):
         try:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
+            bank_balance = float(self.bank_account_entry.get()) if self.bank_account_entry.get() else 0
             self.budget_settings['monthly_income'] = income
+            self.budget_settings['bank_account_balance'] = bank_balance
             self.save_data()
-            messagebox.showinfo("Success", "Base monthly income saved!")
+            messagebox.showinfo("Success", "Settings saved!")
         except ValueError:
-            messagebox.showerror("Error", "Invalid income amount.")
-    
+            messagebox.showerror("Error", "Invalid amount.")
+
     def refresh_fixed_costs_tree(self):
         for item in self.fixed_costs_tree.get_children():
             self.fixed_costs_tree.delete(item)
@@ -564,7 +647,8 @@ class FinanceTracker:
         if category_to_delete.lower() == "other":
             messagebox.showerror("Error", "Cannot delete the 'Other' category.")
             return
-        if messagebox.askyesno("Confirm", f"Are you sure you want to delete the '{category_to_delete}' category? \nExisting transactions with this category will not be changed."):
+        if messagebox.askyesno("Confirm",
+                               f"Are you sure you want to delete the '{category_to_delete}' category? \nExisting transactions with this category will not be changed."):
             self.categories[cat_type].remove(category_to_delete)
             self.save_data()
             self.refresh_category_list()
@@ -584,29 +668,29 @@ class FinanceTracker:
         days_in_month = calendar.monthrange(year, month)[1]
         flexible_budget = total_income - fixed_costs
         if days_in_month == 0:
-             messagebox.showerror("Error", "Cannot divide by zero days in month.")
-             return
+            messagebox.showerror("Error", "Cannot divide by zero days in month.")
+            return
         base_daily_budget = flexible_budget / days_in_month
         flex_expenses_month = [e for e in self.expenses if e['date'].startswith(month_str)]
         daily_expenses = {}
         for expense in flex_expenses_month:
             date = expense['date']
             daily_expenses.setdefault(date, []).append(expense)
-        report = f"{'='*80}\n"
+        report = f"{'=' * 80}\n"
         report += f"DAILY BUDGET REPORT - {calendar.month_name[month]} {year}\n"
-        report += f"{'='*80}\n\n"
+        report += f"{'=' * 80}\n\n"
         report += f"Base Monthly Income:       €{base_income:>10.2f}\n"
         report += f"Flexible Income (Month):   €{flex_income_month:>10.2f}\n"
         report += f"TOTAL INCOME:              €{total_income:>10.2f}\n"
         report += f"Total Fixed Costs:        -€{fixed_costs:>10.2f}\n"
-        report += f"{'-'*35}\n"
+        report += f"{'-' * 35}\n"
         report += f"Available for Spending:    €{flexible_budget:>10.2f}\n"
         report += f"Base Daily Budget:         €{base_daily_budget:>10.2f} (for {days_in_month} days)\n"
-        report += f"{'-'*80}\n\n"
+        report += f"{'-' * 80}\n\n"
         report += f"DAILY BREAKDOWN\n"
-        report += f"{'-'*80}\n"
+        report += f"{'-' * 80}\n"
         report += f"{'Date':<12} {'Budget':<12} {'Spent':<12} {'Saved':<12} {'Cumulative':<12} {'Status'}\n"
-        report += f"{'-'*80}\n"
+        report += f"{'-' * 80}\n"
         cumulative_savings = 0
         today = datetime.now().date()
         for day in range(1, days_in_month + 1):
@@ -626,26 +710,28 @@ class FinanceTracker:
             if day_total_spent == 0: status = "- No spending"
             report += (f"{date_str:<12} €{adjusted_budget:<10.2f} €{day_total_spent:<10.2f} "
                        f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
-        report += f"{'-'*80}\n\n"
+        report += f"{'-' * 80}\n\n"
         if today.year == year and today.month == month and today.day < days_in_month:
             remaining_days_forecast = days_in_month - today.day
             if remaining_days_forecast > 0:
                 future_daily_budget = base_daily_budget + (cumulative_savings / remaining_days_forecast)
                 report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
-                report += f"{'-'*80}\n"
+                report += f"{'-' * 80}\n"
                 report += f"Your new recommended daily budget is: €{future_daily_budget:.2f}\n"
                 if cumulative_savings > 0:
                     report += "Great job! Your savings have been spread out, giving you more to spend each day.\n"
                 else:
                     report += "You're over budget. Try to stick to this lower daily amount to get back on track.\n"
-                report += f"{'-'*80}\n"
+                report += f"{'-' * 80}\n"
         self.budget_text.delete(1.0, tk.END)
         self.budget_text.insert(1.0, report)
+
 
 def main():
     root = tk.Tk()
     app = FinanceTracker(root)
     root.mainloop()
+
 
 if __name__ == "__main__":
     main()
