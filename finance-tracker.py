@@ -758,8 +758,9 @@ class FinanceTracker:
                     total_expenses = total_flexible_expenses + fixed_costs
                     net_value = total_income - total_expenses
                     
-                    report += f"You have overspent your flexible budget for the month.\n"
                     report += f"Your cumulative spending deficit is currently €{-cumulative_deficit:.2f}.\n\n"
+                    report += f"You have overspent your flexible budget for the month.\n"
+                    report += f"No further flexible budget left for the remainder of the month.\n\n"
                     report += f"--- Understanding the Key Numbers ---\n\n"
                     report += f"It's important to understand what the 'Net Value' and 'Cumulative Deficit' represent:\n\n"
                     report += f" * Summary Net Value (€{net_value:.2f}): This is your actual financial bottom line for the month.\n"
@@ -772,9 +773,8 @@ class FinanceTracker:
                     report += f"   versus your total expenses, the Cumulative number is the\n"
                     report += f"   day-by-day indicator that helps you manage your spending to achieve\n"
                     report += f"   a good Net Value at the end of the month.\n\n"
-                    report += f"   his method forces you to pay attention to the Cumulative value. The system is essentially saying,\n"
+                    report += f"   This method forces you to pay attention to the Cumulative value. The system is essentially saying,\n"
                     report += f"   \"Your goal is always €{spending_daily_budget:.2f}/day, but you are currently €{cumulative_deficit:.2f} behind schedule.\"\n\n"
-                    report += f"To get back on track, you have no further flexible budget for the remainder of the month.\n"
 
                 else:
                     report += f"Your new recommended daily SPENDING budget is: €{future_daily_budget:.2f}\n"
