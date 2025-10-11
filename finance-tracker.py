@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk, messagebox
+from tkinter import ttk, messagebox, filedialog
 import json
 from datetime import datetime, date
 from pathlib import Path
@@ -109,7 +109,6 @@ class FinanceTracker:
         controls_frame = ttk.LabelFrame(main_frame, text="Chart Options", padding="10")
         controls_frame.pack(fill='x', pady=5)
 
-        # Month selection
         month_frame = ttk.Frame(controls_frame)
         month_frame.pack(side='left', padx=10, fill='y')
         ttk.Label(month_frame, text="Select Month:").pack(side='left')
@@ -117,7 +116,6 @@ class FinanceTracker:
         self.chart_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.chart_month_entry.pack(side='left', padx=5)
 
-        # Transaction type selection
         type_frame = ttk.Frame(controls_frame)
         type_frame.pack(side='left', padx=10, fill='y')
         ttk.Label(type_frame, text="Chart Type:").pack(side='left')
@@ -137,7 +135,6 @@ class FinanceTracker:
                                                        variable=self.include_base_income_var)
         self._update_report_options_ui()
 
-        # Value type selection
         value_type_frame = ttk.Frame(controls_frame)
         value_type_frame.pack(side='left', padx=10, fill='y')
         ttk.Label(value_type_frame, text="Display As:").pack(side='left')
@@ -155,12 +152,9 @@ class FinanceTracker:
         self.canvas = None
 
     def _update_report_options_ui(self):
-        """Shows or hides the relevant checkbutton based on the selected chart type."""
         chart_type = self.chart_type_var.get()
-
         self.fixed_costs_checkbutton.pack_forget()
         self.base_income_checkbutton.pack_forget()
-
         if chart_type == "Expense":
             self.fixed_costs_checkbutton.pack()
         else:
@@ -170,13 +164,11 @@ class FinanceTracker:
         month_str = self.chart_month_entry.get()
         chart_type = self.chart_type_var.get()
         value_type = self.chart_value_type_var.get()
-
         try:
             datetime.strptime(month_str, "%Y-%m")
         except ValueError:
             messagebox.showerror("Error", "Invalid month format. Please use YYYY-MM.")
             return
-
         category_totals = {}
         if chart_type == "Expense":
             data = self.expenses
@@ -192,27 +184,20 @@ class FinanceTracker:
                 base_income = self.budget_settings.get('monthly_income', 0)
                 if base_income > 0:
                     category_totals['Base Income'] = base_income
-
         month_data = [item for item in data if item['date'].startswith(month_str)]
-
         for item in month_data:
             category = item['category']
             amount = item['amount']
             category_totals[category] = category_totals.get(category, 0) + amount
-
         if not category_totals:
             messagebox.showinfo("No Data", f"No data to display for {month_str}.")
             return
-
         labels = category_totals.keys()
         sizes = category_totals.values()
-
         if self.canvas:
             self.canvas.get_tk_widget().destroy()
-
         fig = Figure(figsize=(8, 6), dpi=100)
         ax = fig.add_subplot(111)
-
         if value_type == "Percentage":
             autopct = '%1.1f%%'
         else:
@@ -220,15 +205,12 @@ class FinanceTracker:
                 a = (val / 100.) * sum(sizes)
                 return f'€{a:.2f}'
             autopct = absolute_value
-
-        wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140,
-                                          textprops=dict(color="w"))
+        wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140, textprops=dict(color="w"))
         ax.axis('equal')
         ax.set_title(title)
         ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
         plt.setp(autotexts, size=8, weight="bold")
         fig.tight_layout()
-
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True)
@@ -369,8 +351,8 @@ class FinanceTracker:
         self.budget_month = ttk.Entry(month_frame, width=15)
         self.budget_month.insert(0, datetime.now().strftime("%Y-%m"))
         self.budget_month.pack(side='left', padx=5)
-        ttk.Button(month_frame, text="Generate Report", command=self.generate_daily_budget).pack(side='left',
-                                                                                                  padx=10)
+        ttk.Button(month_frame, text="Generate Report", command=self.generate_daily_budget).pack(side='left', padx=10)
+        ttk.Button(month_frame, text="Export Report", command=self.export_daily_budget_report).pack(side='left', padx=5)
         self.budget_text = tk.Text(report_frame, height=20, width=90, font=('Courier New', 9))
         self.budget_text.pack(fill='both', expand=True, pady=10)
 
@@ -386,11 +368,53 @@ class FinanceTracker:
         self.projection_months_entry.insert(0, "12")
         self.projection_months_entry.pack(side='left', padx=5)
 
-        ttk.Button(controls_frame, text="Generate Projection", command=self.generate_projection).pack(side='left',
-                                                                                                        padx=20)
+        ttk.Button(controls_frame, text="Generate Projection", command=self.generate_projection).pack(side='left', padx=20)
+        ttk.Button(controls_frame, text="Export Projection", command=self.export_projection_report).pack(side='left', padx=5)
 
         self.projection_text = tk.Text(main_frame, height=20, width=90, font=('Courier New', 9))
         self.projection_text.pack(fill='both', expand=True, pady=10)
+
+    def export_daily_budget_report(self):
+        report_content = self.budget_text.get("1.0", tk.END).strip()
+        if not report_content:
+            messagebox.showwarning("Warning", "Please generate a report before exporting.")
+            return
+        month_str = self.budget_month.get()
+        default_filename = f"daily_budget_report_{month_str}.txt"
+        filepath = filedialog.asksaveasfilename(
+            initialfile=default_filename,
+            defaultextension=".txt",
+            filetypes=[("Text Documents", "*.txt"), ("All Files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(report_content)
+            messagebox.showinfo("Success", f"Report successfully exported to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export report.\nError: {e}")
+
+    def export_projection_report(self):
+        report_content = self.projection_text.get("1.0", tk.END).strip()
+        if not report_content:
+            messagebox.showwarning("Warning", "Please generate a projection before exporting.")
+            return
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        default_filename = f"bank_projection_{today_str}.txt"
+        filepath = filedialog.asksaveasfilename(
+            initialfile=default_filename,
+            defaultextension=".txt",
+            filetypes=[("Text Documents", "*.txt"), ("All Files", "*.*")]
+        )
+        if not filepath:
+            return
+        try:
+            with open(filepath, 'w', encoding='utf-8') as f:
+                f.write(report_content)
+            messagebox.showinfo("Success", f"Projection successfully exported to:\n{filepath}")
+        except Exception as e:
+            messagebox.showerror("Error", f"Failed to export projection.\nError: {e}")
 
     def generate_projection(self):
         try:
@@ -428,7 +452,6 @@ class FinanceTracker:
             report += f"{current_date.strftime('%Y-%m'):<15} €{monthly_savings:<18.2f} €{projected_balance:10.2f}\n"
             current_date = next_month_date
 
-
         report += f"{'-'*80}\n"
 
         self.projection_text.delete(1.0, tk.END)
@@ -464,8 +487,8 @@ class FinanceTracker:
 
     def add_transaction(self):
         try:
-            date = self.date_entry.get()
-            datetime.strptime(date, "%Y-%m-%d")
+            date_str = self.date_entry.get()
+            datetime.strptime(date_str, "%Y-%m-%d")
             amount = float(self.amount_entry.get())
             category = self.category_var.get()
             description = self.description_entry.get()
@@ -473,7 +496,7 @@ class FinanceTracker:
             if not category:
                 messagebox.showerror("Error", "Please select a category.")
                 return
-            transaction = {'date': date, 'amount': amount, 'category': category, 'description': description}
+            transaction = {'date': date_str, 'amount': amount, 'category': category, 'description': description}
             if trans_type == "Expense":
                 self.expenses.append(transaction)
             else:
@@ -511,13 +534,10 @@ class FinanceTracker:
         monthly_flexible_incomes = [i['amount'] for i in self.incomes if i['date'].startswith(filter_month)]
         total_flexible_income = sum(monthly_flexible_incomes)
         total_income = base_income + total_flexible_income
-
         monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
         total_flexible_expenses = sum(monthly_expenses)
-
         total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
         total_expenses = total_flexible_expenses + total_fixed_costs
-
         net = total_income - total_expenses
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
@@ -532,9 +552,9 @@ class FinanceTracker:
         if messagebox.askyesno("Confirm", "Are you sure you want to delete the selected transaction?"):
             item = self.transaction_tree.item(selected_item[0])
             values = item['values']
-            date, trans_type, amount_str, category, desc = values
+            date_str, trans_type, amount_str, category, desc = values
             target_transaction = {
-                'date': date,
+                'date': date_str,
                 'amount': float(amount_str.replace('€', '')),
                 'category': category,
                 'description': desc
@@ -551,7 +571,6 @@ class FinanceTracker:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
             bank_balance = float(self.bank_account_entry.get()) if self.bank_account_entry.get() else 0
             savings_goal = float(self.daily_savings_entry.get()) if self.daily_savings_entry.get() else 0
-
             self.budget_settings['monthly_income'] = income
             self.budget_settings['bank_account_balance'] = bank_balance
             self.budget_settings['daily_savings_goal'] = savings_goal
@@ -653,7 +672,7 @@ class FinanceTracker:
             self.refresh_category_list()
             self.update_categories()
 
-    ## MODIFIED ##: Removed the 50% target column and adjusted formatting
+    ## MODIFIED ##: Added a clear explanation for the difference between Net and Over Budget values.
     def generate_daily_budget(self):
         month_str = self.budget_month.get()
         try:
@@ -669,24 +688,24 @@ class FinanceTracker:
         total_income = base_income + flex_income_month
         fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
         days_in_month = calendar.monthrange(year, month)[1]
-        
+
         # --- Core Calculations ---
         monthly_savings_goal = daily_savings_goal * days_in_month
         original_flexible_budget = total_income - fixed_costs
         spending_flexible_budget = original_flexible_budget - monthly_savings_goal
 
         if days_in_month == 0:
-             messagebox.showerror("Error", "Cannot divide by zero days in month.")
-             return
-        
+            messagebox.showerror("Error", "Cannot divide by zero days in month.")
+            return
+
         original_daily_budget = original_flexible_budget / days_in_month
         spending_daily_budget = spending_flexible_budget / days_in_month
-        
+
         flex_expenses_month = [e for e in self.expenses if e['date'].startswith(month_str)]
         daily_expenses = {}
         for expense in flex_expenses_month:
-            date = expense['date']
-            daily_expenses.setdefault(date, []).append(expense)
+            expense_date = expense['date']
+            daily_expenses.setdefault(expense_date, []).append(expense)
 
         # --- Report Generation ---
         report = f"{'='*80}\n"
@@ -714,22 +733,29 @@ class FinanceTracker:
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
             if date_obj > today:
                 break
-            
+
             remaining_days = days_in_month - day
-            # Adjusts budget for the rest of the month based on past performance
             if remaining_days > 0:
                 adjusted_spending_budget = spending_daily_budget + (cumulative_savings / (remaining_days + 1))
             else:
                 adjusted_spending_budget = spending_daily_budget + cumulative_savings
-            
-            day_total_spent = sum(e['amount'] for e in daily_expenses.get(date_str, []))
-            day_savings = adjusted_spending_budget - day_total_spent
-            cumulative_savings += day_savings
-            status = "✓ Under" if day_savings > 0 else ("✗ Over" if day_savings < 0 else "✓ Exact")
-            if day_total_spent == 0: status = "- No spending"
 
-            report += (f"{date_str:<12} €{adjusted_spending_budget:<10.2f} €{day_total_spent:<10.2f} "
-                       f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
+            day_total_spent = sum(e['amount'] for e in daily_expenses.get(date_str, []))
+
+            if adjusted_spending_budget < 0:
+                day_savings = 0 - day_total_spent
+                cumulative_savings += day_savings
+                status = "✗ Over" if day_total_spent > 0 else "- No spending"
+                report += (f"{date_str:<12} {'No Budget':<12} €{day_total_spent:<10.2f} "
+                           f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
+            else:
+                day_savings = adjusted_spending_budget - day_total_spent
+                cumulative_savings += day_savings
+                status = "✓ Under" if day_savings > 0 else ("✗ Over" if day_savings < 0 else "✓ Exact")
+                if day_total_spent == 0: status = "- No spending"
+                report += (f"{date_str:<12} €{adjusted_spending_budget:<10.2f} €{day_total_spent:<10.2f} "
+                           f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
+
         report += f"{'-'*80}\n\n"
 
         # --- Forecast Section ---
@@ -739,16 +765,36 @@ class FinanceTracker:
                 future_daily_budget = spending_daily_budget + (cumulative_savings / remaining_days_forecast)
                 report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
                 report += f"{'-'*80}\n"
-                report += f"Your new recommended daily SPENDING budget is: €{future_daily_budget:.2f}\n"
-                if cumulative_savings > 0:
-                    report += "Great job! Your savings have been spread out, giving you more to spend each day.\n"
+
+                if future_daily_budget < 0:
+                    # --- ADDED THIS SECTION ---
+                    # Recalculate Net value for the explanation
+                    total_flexible_expenses = sum(e['amount'] for e in flex_expenses_month)
+                    total_expenses = total_flexible_expenses + fixed_costs
+                    net_value = total_income - total_expenses
+
+                    report += f"You have already overspent your total budget for the month.\n"
+                    report += f"You are currently €{-cumulative_savings:.2f} over budget according to your plan.\n\n"
+                    report += f"--- Explanation of the Numbers ---\n"
+                    report += f"The 'Over Budget' amount is different from the 'Net' value in the summary bar.\n\n"
+                    report += f" * Summary Net Value (€{net_value:.2f}): This is your simple cash flow.\n"
+                    report += f"   It shows you've spent this much more than you've earned.\n\n"
+                    report += f" * Over Budget Amount (€{-cumulative_savings:.2f}): This measures you against your PLAN,\n"
+                    report += f"   which includes your savings goal. It's your cash deficit PLUS the\n"
+                    report += f"   savings you were supposed to make.\n\n"
+                    report += f"Therefore, no daily spending budget is available for the rest of the month.\n"
+                    # --- END OF ADDED SECTION ---
                 else:
-                    report += "You're over budget. Try to stick to this lower daily amount to get back on track.\n"
+                    report += f"Your new recommended daily SPENDING budget is: €{future_daily_budget:.2f}\n"
+                    if cumulative_savings > 0:
+                        report += "Great job! Your savings have been spread out, giving you more to spend each day.\n"
+                    else:
+                        report += "You're over budget, but still have funds. Stick to this lower daily amount to recover.\n"
+
                 report += f"{'-'*80}\n"
 
         self.budget_text.delete(1.0, tk.END)
         self.budget_text.insert(1.0, report)
-
 
 def main():
     root = tk.Tk()
