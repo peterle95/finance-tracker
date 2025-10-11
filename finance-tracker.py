@@ -380,7 +380,8 @@ class FinanceTracker:
             messagebox.showwarning("Warning", "Please generate a report before exporting.")
             return
         month_str = self.budget_month.get()
-        default_filename = f"daily_budget_report_{month_str}.txt"
+        today_str = datetime.now().strftime("%Y-%m-%d")
+        default_filename = f"day_report_{month_str}_{today_str}.txt"
         filepath = filedialog.asksaveasfilename(
             initialfile=default_filename,
             defaultextension=".txt",
