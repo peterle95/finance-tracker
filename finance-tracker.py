@@ -747,13 +747,15 @@ class FinanceTracker:
         if today.year == year and today.month == month and today.day < days_in_month:
             remaining_days_forecast = days_in_month - today.day
             if remaining_days_forecast > 0:
-                future_daily_budget = cumulative_deficit / remaining_days_forecast
                 
                 report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
                 report += f"{'-'*80}\n"
 
-                if future_daily_budget < 0:
-                    # Recalculate Net value for the explanation
+                # This value is the cumulative surplus (or deficit) distributed over the remaining days
+                daily_surplus_distribution = cumulative_deficit / remaining_days_forecast
+
+                if daily_surplus_distribution < 0:
+                    # This is the negative case you asked not to change.
                     total_flexible_expenses = sum(e['amount'] for e in flex_expenses_month)
                     total_expenses = total_flexible_expenses + fixed_costs
                     net_value = total_income - total_expenses
@@ -777,11 +779,26 @@ class FinanceTracker:
                     report += f"   \"Your goal is always €{spending_daily_budget:.2f}/day, but you are currently €{cumulative_deficit:.2f} behind schedule.\"\n\n"
 
                 else:
-                    report += f"Your new recommended daily SPENDING budget is: €{future_daily_budget:.2f}\n"
-                    if cumulative_deficit > spending_flexible_budget:
-                        report += "Great job! Your savings have been spread out, giving you more to spend each day.\n"
-                    else:
-                        report += "You have some budget left. Stick to this adjusted daily amount to stay on track.\n"
+                    # ### START OF CODE CORRECTION ###
+                    # This is the corrected positive case logic.
+                    
+                    # Calculate the actual new recommended total spending amount
+                    new_recommended_budget = spending_daily_budget + daily_surplus_distribution
+
+                    report += "You are currently under budget. Your saved amount has been redistributed.\n\n"
+                    report += "Here's how we calculated your new recommended daily budget:\n"
+                    report += f"  Daily Surplus Calculation: Daily Surplus = Cumulative Deficit / Remaining Days\n"
+                    report += f"                            {daily_surplus_distribution:>10.2f}     = {cumulative_deficit:>10.2f}     /     {remaining_days_forecast}\n\n"
+                    report += f"  Original Daily Target:         €{spending_daily_budget:>10.2f}\n"
+                    report += f"  Redistributed Surplus / Day:   +€{daily_surplus_distribution:>10.2f}\n"
+                    report += f"                                 -----------\n"
+                    report += f"  New Recommended Daily Budget:  =€{new_recommended_budget:>10.2f}\n\n"
+                    
+                    report += "Explanation:\n"
+                    report += "To spend your entire flexible budget by the end of the month, you can now spend\n"
+                    report += f"up to €{new_recommended_budget:.2f} each day. This new amount is your original target plus\n"
+                    report += "your cumulative savings spread across the remaining days.\n"
+                    # ### END OF CODE CORRECTION ###
 
                 report += f"{'-'*80}\n"
 
