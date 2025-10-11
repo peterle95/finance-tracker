@@ -672,7 +672,7 @@ class FinanceTracker:
             self.refresh_category_list()
             self.update_categories()
 
-    ## MODIFIED ##: Added a clear explanation for the difference between Net and Over Budget values.
+    ## MODIFIED ##: Corrected the logic and explanation for the daily budget report to be clearer.
     def generate_daily_budget(self):
         month_str = self.budget_month.get()
         try:
@@ -698,7 +698,6 @@ class FinanceTracker:
             messagebox.showerror("Error", "Cannot divide by zero days in month.")
             return
 
-        original_daily_budget = original_flexible_budget / days_in_month
         spending_daily_budget = spending_flexible_budget / days_in_month
 
         flex_expenses_month = [e for e in self.expenses if e['date'].startswith(month_str)]
@@ -716,17 +715,15 @@ class FinanceTracker:
         report += f"TOTAL INCOME:                            €{total_income:>10.2f}\n"
         report += f"Total Fixed Costs:                      -€{fixed_costs:>10.2f}\n"
         report += f"{'-'*50}\n"
-        report += f"Original Available for Spending:         €{original_flexible_budget:>10.2f} (Original Daily: €{original_daily_budget:.2f})\n"
-        report += f"Target Monthly Savings Goal:            -€{monthly_savings_goal:>10.2f} (Daily Goal: €{daily_savings_goal:.2f})\n"
-        report += f"{'-'*50}\n"
-        report += f"Net Available for SPENDING:              €{spending_flexible_budget:>10.2f} (TARGET DAILY SPENDING: €{spending_daily_budget:.2f})\n"
+        report += f"Net Available for SPENDING:              €{spending_flexible_budget:>10.2f}\n"
+        report += f"YOUR DAILY SPENDING TARGET:              €{spending_daily_budget:>10.2f}\n"
         report += f"{'-'*80}\n\n"
-        report += f"DAILY BREAKDOWN (Based on your TARGET DAILY SPENDING budget)\n"
+        report += f"DAILY BREAKDOWN (Performance against your daily target)\n"
         report += f"{'-'*80}\n"
-        report += f"{'Date':<12} {'Budget':<12} {'Spent':<12} {'Saved':<12} {'Cumulative':<12} {'Status'}\n"
+        report += f"{'Date':<12} {'Target':<12} {'Spent':<12} {'Daily +/-':<12} {'Cumulative':<12} {'Status'}\n"
         report += f"{'-'*80}\n"
 
-        cumulative_savings = 0
+        cumulative_deficit = 0
         today = datetime.now().date()
         for day in range(1, days_in_month + 1):
             date_str = f"{year}-{month:02d}-{day:02d}"
@@ -734,27 +731,15 @@ class FinanceTracker:
             if date_obj > today:
                 break
 
-            remaining_days = days_in_month - day
-            if remaining_days > 0:
-                adjusted_spending_budget = spending_daily_budget + (cumulative_savings / (remaining_days + 1))
-            else:
-                adjusted_spending_budget = spending_daily_budget + cumulative_savings
-
             day_total_spent = sum(e['amount'] for e in daily_expenses.get(date_str, []))
+            daily_plus_minus = spending_daily_budget - day_total_spent
+            cumulative_deficit += daily_plus_minus
+            
+            status = "✓ On Track" if daily_plus_minus >= 0 else "✗ Overspent"
+            if day_total_spent == 0: status = "- No spending"
 
-            if adjusted_spending_budget < 0:
-                day_savings = 0 - day_total_spent
-                cumulative_savings += day_savings
-                status = "✗ Over" if day_total_spent > 0 else "- No spending"
-                report += (f"{date_str:<12} {'No Budget':<12} €{day_total_spent:<10.2f} "
-                           f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
-            else:
-                day_savings = adjusted_spending_budget - day_total_spent
-                cumulative_savings += day_savings
-                status = "✓ Under" if day_savings > 0 else ("✗ Over" if day_savings < 0 else "✓ Exact")
-                if day_total_spent == 0: status = "- No spending"
-                report += (f"{date_str:<12} €{adjusted_spending_budget:<10.2f} €{day_total_spent:<10.2f} "
-                           f"€{day_savings:<10.2f} €{cumulative_savings:<10.2f} {status}\n")
+            report += (f"{date_str:<12} €{spending_daily_budget:<10.2f} €{day_total_spent:<10.2f} "
+                       f"€{daily_plus_minus:<10.2f} €{cumulative_deficit:<10.2f} {status}\n")
 
         report += f"{'-'*80}\n\n"
 
@@ -762,34 +747,41 @@ class FinanceTracker:
         if today.year == year and today.month == month and today.day < days_in_month:
             remaining_days_forecast = days_in_month - today.day
             if remaining_days_forecast > 0:
-                future_daily_budget = spending_daily_budget + (cumulative_savings / remaining_days_forecast)
+                future_daily_budget = cumulative_deficit / remaining_days_forecast
+                
                 report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
                 report += f"{'-'*80}\n"
 
                 if future_daily_budget < 0:
-                    # --- ADDED THIS SECTION ---
                     # Recalculate Net value for the explanation
                     total_flexible_expenses = sum(e['amount'] for e in flex_expenses_month)
                     total_expenses = total_flexible_expenses + fixed_costs
                     net_value = total_income - total_expenses
+                    
+                    report += f"You have overspent your flexible budget for the month.\n"
+                    report += f"Your cumulative spending deficit is currently €{-cumulative_deficit:.2f}.\n\n"
+                    report += f"--- Understanding the Key Numbers ---\n\n"
+                    report += f"It's important to understand what the 'Net Value' and 'Cumulative Deficit' represent:\n\n"
+                    report += f" * Summary Net Value (€{net_value:.2f}): This is your actual financial bottom line for the month.\n"
+                    report += f"   It's a simple calculation: (Total Income) - (Total Expenses, both fixed and flexible).\n"
+                    report += f"   It tells you if you've earned more than you spent overall.\n\n"
+                    report += f" * Cumulative Deficit (€{-cumulative_deficit:.2f}): This is a BUDGETING metric, not a final cash value.\n"
+                    report += f"   It specifically tracks how much you have overspent on your FLEXIBLE budget (e.g., food, shopping).\n"
+                    report += f"   This number shows you exactly where your budget is breaking down.\n\n"
+                    report += f"   So, while the Net Value tells you the final result of your total income\n"
+                    report += f"   versus your total expenses, the Cumulative number is the\n"
+                    report += f"   day-by-day indicator that helps you manage your spending to achieve\n"
+                    report += f"   a good Net Value at the end of the month.\n\n"
+                    report += f"   his method forces you to pay attention to the Cumulative value. The system is essentially saying,\n"
+                    report += f"   \"Your goal is always €{spending_daily_budget:.2f}/day, but you are currently €{cumulative_deficit:.2f} behind schedule.\"\n\n"
+                    report += f"To get back on track, you have no further flexible budget for the remainder of the month.\n"
 
-                    report += f"You have already overspent your total budget for the month.\n"
-                    report += f"You are currently €{-cumulative_savings:.2f} over budget according to your plan.\n\n"
-                    report += f"--- Explanation of the Numbers ---\n"
-                    report += f"The 'Over Budget' amount is different from the 'Net' value in the summary bar.\n\n"
-                    report += f" * Summary Net Value (€{net_value:.2f}): This is your simple cash flow.\n"
-                    report += f"   It shows you've spent this much more than you've earned.\n\n"
-                    report += f" * Over Budget Amount (€{-cumulative_savings:.2f}): This measures you against your PLAN,\n"
-                    report += f"   which includes your savings goal. It's your cash deficit PLUS the\n"
-                    report += f"   savings you were supposed to make.\n\n"
-                    report += f"Therefore, no daily spending budget is available for the rest of the month.\n"
-                    # --- END OF ADDED SECTION ---
                 else:
                     report += f"Your new recommended daily SPENDING budget is: €{future_daily_budget:.2f}\n"
-                    if cumulative_savings > 0:
+                    if cumulative_deficit > spending_flexible_budget:
                         report += "Great job! Your savings have been spread out, giving you more to spend each day.\n"
                     else:
-                        report += "You're over budget, but still have funds. Stick to this lower daily amount to recover.\n"
+                        report += "You have some budget left. Stick to this adjusted daily amount to stay on track.\n"
 
                 report += f"{'-'*80}\n"
 
