@@ -61,6 +61,8 @@ class FinanceTracker:
         # --- NEW ---
         if 'savings_balance' not in self.budget_settings:
             self.budget_settings['savings_balance'] = 0
+        if 'investment_balance' not in self.budget_settings:
+            self.budget_settings['investment_balance'] = 0
         if 'daily_savings_goal' not in self.budget_settings:
             self.budget_settings['daily_savings_goal'] = 0
 
@@ -388,14 +390,22 @@ class FinanceTracker:
             self.savings_entry.insert(0, str(self.budget_settings['savings_balance']))
         # --- END NEW SAVINGS FIELD ---
 
-        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=3, column=0, sticky='w', pady=5)
+        # --- NEW INVESTMENT FIELD ---
+        ttk.Label(settings_frame, text="Current Investments:").grid(row=3, column=0, sticky='w', pady=5)
+        self.investment_entry = ttk.Entry(settings_frame, width=15)
+        self.investment_entry.grid(row=3, column=1, pady=5)
+        if 'investment_balance' in self.budget_settings:
+            self.investment_entry.insert(0, str(self.budget_settings['investment_balance']))
+        # --- END NEW INVESTMENT FIELD ---
+
+        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=4, column=0, sticky='w', pady=5)
         self.daily_savings_entry = ttk.Entry(settings_frame, width=15)
-        self.daily_savings_entry.grid(row=3, column=1, pady=5)
+        self.daily_savings_entry.grid(row=4, column=1, pady=5)
         if 'daily_savings_goal' in self.budget_settings:
             self.daily_savings_entry.insert(0, str(self.budget_settings['daily_savings_goal']))
 
         ttk.Button(settings_frame, text="Save Settings", command=self.save_settings).grid(
-            row=4, column=1, pady=10, sticky='e')
+            row=5, column=1, pady=10, sticky='e')
 
         management_frame = ttk.Frame(top_frame)
         management_frame.grid(row=0, column=1, sticky='nsew')
@@ -633,19 +643,21 @@ class FinanceTracker:
 
         bank_balance = self.budget_settings.get('bank_account_balance', 0)
         savings_balance = self.budget_settings.get('savings_balance', 0)
+        investment_balance = self.budget_settings.get('investment_balance', 0)
         daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
         
         # The projection starts from the sum of the bank and savings accounts
-        starting_total_balance = bank_balance + savings_balance
+        starting_total_balance = bank_balance + savings_balance + investment_balance
 
         report = f"{'='*80}\n"
         report += f"FINANCIAL PROJECTION\n"
         report += f"{'='*80}\n\n"
-        report += f"This report projects your total financial balance (Bank + Savings).\n"
+        report += f"This report projects your total financial balance (Bank + Savings + Investments).\n"
         report += f"It assumes you will meet your daily savings goal every day.\n"
         report += f"The 'Daily Savings Goal' is an indicator and does not automatically change your savings balance.\n\n"
         report += f"Bank Account Balance:      €{bank_balance:>10.2f}\n"
         report += f"Current Savings Balance:   €{savings_balance:>10.2f}\n"
+        report += f"Current Investment Balance:€{investment_balance:>10.2f}\n"
         report += f"-----------------------------------------\n"
         report += f"Total Starting Balance:    €{starting_total_balance:>10.2f}\n"
         report += f"Target Daily Savings Goal: €{daily_savings_goal:>10.2f}\n"
@@ -797,11 +809,13 @@ class FinanceTracker:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
             bank_balance = float(self.bank_account_entry.get()) if self.bank_account_entry.get() else 0
             savings = float(self.savings_entry.get()) if self.savings_entry.get() else 0 # --- NEW ---
+            investment = float(self.investment_entry.get()) if self.investment_entry.get() else 0
             savings_goal = float(self.daily_savings_entry.get()) if self.daily_savings_entry.get() else 0
 
             self.budget_settings['monthly_income'] = income
             self.budget_settings['bank_account_balance'] = bank_balance
             self.budget_settings['savings_balance'] = savings # --- NEW ---
+            self.budget_settings['investment_balance'] = investment
             self.budget_settings['daily_savings_goal'] = savings_goal
             
             self.save_data()
