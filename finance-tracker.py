@@ -262,36 +262,45 @@ class FinanceTracker:
         self.canvas.get_tk_widget().pack(fill='both', expand=True)
 
     def create_add_transaction_tab(self):
-        frame = ttk.Frame(self.add_transaction_tab, padding="20")
-        frame.pack(fill='both', expand=True)
-        # Configure grid to make entry column expandable
-        frame.columnconfigure(1, weight=1)
+        # This main_frame will expand and center the form_frame within it
+        main_frame = ttk.Frame(self.add_transaction_tab, padding="20")
+        main_frame.pack(fill='both', expand=True)
 
-        ttk.Label(frame, text="Transaction Type:").grid(row=0, column=0, sticky='w', pady=10)
+        # The form_frame holds the form widgets and will NOT expand
+        form_frame = ttk.Frame(main_frame)
+        form_frame.pack(anchor='center') # Center the form
+
+        # --- Widgets placed inside the non-expanding form_frame ---
+        ttk.Label(form_frame, text="Transaction Type:").grid(row=0, column=0, sticky='w', pady=10)
         self.transaction_type_var = tk.StringVar(value="Expense")
-        type_frame = ttk.Frame(frame)
+        type_frame = ttk.Frame(form_frame)
         type_frame.grid(row=0, column=1, sticky='w', pady=5)
         ttk.Radiobutton(type_frame, text="Expense", variable=self.transaction_type_var,
                         value="Expense", command=self.update_categories).pack(side='left', padx=5)
         ttk.Radiobutton(type_frame, text="Income", variable=self.transaction_type_var,
                         value="Income", command=self.update_categories).pack(side='left', padx=5)
-        ttk.Label(frame, text="Date:").grid(row=1, column=0, sticky='w', pady=5)
-        self.date_entry = ttk.Entry(frame, width=30)
+
+        ttk.Label(form_frame, text="Date:").grid(row=1, column=0, sticky='w', pady=5)
+        self.date_entry = ttk.Entry(form_frame, width=30)
         self.date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
-        self.date_entry.grid(row=1, column=1, pady=5, sticky='ew')
-        ttk.Label(frame, text="(YYYY-MM-DD)", foreground="gray").grid(row=1, column=2, sticky='w', padx=5)
-        ttk.Label(frame, text="Amount:").grid(row=2, column=0, sticky='w', pady=5)
-        self.amount_entry = ttk.Entry(frame, width=30)
-        self.amount_entry.grid(row=2, column=1, pady=5, sticky='ew')
-        ttk.Label(frame, text="Category:").grid(row=3, column=0, sticky='w', pady=5)
+        self.date_entry.grid(row=1, column=1, pady=5, sticky='w') # Use sticky 'w' (west)
+        ttk.Label(form_frame, text="(YYYY-MM-DD)", foreground="gray").grid(row=1, column=2, sticky='w', padx=5)
+
+        ttk.Label(form_frame, text="Amount:").grid(row=2, column=0, sticky='w', pady=5)
+        self.amount_entry = ttk.Entry(form_frame, width=30)
+        self.amount_entry.grid(row=2, column=1, pady=5, sticky='w') # Use sticky 'w' (west)
+
+        ttk.Label(form_frame, text="Category:").grid(row=3, column=0, sticky='w', pady=5)
         self.category_var = tk.StringVar()
-        self.category_combo = ttk.Combobox(frame, textvariable=self.category_var, width=28, state='readonly')
-        self.category_combo.grid(row=3, column=1, pady=5, sticky='ew')
+        self.category_combo = ttk.Combobox(form_frame, textvariable=self.category_var, width=28, state='readonly')
+        self.category_combo.grid(row=3, column=1, pady=5, sticky='w') # Use sticky 'w' (west)
         self.update_categories()
-        ttk.Label(frame, text="Description:").grid(row=4, column=0, sticky='w', pady=5)
-        self.description_entry = ttk.Entry(frame, width=30)
-        self.description_entry.grid(row=4, column=1, pady=5, sticky='ew')
-        ttk.Button(frame, text="Add Transaction", command=self.add_transaction).grid(
+
+        ttk.Label(form_frame, text="Description:").grid(row=4, column=0, sticky='w', pady=5)
+        self.description_entry = ttk.Entry(form_frame, width=30)
+        self.description_entry.grid(row=4, column=1, pady=5, sticky='w') # Use sticky 'w' (west)
+
+        ttk.Button(form_frame, text="Add Transaction", command=self.add_transaction).grid(
             row=5, column=1, pady=20, sticky='w')
 
     def update_categories(self):
@@ -734,24 +743,11 @@ class FinanceTracker:
         total_expenses = total_flexible_expenses + total_fixed_costs
         net = total_income - total_expenses
         
-        # Check category budget warnings
-        category_warnings = []
-        expense_budgets = self.budget_settings.get('category_budgets', {}).get('Expense', {})
-        for category, budget_limit in expense_budgets.items():
-            if budget_limit > 0:
-                category_total = sum(e['amount'] for e in self.expenses 
-                                   if e['date'].startswith(filter_month) and e['category'] == category)
-                if category_total > budget_limit:
-                    category_warnings.append(f"{category}: €{category_total:.2f}/€{budget_limit:.2f} ⚠")
-                elif category_total > budget_limit * 0.8:
-                    category_warnings.append(f"{category}: €{category_total:.2f}/€{budget_limit:.2f} ⚡")
+        # The category budget warning logic has been removed.
         
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
                         f"Net: €{net:.2f}")
-        
-        if category_warnings:
-            summary_text += "\n" + "  |  ".join(category_warnings)
         
         self.summary_label.config(text=summary_text)
 
