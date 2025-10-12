@@ -1226,7 +1226,15 @@ class FinanceTracker:
                     report += f"It's important to understand what the 'Net Value' and 'Cumulative Deficit' represent:\n\n"
                     report += f" * Summary Net Value (€{net_value:.2f}): This is your actual financial bottom line for the month.\n"
                     report += f"   (Total Income) - (Total Expenses, both fixed and flexible).\n\n"
-                    report += f" * Cumulative Deficit (€{-cumulative_deficit:.2f}): This is a BUDGETING metric. It tracks how much you have overspent on your FLEXIBLE budget (e.g., food, shopping).\n"
+                    report += f" * Cumulative Deficit (€{-cumulative_deficit:.2f}): This is a BUDGETING metric.\n"
+                    report += f"   It specifically tracks how much you have overspent on your FLEXIBLE budget (e.g., food, shopping).\n"
+                    report += f"   This number shows you exactly where your budget is breaking down.\n\n"
+                    report += f"   So, while the Net Value tells you the final result of your total income\n"
+                    report += f"   versus your total expenses, the Cumulative number is the\n"
+                    report += f"   day-by-day indicator that helps you manage your spending to achieve\n"
+                    report += f"   a good Net Value at the end of the month.\n\n"
+                    report += f"   This method forces you to pay attention to the Cumulative value. The system is essentially saying,\n"
+                    report += f"   \"Your goal is always €{spending_daily_budget:.2f}/day, but you are currently €{cumulative_deficit:.2f} behind schedule.\"\n\n"
 
                 else:
                     new_recommended_budget = spending_daily_budget + daily_surplus_distribution
