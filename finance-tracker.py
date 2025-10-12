@@ -16,7 +16,8 @@ class FinanceTracker:
     def __init__(self, root):
         self.root = root
         self.root.title("Personal Finance Tracker")
-        self.root.geometry("1250x750")
+        # Set a minimum size, allowing the window to be expanded
+        self.root.minsize(1250, 750)
 
         # Data file
         self.data_file = Path("finance_data.json")
@@ -34,6 +35,7 @@ class FinanceTracker:
         self.refresh_transaction_list()
         self.refresh_fixed_costs_tree()
         self.refresh_category_list()
+        self.refresh_category_budget_list()
 
     def load_data(self):
         """Load data from JSON file or create new structure"""
@@ -108,19 +110,28 @@ class FinanceTracker:
         """Create the UI for the reports tab with a pie chart"""
         main_frame = ttk.Frame(self.reports_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
+        # Configure grid weights for responsiveness: make the chart area (row 1) expand
+        main_frame.rowconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
 
         controls_frame = ttk.LabelFrame(main_frame, text="Chart Options", padding="10")
-        controls_frame.pack(fill='x', pady=5)
+        controls_frame.grid(row=0, column=0, sticky='ew', pady=5)
 
-        month_frame = ttk.Frame(controls_frame)
-        month_frame.pack(side='left', padx=10, fill='y')
+        # --- First row of controls ---
+        top_controls_row = ttk.Frame(controls_frame)
+        top_controls_row.pack(fill='x', expand=True, pady=(0, 5))
+
+        # Month Selection
+        month_frame = ttk.Frame(top_controls_row)
+        month_frame.pack(side='left', padx=(0, 15))
         ttk.Label(month_frame, text="Select Month:").pack(side='left')
         self.chart_month_entry = ttk.Entry(month_frame, width=15)
         self.chart_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.chart_month_entry.pack(side='left', padx=5)
 
-        type_frame = ttk.Frame(controls_frame)
-        type_frame.pack(side='left', padx=10, fill='y')
+        # Chart Type
+        type_frame = ttk.Frame(top_controls_row)
+        type_frame.pack(side='left', padx=(0, 15))
         ttk.Label(type_frame, text="Chart Type:").pack(side='left')
         self.chart_type_var = tk.StringVar(value="Expense")
         ttk.Radiobutton(type_frame, text="Expenses", variable=self.chart_type_var, value="Expense",
@@ -128,22 +139,9 @@ class FinanceTracker:
         ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income",
                         command=self._update_report_options_ui).pack(side='left', padx=5)
 
-        self.fixed_item_frame = ttk.Frame(controls_frame)
-        self.fixed_item_frame.pack(side='left', padx=10, fill='y')
-        self.include_fixed_costs_var = tk.BooleanVar(value=False)
-        self.fixed_costs_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Fixed Costs",
-                                                      variable=self.include_fixed_costs_var)
-        self.include_base_income_var = tk.BooleanVar(value=False)
-        self.base_income_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Base Income",
-                                                       variable=self.include_base_income_var)
-        self._update_report_options_ui()
-
-        value_type_frame = ttk.Frame(controls_frame)
-        value_type_frame.pack(side='left', padx=10, fill='y')
-        # Add after the value_type_frame.pack() line
-        self.show_budget_lines_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(controls_frame, text="Show Budget Limits", 
-        variable=self.show_budget_lines_var).pack(side='left', padx=5)
+        # Display As
+        value_type_frame = ttk.Frame(top_controls_row)
+        value_type_frame.pack(side='left', padx=(0, 15))
         ttk.Label(value_type_frame, text="Display As:").pack(side='left')
         self.chart_value_type_var = tk.StringVar(value="Percentage")
         ttk.Radiobutton(value_type_frame, text="Percentage", variable=self.chart_value_type_var,
@@ -151,11 +149,36 @@ class FinanceTracker:
         ttk.Radiobutton(value_type_frame, text="Total Amount", variable=self.chart_value_type_var,
                         value="Total").pack(side='left', padx=5)
 
-        ttk.Button(controls_frame, text="Generate Chart", command=self.generate_pie_chart).pack(side='left', padx=20,
-                                                                                                 fill='y')
+        # --- Second row of controls ---
+        bottom_controls_row = ttk.Frame(controls_frame)
+        bottom_controls_row.pack(fill='x', expand=True)
+        
+        # Checkboxes for inclusion
+        self.fixed_item_frame = ttk.Frame(bottom_controls_row)
+        self.fixed_item_frame.pack(side='left', padx=(0, 15))
+        self.include_fixed_costs_var = tk.BooleanVar(value=False)
+        self.fixed_costs_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Fixed Costs",
+                                                        variable=self.include_fixed_costs_var)
+        self.include_base_income_var = tk.BooleanVar(value=False)
+        self.base_income_checkbutton = ttk.Checkbutton(self.fixed_item_frame, text="Include Base Income",
+                                                        variable=self.include_base_income_var)
+        self._update_report_options_ui() # This handles packing the correct one
 
+        # Show Budget Limits checkbox
+        self.show_budget_lines_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(bottom_controls_row, text="Show Budget Limits", 
+                        variable=self.show_budget_lines_var).pack(side='left', padx=(0,15))
+
+        # Spacer to push the button to the far right
+        spacer = ttk.Frame(bottom_controls_row)
+        spacer.pack(side='left', fill='x', expand=True)
+
+        # Generate Button
+        ttk.Button(bottom_controls_row, text="Generate Chart", command=self.generate_pie_chart).pack(side='right')
+
+        # Chart Frame (make sure it fills the available space)
         self.chart_frame = ttk.Frame(main_frame)
-        self.chart_frame.pack(fill='both', expand=True, pady=10)
+        self.chart_frame.grid(row=1, column=0, sticky='nsew', pady=10)
         self.canvas = None
 
     def _update_report_options_ui(self):
@@ -241,6 +264,9 @@ class FinanceTracker:
     def create_add_transaction_tab(self):
         frame = ttk.Frame(self.add_transaction_tab, padding="20")
         frame.pack(fill='both', expand=True)
+        # Configure grid to make entry column expandable
+        frame.columnconfigure(1, weight=1)
+
         ttk.Label(frame, text="Transaction Type:").grid(row=0, column=0, sticky='w', pady=10)
         self.transaction_type_var = tk.StringVar(value="Expense")
         type_frame = ttk.Frame(frame)
@@ -252,19 +278,19 @@ class FinanceTracker:
         ttk.Label(frame, text="Date:").grid(row=1, column=0, sticky='w', pady=5)
         self.date_entry = ttk.Entry(frame, width=30)
         self.date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
-        self.date_entry.grid(row=1, column=1, pady=5)
+        self.date_entry.grid(row=1, column=1, pady=5, sticky='ew')
         ttk.Label(frame, text="(YYYY-MM-DD)", foreground="gray").grid(row=1, column=2, sticky='w', padx=5)
         ttk.Label(frame, text="Amount:").grid(row=2, column=0, sticky='w', pady=5)
         self.amount_entry = ttk.Entry(frame, width=30)
-        self.amount_entry.grid(row=2, column=1, pady=5)
+        self.amount_entry.grid(row=2, column=1, pady=5, sticky='ew')
         ttk.Label(frame, text="Category:").grid(row=3, column=0, sticky='w', pady=5)
         self.category_var = tk.StringVar()
         self.category_combo = ttk.Combobox(frame, textvariable=self.category_var, width=28, state='readonly')
-        self.category_combo.grid(row=3, column=1, pady=5)
+        self.category_combo.grid(row=3, column=1, pady=5, sticky='ew')
         self.update_categories()
         ttk.Label(frame, text="Description:").grid(row=4, column=0, sticky='w', pady=5)
         self.description_entry = ttk.Entry(frame, width=30)
-        self.description_entry.grid(row=4, column=1, pady=5)
+        self.description_entry.grid(row=4, column=1, pady=5, sticky='ew')
         ttk.Button(frame, text="Add Transaction", command=self.add_transaction).grid(
             row=5, column=1, pady=20, sticky='w')
 
@@ -280,15 +306,21 @@ class FinanceTracker:
     def create_view_transactions_tab(self):
         frame = ttk.Frame(self.view_transactions_tab, padding="20")
         frame.pack(fill='both', expand=True)
+
         filter_frame = ttk.Frame(frame)
         filter_frame.pack(fill='x', pady=10)
+
         ttk.Label(filter_frame, text="Filter by month:").pack(side='left', padx=5)
         self.month_filter = ttk.Entry(filter_frame, width=15)
         self.month_filter.insert(0, datetime.now().strftime("%Y-%m"))
         self.month_filter.pack(side='left', padx=5)
         ttk.Button(filter_frame, text="Refresh", command=self.refresh_transaction_list).pack(side='left', padx=10)
+
+        tree_frame = ttk.Frame(frame)
+        tree_frame.pack(fill='both', expand=True, pady=10)
+
         columns = ('Date', 'Type', 'Amount', 'Category', 'Description')
-        self.transaction_tree = ttk.Treeview(frame, columns=columns, show='headings', height=15)
+        self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
         for col in columns:
             self.transaction_tree.heading(col, text=col)
             width = 120
@@ -296,23 +328,33 @@ class FinanceTracker:
             if col == 'Description': width = 250
             if col == 'Type': width = 80
             self.transaction_tree.column(col, width=width, anchor='w')
+
         self.transaction_tree.tag_configure('expense', foreground='red')
         self.transaction_tree.tag_configure('income', foreground='green')
-        self.transaction_tree.pack(fill='both', expand=True, pady=10)
-        scrollbar = ttk.Scrollbar(frame, orient='vertical', command=self.transaction_tree.yview)
+        self.transaction_tree.pack(side='left', fill='both', expand=True)
+        scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=self.transaction_tree.yview)
         scrollbar.pack(side='right', fill='y')
         self.transaction_tree.configure(yscrollcommand=scrollbar.set)
-        ttk.Button(frame, text="Delete Selected", command=self.delete_transaction).pack(pady=5, anchor='e')
+
+        button_frame = ttk.Frame(frame)
+        button_frame.pack(fill='x', pady=5)
+        ttk.Button(button_frame, text="Delete Selected", command=self.delete_transaction).pack(side='right')
+        
         self.summary_label = ttk.Label(frame, text="", font=('Arial', 10, 'bold'))
         self.summary_label.pack(pady=10, fill='x')
 
     def create_budget_tab(self):
         main_frame = ttk.Frame(self.budget_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
+        main_frame.rowconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
+
         top_frame = ttk.Frame(main_frame)
-        top_frame.pack(fill='x', pady=(0, 10))
+        top_frame.grid(row=0, column=0, sticky='ew', pady=(0, 10))
+        top_frame.columnconfigure(1, weight=1) 
+
         settings_frame = ttk.LabelFrame(top_frame, text="Monthly Settings", padding="10")
-        settings_frame.pack(side='left', fill='y', padx=(0, 10), anchor='n')
+        settings_frame.grid(row=0, column=0, sticky='ns', padx=(0, 10))
 
         ttk.Label(settings_frame, text="Base Monthly Income:").grid(row=0, column=0, sticky='w', pady=5)
         self.income_entry = ttk.Entry(settings_frame, width=15)
@@ -336,58 +378,174 @@ class FinanceTracker:
             row=3, column=1, pady=10, sticky='e')
 
         management_frame = ttk.Frame(top_frame)
-        management_frame.pack(side='left', fill='both', expand=True)
+        management_frame.grid(row=0, column=1, sticky='nsew')
+        management_frame.columnconfigure([0, 1, 2], weight=1)
+        management_frame.rowconfigure(0, weight=1) # Allow row to expand vertically
+
         fixed_costs_frame = ttk.LabelFrame(management_frame, text="Manage Fixed Monthly Costs", padding="10")
-        fixed_costs_frame.pack(side='left', fill='both', expand=True, padx=(0, 10))
+        fixed_costs_frame.grid(row=0, column=0, sticky='nsew', padx=(0, 10))
+        fixed_costs_frame.rowconfigure(0, weight=1)
+        fixed_costs_frame.columnconfigure(0, weight=1)
         fc_tree_frame = ttk.Frame(fixed_costs_frame)
-        fc_tree_frame.pack(fill='x')
+        fc_tree_frame.grid(row=0, column=0, columnspan=2, sticky='nsew')
+        fc_tree_frame.columnconfigure(0, weight=1)
+        fc_tree_frame.rowconfigure(0, weight=1)
         self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount'), show='headings', height=5)
         self.fixed_costs_tree.heading('Description', text='Description')
         self.fixed_costs_tree.heading('Amount', text='Amount (€)')
         self.fixed_costs_tree.column('Description', width=200)
         self.fixed_costs_tree.column('Amount', width=100, anchor='e')
-        self.fixed_costs_tree.pack(side='left', fill='x', expand=True)
+        self.fixed_costs_tree.grid(row=0, column=0, sticky='nsew')
         fc_scrollbar = ttk.Scrollbar(fc_tree_frame, orient='vertical', command=self.fixed_costs_tree.yview)
-        fc_scrollbar.pack(side='right', fill='y')
+        fc_scrollbar.grid(row=0, column=1, sticky='ns')
         self.fixed_costs_tree.configure(yscrollcommand=fc_scrollbar.set)
         fc_form_frame = ttk.Frame(fixed_costs_frame)
-        fc_form_frame.pack(fill='x', pady=10)
+        fc_form_frame.grid(row=1, column=0, columnspan=2, sticky='ew', pady=10)
         ttk.Label(fc_form_frame, text="Desc:").pack(side='left', padx=(0, 5))
         self.fc_desc_entry = ttk.Entry(fc_form_frame, width=20)
-        self.fc_desc_entry.pack(side='left')
+        self.fc_desc_entry.pack(side='left', expand=True, fill='x')
         ttk.Label(fc_form_frame, text="Amount:").pack(side='left', padx=(10, 5))
         self.fc_amount_entry = ttk.Entry(fc_form_frame, width=10)
         self.fc_amount_entry.pack(side='left')
         fc_btn_frame = ttk.Frame(fixed_costs_frame)
-        fc_btn_frame.pack(fill='x')
+        fc_btn_frame.grid(row=2, column=0, columnspan=2, sticky='ew')
         ttk.Button(fc_btn_frame, text="Add", command=self.add_fixed_cost).pack(side='left', padx=5)
         ttk.Button(fc_btn_frame, text="Update", command=self.update_fixed_cost).pack(side='left', padx=5)
         ttk.Button(fc_btn_frame, text="Delete", command=self.delete_fixed_cost).pack(side='left', padx=5)
+
         categories_frame = ttk.LabelFrame(management_frame, text="Manage Categories", padding="10")
-        categories_frame.pack(side='left', fill='both', expand=True)
-        budget_limits_frame = ttk.LabelFrame(management_frame, text="Category Budget Limits", padding="10")
-        budget_limits_frame.pack(side='left', fill='both', expand=True)
-        self.create_category_budget_widgets(budget_limits_frame)
+        categories_frame.grid(row=0, column=1, sticky='nsew', padx=(0, 10))
         self.create_category_management_widgets(categories_frame)
+
+        budget_limits_frame = ttk.LabelFrame(management_frame, text="Category Budget Limits", padding="10")
+        budget_limits_frame.grid(row=0, column=2, sticky='nsew')
+        self.create_category_budget_widgets(budget_limits_frame)
+        
         report_frame = ttk.LabelFrame(main_frame, text="Daily Budget Report", padding="10")
-        report_frame.pack(fill='both', expand=True)
+        report_frame.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
+        report_frame.rowconfigure(1, weight=1)
+        report_frame.columnconfigure(0, weight=1)
+
         month_frame = ttk.Frame(report_frame)
-        month_frame.pack(fill='x', pady=5)
+        month_frame.grid(row=0, column=0, sticky='ew', pady=5)
         ttk.Label(month_frame, text="Select Month:").pack(side='left', padx=5)
         self.budget_month = ttk.Entry(month_frame, width=15)
         self.budget_month.insert(0, datetime.now().strftime("%Y-%m"))
         self.budget_month.pack(side='left', padx=5)
         ttk.Button(month_frame, text="Generate Report", command=self.generate_daily_budget).pack(side='left', padx=10)
         ttk.Button(month_frame, text="Export Report", command=self.export_daily_budget_report).pack(side='left', padx=5)
-        self.budget_text = tk.Text(report_frame, height=20, width=90, font=('Courier New', 9))
-        self.budget_text.pack(fill='both', expand=True, pady=10)
+        
+        budget_text_frame = ttk.Frame(report_frame)
+        budget_text_frame.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
+        budget_text_frame.rowconfigure(0, weight=1)
+        budget_text_frame.columnconfigure(0, weight=1)
+        self.budget_text = tk.Text(budget_text_frame, height=20, width=90, font=('Courier New', 9))
+        self.budget_text.grid(row=0, column=0, sticky='nsew')
+        budget_text_scrollbar = ttk.Scrollbar(budget_text_frame, orient='vertical', command=self.budget_text.yview)
+        budget_text_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.budget_text.configure(yscrollcommand=budget_text_scrollbar.set)
+
+    def create_category_management_widgets(self, parent_frame):
+        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.columnconfigure(0, weight=1)
+
+        self.cat_type_var = tk.StringVar(value="Expense")
+        cat_type_frame = ttk.Frame(parent_frame)
+        cat_type_frame.grid(row=0, column=0, sticky='ew', pady=2)
+        ttk.Label(cat_type_frame, text="Type:").pack(side='left')
+        ttk.Radiobutton(cat_type_frame, text="Expense", variable=self.cat_type_var,
+                        value="Expense", command=self.refresh_category_list).pack(side='left', padx=5)
+        ttk.Radiobutton(cat_type_frame, text="Income", variable=self.cat_type_var,
+                        value="Income", command=self.refresh_category_list).pack(side='left', padx=5)
+
+        cat_tree_frame = ttk.Frame(parent_frame)
+        cat_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+        cat_tree_frame.rowconfigure(0, weight=1)
+        cat_tree_frame.columnconfigure(0, weight=1)
+        self.category_tree = ttk.Treeview(cat_tree_frame, columns=('Category',), show='headings', height=5)
+        self.category_tree.heading('Category', text='Category Name')
+        self.category_tree.column('Category', width=180)
+        self.category_tree.grid(row=0, column=0, sticky='nsew')
+        cat_scrollbar = ttk.Scrollbar(cat_tree_frame, orient='vertical', command=self.category_tree.yview)
+        cat_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.category_tree.configure(yscrollcommand=cat_scrollbar.set)
+        
+        cat_form_frame = ttk.Frame(parent_frame)
+        cat_form_frame.grid(row=2, column=0, sticky='ew', pady=5)
+        cat_form_frame.columnconfigure(1, weight=1)
+        ttk.Label(cat_form_frame, text="Name:").grid(row=0, column=0, padx=(0, 5))
+        self.cat_name_entry = ttk.Entry(cat_form_frame)
+        self.cat_name_entry.grid(row=0, column=1, sticky='ew')
+
+        cat_btn_frame = ttk.Frame(parent_frame)
+        cat_btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
+        ttk.Button(cat_btn_frame, text="Add", command=self.add_category).pack(side='left', padx=5)
+        ttk.Button(cat_btn_frame, text="Delete Selected", command=self.delete_category).pack(side='left', padx=5)
+
+    def create_category_budget_widgets(self, parent_frame):
+        """Create UI for managing category budget limits"""
+        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.columnconfigure(0, weight=1)
+
+        self.budget_cat_type_var = tk.StringVar(value="Expense")
+        
+        type_frame = ttk.Frame(parent_frame)
+        type_frame.grid(row=0, column=0, sticky='ew', pady=2)
+        ttk.Label(type_frame, text="Type:").pack(side='left')
+        ttk.Radiobutton(type_frame, text="Expense", variable=self.budget_cat_type_var,
+                        value="Expense", command=self.refresh_category_budget_list).pack(side='left', padx=5)
+        
+        # Tree to display categories and their budgets
+        budget_tree_frame = ttk.Frame(parent_frame)
+        budget_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+        budget_tree_frame.rowconfigure(0, weight=1)
+        budget_tree_frame.columnconfigure(0, weight=1)
+        
+        self.category_budget_tree = ttk.Treeview(budget_tree_frame, 
+                                                columns=('Category', 'Budget Limit'), 
+                                                show='headings', height=5)
+        self.category_budget_tree.heading('Category', text='Category')
+        self.category_budget_tree.heading('Budget Limit', text='Monthly Limit (€)')
+        self.category_budget_tree.column('Category', width=120)
+        self.category_budget_tree.column('Budget Limit', width=100, anchor='e')
+        self.category_budget_tree.grid(row=0, column=0, sticky='nsew')
+        
+        budget_scrollbar = ttk.Scrollbar(budget_tree_frame, orient='vertical', 
+                                        command=self.category_budget_tree.yview)
+        budget_scrollbar.grid(row=0, column=1, sticky='ns')
+        self.category_budget_tree.configure(yscrollcommand=budget_scrollbar.set)
+        
+        # Bind selection to populate form
+        self.category_budget_tree.bind('<<TreeviewSelect>>', self.on_category_budget_select)
+        
+        # Form for setting budget
+        form_frame = ttk.Frame(parent_frame)
+        form_frame.grid(row=2, column=0, sticky='ew', pady=5)
+        form_frame.columnconfigure(1, weight=1)
+        ttk.Label(form_frame, text="Category:").grid(row=0, column=0, sticky='w', padx=(0, 5))
+        self.budget_category_var = tk.StringVar()
+        self.budget_category_combo = ttk.Combobox(form_frame, textvariable=self.budget_category_var, 
+                                                 width=15, state='readonly')
+        self.budget_category_combo.grid(row=0, column=1, sticky='ew', padx=5)
+        
+        ttk.Label(form_frame, text="Limit:").grid(row=0, column=2, padx=(10, 5))
+        self.budget_limit_entry = ttk.Entry(form_frame, width=10)
+        self.budget_limit_entry.grid(row=0, column=3, sticky='ew')
+        
+        # Buttons
+        btn_frame = ttk.Frame(parent_frame)
+        btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
+        ttk.Button(btn_frame, text="Set Budget", command=self.set_category_budget).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Remove Budget", command=self.remove_category_budget).pack(side='left', padx=5)
 
     def create_projection_tab(self):
         main_frame = ttk.Frame(self.projection_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
+        main_frame.rowconfigure(1, weight=1)
+        main_frame.columnconfigure(0, weight=1)
 
         controls_frame = ttk.LabelFrame(main_frame, text="Projection Options", padding="10")
-        controls_frame.pack(fill='x', pady=5)
+        controls_frame.grid(row=0, column=0, sticky='ew', pady=5)
 
         ttk.Label(controls_frame, text="Number of months to project:").pack(side='left', padx=5)
         self.projection_months_entry = ttk.Entry(controls_frame, width=10)
@@ -398,7 +556,7 @@ class FinanceTracker:
         ttk.Button(controls_frame, text="Export Projection", command=self.export_projection_report).pack(side='left', padx=5)
 
         self.projection_text = tk.Text(main_frame, height=20, width=90, font=('Courier New', 9))
-        self.projection_text.pack(fill='both', expand=True, pady=10)
+        self.projection_text.grid(row=1, column=0, sticky='nsew', pady=10)
 
     def export_daily_budget_report(self):
         report_content = self.budget_text.get("1.0", tk.END).strip()
@@ -485,30 +643,39 @@ class FinanceTracker:
         self.projection_text.insert(1.0, report)
 
     def create_category_management_widgets(self, parent_frame):
+        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.columnconfigure(0, weight=1)
+
         self.cat_type_var = tk.StringVar(value="Expense")
         cat_type_frame = ttk.Frame(parent_frame)
-        cat_type_frame.pack(fill='x', pady=2)
+        cat_type_frame.grid(row=0, column=0, sticky='ew', pady=2)
         ttk.Label(cat_type_frame, text="Type:").pack(side='left')
         ttk.Radiobutton(cat_type_frame, text="Expense", variable=self.cat_type_var,
                         value="Expense", command=self.refresh_category_list).pack(side='left', padx=5)
         ttk.Radiobutton(cat_type_frame, text="Income", variable=self.cat_type_var,
                         value="Income", command=self.refresh_category_list).pack(side='left', padx=5)
+
         cat_tree_frame = ttk.Frame(parent_frame)
-        cat_tree_frame.pack(fill='x', pady=5)
+        cat_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+        cat_tree_frame.rowconfigure(0, weight=1)
+        cat_tree_frame.columnconfigure(0, weight=1)
         self.category_tree = ttk.Treeview(cat_tree_frame, columns=('Category',), show='headings', height=5)
         self.category_tree.heading('Category', text='Category Name')
         self.category_tree.column('Category', width=180)
-        self.category_tree.pack(side='left', fill='x', expand=True)
+        self.category_tree.grid(row=0, column=0, sticky='nsew')
         cat_scrollbar = ttk.Scrollbar(cat_tree_frame, orient='vertical', command=self.category_tree.yview)
-        cat_scrollbar.pack(side='right', fill='y')
+        cat_scrollbar.grid(row=0, column=1, sticky='ns')
         self.category_tree.configure(yscrollcommand=cat_scrollbar.set)
+        
         cat_form_frame = ttk.Frame(parent_frame)
-        cat_form_frame.pack(fill='x', pady=5)
-        ttk.Label(cat_form_frame, text="Name:").pack(side='left', padx=(0, 5))
-        self.cat_name_entry = ttk.Entry(cat_form_frame, width=25)
-        self.cat_name_entry.pack(side='left')
+        cat_form_frame.grid(row=2, column=0, sticky='ew', pady=5)
+        cat_form_frame.columnconfigure(1, weight=1)
+        ttk.Label(cat_form_frame, text="Name:").grid(row=0, column=0, padx=(0, 5))
+        self.cat_name_entry = ttk.Entry(cat_form_frame)
+        self.cat_name_entry.grid(row=0, column=1, sticky='ew')
+
         cat_btn_frame = ttk.Frame(parent_frame)
-        cat_btn_frame.pack(fill='x', pady=5)
+        cat_btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
         ttk.Button(cat_btn_frame, text="Add", command=self.add_category).pack(side='left', padx=5)
         ttk.Button(cat_btn_frame, text="Delete Selected", command=self.delete_category).pack(side='left', padx=5)
 
@@ -718,17 +885,22 @@ class FinanceTracker:
             
     def create_category_budget_widgets(self, parent_frame):
         """Create UI for managing category budget limits"""
+        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.columnconfigure(0, weight=1)
+
         self.budget_cat_type_var = tk.StringVar(value="Expense")
         
         type_frame = ttk.Frame(parent_frame)
-        type_frame.pack(fill='x', pady=2)
+        type_frame.grid(row=0, column=0, sticky='ew', pady=2)
         ttk.Label(type_frame, text="Type:").pack(side='left')
         ttk.Radiobutton(type_frame, text="Expense", variable=self.budget_cat_type_var,
                         value="Expense", command=self.refresh_category_budget_list).pack(side='left', padx=5)
         
         # Tree to display categories and their budgets
         budget_tree_frame = ttk.Frame(parent_frame)
-        budget_tree_frame.pack(fill='x', pady=5)
+        budget_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+        budget_tree_frame.rowconfigure(0, weight=1)
+        budget_tree_frame.columnconfigure(0, weight=1)
         
         self.category_budget_tree = ttk.Treeview(budget_tree_frame, 
                                                 columns=('Category', 'Budget Limit'), 
@@ -737,11 +909,11 @@ class FinanceTracker:
         self.category_budget_tree.heading('Budget Limit', text='Monthly Limit (€)')
         self.category_budget_tree.column('Category', width=120)
         self.category_budget_tree.column('Budget Limit', width=100, anchor='e')
-        self.category_budget_tree.pack(side='left', fill='x', expand=True)
+        self.category_budget_tree.grid(row=0, column=0, sticky='nsew')
         
         budget_scrollbar = ttk.Scrollbar(budget_tree_frame, orient='vertical', 
                                         command=self.category_budget_tree.yview)
-        budget_scrollbar.pack(side='right', fill='y')
+        budget_scrollbar.grid(row=0, column=1, sticky='ns')
         self.category_budget_tree.configure(yscrollcommand=budget_scrollbar.set)
         
         # Bind selection to populate form
@@ -749,24 +921,23 @@ class FinanceTracker:
         
         # Form for setting budget
         form_frame = ttk.Frame(parent_frame)
-        form_frame.pack(fill='x', pady=5)
-        ttk.Label(form_frame, text="Category:").pack(side='left', padx=(0, 5))
+        form_frame.grid(row=2, column=0, sticky='ew', pady=5)
+        form_frame.columnconfigure(1, weight=1)
+        ttk.Label(form_frame, text="Category:").grid(row=0, column=0, sticky='w', padx=(0, 5))
         self.budget_category_var = tk.StringVar()
         self.budget_category_combo = ttk.Combobox(form_frame, textvariable=self.budget_category_var, 
                                                  width=15, state='readonly')
-        self.budget_category_combo.pack(side='left', padx=5)
+        self.budget_category_combo.grid(row=0, column=1, sticky='ew', padx=5)
         
-        ttk.Label(form_frame, text="Limit:").pack(side='left', padx=(10, 5))
+        ttk.Label(form_frame, text="Limit:").grid(row=0, column=2, padx=(10, 5))
         self.budget_limit_entry = ttk.Entry(form_frame, width=10)
-        self.budget_limit_entry.pack(side='left')
+        self.budget_limit_entry.grid(row=0, column=3, sticky='ew')
         
         # Buttons
         btn_frame = ttk.Frame(parent_frame)
-        btn_frame.pack(fill='x', pady=5)
+        btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
         ttk.Button(btn_frame, text="Set Budget", command=self.set_category_budget).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Remove Budget", command=self.remove_category_budget).pack(side='left', padx=5)
-        
-        self.refresh_category_budget_list()
 
     def refresh_category_budget_list(self):
         """Refresh the category budget tree display"""
