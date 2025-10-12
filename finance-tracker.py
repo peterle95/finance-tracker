@@ -64,6 +64,9 @@ class FinanceTracker:
                                           "Healthcare", "Other"]
         if 'Income' not in self.categories or not self.categories['Income']:
             self.categories['Income'] = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
+        
+        if 'category_budgets' not in self.budget_settings:
+            self.budget_settings['category_budgets'] = {'Expense': {}, 'Income': {}}
 
     def save_data(self):
         """Save data to JSON file"""
@@ -137,6 +140,10 @@ class FinanceTracker:
 
         value_type_frame = ttk.Frame(controls_frame)
         value_type_frame.pack(side='left', padx=10, fill='y')
+        # Add after the value_type_frame.pack() line
+        self.show_budget_lines_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(controls_frame, text="Show Budget Limits", 
+        variable=self.show_budget_lines_var).pack(side='left', padx=5)
         ttk.Label(value_type_frame, text="Display As:").pack(side='left')
         self.chart_value_type_var = tk.StringVar(value="Percentage")
         ttk.Radiobutton(value_type_frame, text="Percentage", variable=self.chart_value_type_var,
@@ -210,6 +217,22 @@ class FinanceTracker:
         ax.set_title(title)
         ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
         plt.setp(autotexts, size=8, weight="bold")
+        # Add budget limit annotations if enabled
+        if self.show_budget_lines_var.get() and chart_type == "Expense":
+            expense_budgets = self.budget_settings.get('category_budgets', {}).get('Expense', {})
+            budget_info = []
+            for category in labels:
+                if category in expense_budgets and expense_budgets[category] > 0:
+                    actual = category_totals[category]
+                    budget = expense_budgets[category]
+                    percentage = (actual / budget) * 100
+                    budget_info.append(f"{category}: {percentage:.0f}% of budget")
+        
+            if budget_info:
+                budget_text = "\n".join(budget_info)
+                ax.text(1.5, 0.5, "Budget Status:\n" + budget_text, 
+                        transform=ax.transAxes, fontsize=9, verticalalignment='center',
+                        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
         fig.tight_layout()
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
@@ -342,6 +365,9 @@ class FinanceTracker:
         ttk.Button(fc_btn_frame, text="Delete", command=self.delete_fixed_cost).pack(side='left', padx=5)
         categories_frame = ttk.LabelFrame(management_frame, text="Manage Categories", padding="10")
         categories_frame.pack(side='left', fill='both', expand=True)
+        budget_limits_frame = ttk.LabelFrame(management_frame, text="Category Budget Limits", padding="10")
+        budget_limits_frame.pack(side='left', fill='both', expand=True)
+        self.create_category_budget_widgets(budget_limits_frame)
         self.create_category_management_widgets(categories_frame)
         report_frame = ttk.LabelFrame(main_frame, text="Daily Budget Report", padding="10")
         report_frame.pack(fill='both', expand=True)
@@ -540,9 +566,26 @@ class FinanceTracker:
         total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
         total_expenses = total_flexible_expenses + total_fixed_costs
         net = total_income - total_expenses
+        
+        # Check category budget warnings
+        category_warnings = []
+        expense_budgets = self.budget_settings.get('category_budgets', {}).get('Expense', {})
+        for category, budget_limit in expense_budgets.items():
+            if budget_limit > 0:
+                category_total = sum(e['amount'] for e in self.expenses 
+                                   if e['date'].startswith(filter_month) and e['category'] == category)
+                if category_total > budget_limit:
+                    category_warnings.append(f"{category}: €{category_total:.2f}/€{budget_limit:.2f} ⚠")
+                elif category_total > budget_limit * 0.8:
+                    category_warnings.append(f"{category}: €{category_total:.2f}/€{budget_limit:.2f} ⚡")
+        
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
                         f"Net: €{net:.2f}")
+        
+        if category_warnings:
+            summary_text += "\n" + "  |  ".join(category_warnings)
+        
         self.summary_label.config(text=summary_text)
 
     def delete_transaction(self):
@@ -672,6 +715,141 @@ class FinanceTracker:
             self.save_data()
             self.refresh_category_list()
             self.update_categories()
+            
+    def create_category_budget_widgets(self, parent_frame):
+        """Create UI for managing category budget limits"""
+        self.budget_cat_type_var = tk.StringVar(value="Expense")
+        
+        type_frame = ttk.Frame(parent_frame)
+        type_frame.pack(fill='x', pady=2)
+        ttk.Label(type_frame, text="Type:").pack(side='left')
+        ttk.Radiobutton(type_frame, text="Expense", variable=self.budget_cat_type_var,
+                        value="Expense", command=self.refresh_category_budget_list).pack(side='left', padx=5)
+        
+        # Tree to display categories and their budgets
+        budget_tree_frame = ttk.Frame(parent_frame)
+        budget_tree_frame.pack(fill='x', pady=5)
+        
+        self.category_budget_tree = ttk.Treeview(budget_tree_frame, 
+                                                columns=('Category', 'Budget Limit'), 
+                                                show='headings', height=5)
+        self.category_budget_tree.heading('Category', text='Category')
+        self.category_budget_tree.heading('Budget Limit', text='Monthly Limit (€)')
+        self.category_budget_tree.column('Category', width=120)
+        self.category_budget_tree.column('Budget Limit', width=100, anchor='e')
+        self.category_budget_tree.pack(side='left', fill='x', expand=True)
+        
+        budget_scrollbar = ttk.Scrollbar(budget_tree_frame, orient='vertical', 
+                                        command=self.category_budget_tree.yview)
+        budget_scrollbar.pack(side='right', fill='y')
+        self.category_budget_tree.configure(yscrollcommand=budget_scrollbar.set)
+        
+        # Bind selection to populate form
+        self.category_budget_tree.bind('<<TreeviewSelect>>', self.on_category_budget_select)
+        
+        # Form for setting budget
+        form_frame = ttk.Frame(parent_frame)
+        form_frame.pack(fill='x', pady=5)
+        ttk.Label(form_frame, text="Category:").pack(side='left', padx=(0, 5))
+        self.budget_category_var = tk.StringVar()
+        self.budget_category_combo = ttk.Combobox(form_frame, textvariable=self.budget_category_var, 
+                                                 width=15, state='readonly')
+        self.budget_category_combo.pack(side='left', padx=5)
+        
+        ttk.Label(form_frame, text="Limit:").pack(side='left', padx=(10, 5))
+        self.budget_limit_entry = ttk.Entry(form_frame, width=10)
+        self.budget_limit_entry.pack(side='left')
+        
+        # Buttons
+        btn_frame = ttk.Frame(parent_frame)
+        btn_frame.pack(fill='x', pady=5)
+        ttk.Button(btn_frame, text="Set Budget", command=self.set_category_budget).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Remove Budget", command=self.remove_category_budget).pack(side='left', padx=5)
+        
+        self.refresh_category_budget_list()
+
+    def refresh_category_budget_list(self):
+        """Refresh the category budget tree display"""
+        for item in self.category_budget_tree.get_children():
+            self.category_budget_tree.delete(item)
+        
+        cat_type = self.budget_cat_type_var.get()
+        categories = self.categories.get(cat_type, [])
+        
+        # Update combo box
+        self.budget_category_combo.config(values=categories)
+        if categories:
+            self.budget_category_combo.set(categories[0])
+        
+        # Display categories with their budgets
+        category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
+        for category in categories:
+            budget_limit = category_budgets.get(category, 0)
+            display_limit = f"{budget_limit:.2f}" if budget_limit > 0 else "Not Set"
+            self.category_budget_tree.insert('', 'end', values=(category, display_limit))
+
+    def on_category_budget_select(self, event):
+        """Populate form when a category is selected"""
+        selected = self.category_budget_tree.selection()
+        if selected:
+            values = self.category_budget_tree.item(selected[0])['values']
+            category = values[0]
+            self.budget_category_var.set(category)
+            
+            cat_type = self.budget_cat_type_var.get()
+            category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
+            budget_limit = category_budgets.get(category, 0)
+            
+            self.budget_limit_entry.delete(0, tk.END)
+            if budget_limit > 0:
+                self.budget_limit_entry.insert(0, str(budget_limit))
+
+    def set_category_budget(self):
+        """Set or update a category budget limit"""
+        try:
+            category = self.budget_category_var.get()
+            limit = float(self.budget_limit_entry.get()) if self.budget_limit_entry.get() else 0
+            
+            if not category:
+                messagebox.showerror("Error", "Please select a category.")
+                return
+            
+            if limit < 0:
+                messagebox.showerror("Error", "Budget limit cannot be negative.")
+                return
+            
+            cat_type = self.budget_cat_type_var.get()
+            if cat_type not in self.budget_settings['category_budgets']:
+                self.budget_settings['category_budgets'][cat_type] = {}
+            
+            self.budget_settings['category_budgets'][cat_type][category] = limit
+            self.save_data()
+            self.refresh_category_budget_list()
+            self.update_summary() # Refresh summary to show new alerts
+            messagebox.showinfo("Success", f"Budget limit set for {category}: €{limit:.2f}")
+            
+        except ValueError:
+            messagebox.showerror("Error", "Invalid budget limit amount.")
+
+    def remove_category_budget(self):
+        """Remove a category budget limit"""
+        category = self.budget_category_var.get()
+        if not category:
+            messagebox.showwarning("Warning", "Please select a category.")
+            return
+        
+        cat_type = self.budget_cat_type_var.get()
+        category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
+        
+        if category in category_budgets:
+            del self.budget_settings['category_budgets'][cat_type][category]
+            self.save_data()
+            self.refresh_category_budget_list()
+            self.update_summary() # Refresh summary to remove alerts
+            self.budget_limit_entry.delete(0, tk.END)
+            messagebox.showinfo("Success", f"Budget limit removed for {category}")
+        else:
+            messagebox.showinfo("Info", f"No budget limit set for {category}")
 
     ## MODIFIED ##: Corrected the logic and explanation for the daily budget report to be clearer.
     def generate_daily_budget(self):
