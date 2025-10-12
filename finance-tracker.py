@@ -36,6 +36,8 @@ class FinanceTracker:
         self.refresh_fixed_costs_tree()
         self.refresh_category_list()
         self.refresh_category_budget_list()
+        ## NEW ##
+        self.refresh_balance_entries()
 
     def load_data(self):
         """Load data from JSON file or create new structure"""
@@ -58,11 +60,13 @@ class FinanceTracker:
             self.budget_settings['monthly_income'] = 0
         if 'bank_account_balance' not in self.budget_settings:
             self.budget_settings['bank_account_balance'] = 0
-        # --- NEW ---
         if 'savings_balance' not in self.budget_settings:
             self.budget_settings['savings_balance'] = 0
         if 'investment_balance' not in self.budget_settings:
             self.budget_settings['investment_balance'] = 0
+        ## NEW ##
+        if 'wallet_balance' not in self.budget_settings:
+            self.budget_settings['wallet_balance'] = 0
         if 'daily_savings_goal' not in self.budget_settings:
             self.budget_settings['daily_savings_goal'] = 0
 
@@ -98,6 +102,11 @@ class FinanceTracker:
         self.view_transactions_tab = ttk.Frame(notebook)
         notebook.add(self.view_transactions_tab, text="View Transactions")
         self.create_view_transactions_tab()
+        
+        ## NEW ##
+        self.transfers_tab = ttk.Frame(notebook)
+        notebook.add(self.transfers_tab, text="Transfers")
+        self.create_transfers_tab()
 
         self.reports_tab = ttk.Frame(notebook)
         notebook.add(self.reports_tab, text="Reports")
@@ -357,6 +366,90 @@ class FinanceTracker:
         self.summary_label = ttk.Label(frame, text="", font=('Arial', 10, 'bold'))
         self.summary_label.pack(pady=10, fill='x')
 
+    ## NEW ##
+    def create_transfers_tab(self):
+        """Create the UI for the new Transfers tab."""
+        main_frame = ttk.Frame(self.transfers_tab, padding="20")
+        main_frame.pack(fill='both', expand=True)
+
+        form_frame = ttk.Frame(main_frame)
+        form_frame.pack(anchor='center')
+
+        ttk.Label(form_frame, text="This section allows you to record the movement of funds between your accounts.").grid(
+            row=0, column=0, columnspan=3, sticky='w', pady=(0, 20))
+        
+        # --- FROM ACCOUNT ---
+        ttk.Label(form_frame, text="From Account:").grid(row=1, column=0, sticky='w', pady=10)
+        self.transfer_from_var = tk.StringVar()
+        self.transfer_from_combo = ttk.Combobox(form_frame, textvariable=self.transfer_from_var, 
+                                                values=["Bank", "Wallet", "Savings", "Investments"], 
+                                                width=28, state='readonly')
+        self.transfer_from_combo.grid(row=1, column=1, pady=5, sticky='w')
+
+        # --- TO ACCOUNT ---
+        ttk.Label(form_frame, text="To Account:").grid(row=2, column=0, sticky='w', pady=10)
+        self.transfer_to_var = tk.StringVar()
+        self.transfer_to_combo = ttk.Combobox(form_frame, textvariable=self.transfer_to_var,
+                                              values=["Bank", "Wallet", "Savings", "Investments"],
+                                              width=28, state='readonly')
+        self.transfer_to_combo.grid(row=2, column=1, pady=5, sticky='w')
+
+        # --- AMOUNT ---
+        ttk.Label(form_frame, text="Amount:").grid(row=3, column=0, sticky='w', pady=5)
+        self.transfer_amount_entry = ttk.Entry(form_frame, width=30)
+        self.transfer_amount_entry.grid(row=3, column=1, pady=5, sticky='w')
+
+        # --- BUTTON ---
+        ttk.Button(form_frame, text="Execute Transfer", command=self.execute_transfer).grid(
+            row=4, column=1, pady=20, sticky='w')
+
+    ## NEW ##
+    def execute_transfer(self):
+        """Logic to handle the transfer of funds between accounts."""
+        from_acc = self.transfer_from_var.get()
+        to_acc = self.transfer_to_var.get()
+        amount_str = self.transfer_amount_entry.get()
+
+        if not from_acc or not to_acc:
+            messagebox.showerror("Error", "Please select both a 'From' and 'To' account.")
+            return
+
+        if from_acc == to_acc:
+            messagebox.showerror("Error", "The 'From' and 'To' accounts cannot be the same.")
+            return
+
+        try:
+            amount = float(amount_str)
+            if amount <= 0:
+                messagebox.showerror("Error", "Transfer amount must be positive.")
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Invalid amount entered.")
+            return
+        
+        # Mapping UI names to data model keys
+        account_keys = {
+            "Bank": "bank_account_balance",
+            "Wallet": "wallet_balance",
+            "Savings": "savings_balance",
+            "Investments": "investment_balance"
+        }
+        
+        from_key = account_keys[from_acc]
+        to_key = account_keys[to_acc]
+
+        # Update the budget_settings dictionary
+        self.budget_settings[from_key] -= amount
+        self.budget_settings[to_key] += amount
+        
+        self.save_data()
+        self.refresh_balance_entries() # Update the UI on the Budget tab
+
+        messagebox.showinfo("Success", f"Successfully transferred €{amount:.2f} from {from_acc} to {to_acc}.")
+        self.transfer_amount_entry.delete(0, tk.END)
+        self.transfer_from_var.set('')
+        self.transfer_to_var.set('')
+
     def create_budget_tab(self):
         main_frame = ttk.Frame(self.budget_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
@@ -367,45 +460,36 @@ class FinanceTracker:
         top_frame.grid(row=0, column=0, sticky='ew', pady=(0, 10))
         top_frame.columnconfigure(1, weight=1) 
 
-        settings_frame = ttk.LabelFrame(top_frame, text="Monthly Settings", padding="10")
+        settings_frame = ttk.LabelFrame(top_frame, text="Monthly Settings & Balances", padding="10")
         settings_frame.grid(row=0, column=0, sticky='ns', padx=(0, 10))
 
         ttk.Label(settings_frame, text="Base Monthly Income:").grid(row=0, column=0, sticky='w', pady=5)
         self.income_entry = ttk.Entry(settings_frame, width=15)
         self.income_entry.grid(row=0, column=1, pady=5)
-        if 'monthly_income' in self.budget_settings:
-            self.income_entry.insert(0, str(self.budget_settings['monthly_income']))
 
         ttk.Label(settings_frame, text="Bank Account Balance:").grid(row=1, column=0, sticky='w', pady=5)
         self.bank_account_entry = ttk.Entry(settings_frame, width=15)
         self.bank_account_entry.grid(row=1, column=1, pady=5)
-        if 'bank_account_balance' in self.budget_settings:
-            self.bank_account_entry.insert(0, str(self.budget_settings['bank_account_balance']))
+        
+        ## NEW ##
+        ttk.Label(settings_frame, text="Wallet Balance:").grid(row=2, column=0, sticky='w', pady=5)
+        self.wallet_entry = ttk.Entry(settings_frame, width=15)
+        self.wallet_entry.grid(row=2, column=1, pady=5)
 
-        # --- NEW SAVINGS FIELD ---
-        ttk.Label(settings_frame, text="Current Savings:").grid(row=2, column=0, sticky='w', pady=5)
+        ttk.Label(settings_frame, text="Current Savings:").grid(row=3, column=0, sticky='w', pady=5)
         self.savings_entry = ttk.Entry(settings_frame, width=15)
-        self.savings_entry.grid(row=2, column=1, pady=5)
-        if 'savings_balance' in self.budget_settings:
-            self.savings_entry.insert(0, str(self.budget_settings['savings_balance']))
-        # --- END NEW SAVINGS FIELD ---
+        self.savings_entry.grid(row=3, column=1, pady=5)
 
-        # --- NEW INVESTMENT FIELD ---
-        ttk.Label(settings_frame, text="Current Investments:").grid(row=3, column=0, sticky='w', pady=5)
+        ttk.Label(settings_frame, text="Current Investments:").grid(row=4, column=0, sticky='w', pady=5)
         self.investment_entry = ttk.Entry(settings_frame, width=15)
-        self.investment_entry.grid(row=3, column=1, pady=5)
-        if 'investment_balance' in self.budget_settings:
-            self.investment_entry.insert(0, str(self.budget_settings['investment_balance']))
-        # --- END NEW INVESTMENT FIELD ---
+        self.investment_entry.grid(row=4, column=1, pady=5)
 
-        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=4, column=0, sticky='w', pady=5)
+        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=5, column=0, sticky='w', pady=5)
         self.daily_savings_entry = ttk.Entry(settings_frame, width=15)
-        self.daily_savings_entry.grid(row=4, column=1, pady=5)
-        if 'daily_savings_goal' in self.budget_settings:
-            self.daily_savings_entry.insert(0, str(self.budget_settings['daily_savings_goal']))
+        self.daily_savings_entry.grid(row=5, column=1, pady=5)
 
         ttk.Button(settings_frame, text="Save Settings", command=self.save_settings).grid(
-            row=5, column=1, pady=10, sticky='e')
+            row=6, column=1, pady=10, sticky='e')
 
         management_frame = ttk.Frame(top_frame)
         management_frame.grid(row=0, column=1, sticky='nsew')
@@ -631,6 +715,7 @@ class FinanceTracker:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export projection.\nError: {e}")
 
+    ## MODIFIED ##
     def generate_projection(self):
         try:
             num_months = int(self.projection_months_entry.get())
@@ -642,20 +727,21 @@ class FinanceTracker:
             return
 
         bank_balance = self.budget_settings.get('bank_account_balance', 0)
+        wallet_balance = self.budget_settings.get('wallet_balance', 0)
         savings_balance = self.budget_settings.get('savings_balance', 0)
         investment_balance = self.budget_settings.get('investment_balance', 0)
         daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
         
-        # The projection starts from the sum of the bank and savings accounts
-        starting_total_balance = bank_balance + savings_balance + investment_balance
+        starting_total_balance = bank_balance + wallet_balance + savings_balance + investment_balance
 
         report = f"{'='*80}\n"
         report += f"FINANCIAL PROJECTION\n"
         report += f"{'='*80}\n\n"
-        report += f"This report projects your total financial balance (Bank + Savings + Investments).\n"
+        report += f"This report projects your total financial balance (Bank + Wallet + Savings + Investments).\n"
         report += f"It assumes you will meet your daily savings goal every day.\n"
         report += f"The 'Daily Savings Goal' is an indicator and does not automatically change your savings balance.\n\n"
         report += f"Bank Account Balance:      €{bank_balance:>10.2f}\n"
+        report += f"Wallet Balance:            €{wallet_balance:>10.2f}\n"
         report += f"Current Savings Balance:   €{savings_balance:>10.2f}\n"
         report += f"Current Investment Balance:€{investment_balance:>10.2f}\n"
         report += f"-----------------------------------------\n"
@@ -681,43 +767,6 @@ class FinanceTracker:
 
         self.projection_text.delete(1.0, tk.END)
         self.projection_text.insert(1.0, report)
-
-    def create_category_management_widgets(self, parent_frame):
-        parent_frame.rowconfigure(1, weight=1)
-        parent_frame.columnconfigure(0, weight=1)
-
-        self.cat_type_var = tk.StringVar(value="Expense")
-        cat_type_frame = ttk.Frame(parent_frame)
-        cat_type_frame.grid(row=0, column=0, sticky='ew', pady=2)
-        ttk.Label(cat_type_frame, text="Type:").pack(side='left')
-        ttk.Radiobutton(cat_type_frame, text="Expense", variable=self.cat_type_var,
-                        value="Expense", command=self.refresh_category_list).pack(side='left', padx=5)
-        ttk.Radiobutton(cat_type_frame, text="Income", variable=self.cat_type_var,
-                        value="Income", command=self.refresh_category_list).pack(side='left', padx=5)
-
-        cat_tree_frame = ttk.Frame(parent_frame)
-        cat_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
-        cat_tree_frame.rowconfigure(0, weight=1)
-        cat_tree_frame.columnconfigure(0, weight=1)
-        self.category_tree = ttk.Treeview(cat_tree_frame, columns=('Category',), show='headings', height=5)
-        self.category_tree.heading('Category', text='Category Name')
-        self.category_tree.column('Category', width=180)
-        self.category_tree.grid(row=0, column=0, sticky='nsew')
-        cat_scrollbar = ttk.Scrollbar(cat_tree_frame, orient='vertical', command=self.category_tree.yview)
-        cat_scrollbar.grid(row=0, column=1, sticky='ns')
-        self.category_tree.configure(yscrollcommand=cat_scrollbar.set)
-        
-        cat_form_frame = ttk.Frame(parent_frame)
-        cat_form_frame.grid(row=2, column=0, sticky='ew', pady=5)
-        cat_form_frame.columnconfigure(1, weight=1)
-        ttk.Label(cat_form_frame, text="Name:").grid(row=0, column=0, padx=(0, 5))
-        self.cat_name_entry = ttk.Entry(cat_form_frame)
-        self.cat_name_entry.grid(row=0, column=1, sticky='ew')
-
-        cat_btn_frame = ttk.Frame(parent_frame)
-        cat_btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
-        ttk.Button(cat_btn_frame, text="Add", command=self.add_category).pack(side='left', padx=5)
-        ttk.Button(cat_btn_frame, text="Delete Selected", command=self.delete_category).pack(side='left', padx=5)
 
     def add_transaction(self):
         try:
@@ -774,8 +823,6 @@ class FinanceTracker:
         total_expenses = total_flexible_expenses + total_fixed_costs
         net = total_income - total_expenses
         
-        # The category budget warning logic has been removed.
-        
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
                         f"Net: €{net:.2f}")
@@ -804,17 +851,37 @@ class FinanceTracker:
             self.save_data()
             self.refresh_transaction_list()
 
+    ## NEW ##
+    def refresh_balance_entries(self):
+        """Updates the balance Entry widgets on the Budget tab with current values."""
+        self.income_entry.delete(0, tk.END)
+        self.bank_account_entry.delete(0, tk.END)
+        self.wallet_entry.delete(0, tk.END)
+        self.savings_entry.delete(0, tk.END)
+        self.investment_entry.delete(0, tk.END)
+        self.daily_savings_entry.delete(0, tk.END)
+
+        self.income_entry.insert(0, str(self.budget_settings.get('monthly_income', 0)))
+        self.bank_account_entry.insert(0, str(self.budget_settings.get('bank_account_balance', 0)))
+        self.wallet_entry.insert(0, str(self.budget_settings.get('wallet_balance', 0)))
+        self.savings_entry.insert(0, str(self.budget_settings.get('savings_balance', 0)))
+        self.investment_entry.insert(0, str(self.budget_settings.get('investment_balance', 0)))
+        self.daily_savings_entry.insert(0, str(self.budget_settings.get('daily_savings_goal', 0)))
+
+    ## MODIFIED ##
     def save_settings(self):
         try:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
             bank_balance = float(self.bank_account_entry.get()) if self.bank_account_entry.get() else 0
-            savings = float(self.savings_entry.get()) if self.savings_entry.get() else 0 # --- NEW ---
+            wallet = float(self.wallet_entry.get()) if self.wallet_entry.get() else 0
+            savings = float(self.savings_entry.get()) if self.savings_entry.get() else 0
             investment = float(self.investment_entry.get()) if self.investment_entry.get() else 0
             savings_goal = float(self.daily_savings_entry.get()) if self.daily_savings_entry.get() else 0
 
             self.budget_settings['monthly_income'] = income
             self.budget_settings['bank_account_balance'] = bank_balance
-            self.budget_settings['savings_balance'] = savings # --- NEW ---
+            self.budget_settings['wallet_balance'] = wallet
+            self.budget_settings['savings_balance'] = savings
             self.budget_settings['investment_balance'] = investment
             self.budget_settings['daily_savings_goal'] = savings_goal
             
@@ -916,62 +983,6 @@ class FinanceTracker:
             self.refresh_category_list()
             self.update_categories()
             
-    def create_category_budget_widgets(self, parent_frame):
-        """Create UI for managing category budget limits"""
-        parent_frame.rowconfigure(1, weight=1)
-        parent_frame.columnconfigure(0, weight=1)
-
-        self.budget_cat_type_var = tk.StringVar(value="Expense")
-        
-        type_frame = ttk.Frame(parent_frame)
-        type_frame.grid(row=0, column=0, sticky='ew', pady=2)
-        ttk.Label(type_frame, text="Type:").pack(side='left')
-        ttk.Radiobutton(type_frame, text="Expense", variable=self.budget_cat_type_var,
-                        value="Expense", command=self.refresh_category_budget_list).pack(side='left', padx=5)
-        
-        # Tree to display categories and their budgets
-        budget_tree_frame = ttk.Frame(parent_frame)
-        budget_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
-        budget_tree_frame.rowconfigure(0, weight=1)
-        budget_tree_frame.columnconfigure(0, weight=1)
-        
-        self.category_budget_tree = ttk.Treeview(budget_tree_frame, 
-                                                columns=('Category', 'Budget Limit'), 
-                                                show='headings', height=5)
-        self.category_budget_tree.heading('Category', text='Category')
-        self.category_budget_tree.heading('Budget Limit', text='Monthly Limit (€)')
-        self.category_budget_tree.column('Category', width=120)
-        self.category_budget_tree.column('Budget Limit', width=100, anchor='e')
-        self.category_budget_tree.grid(row=0, column=0, sticky='nsew')
-        
-        budget_scrollbar = ttk.Scrollbar(budget_tree_frame, orient='vertical', 
-                                        command=self.category_budget_tree.yview)
-        budget_scrollbar.grid(row=0, column=1, sticky='ns')
-        self.category_budget_tree.configure(yscrollcommand=budget_scrollbar.set)
-        
-        # Bind selection to populate form
-        self.category_budget_tree.bind('<<TreeviewSelect>>', self.on_category_budget_select)
-        
-        # Form for setting budget
-        form_frame = ttk.Frame(parent_frame)
-        form_frame.grid(row=2, column=0, sticky='ew', pady=5)
-        form_frame.columnconfigure(1, weight=1)
-        ttk.Label(form_frame, text="Category:").grid(row=0, column=0, sticky='w', padx=(0, 5))
-        self.budget_category_var = tk.StringVar()
-        self.budget_category_combo = ttk.Combobox(form_frame, textvariable=self.budget_category_var, 
-                                                 width=15, state='readonly')
-        self.budget_category_combo.grid(row=0, column=1, sticky='ew', padx=5)
-        
-        ttk.Label(form_frame, text="Limit:").grid(row=0, column=2, padx=(10, 5))
-        self.budget_limit_entry = ttk.Entry(form_frame, width=10)
-        self.budget_limit_entry.grid(row=0, column=3, sticky='ew')
-        
-        # Buttons
-        btn_frame = ttk.Frame(parent_frame)
-        btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
-        ttk.Button(btn_frame, text="Set Budget", command=self.set_category_budget).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text="Remove Budget", command=self.remove_category_budget).pack(side='left', padx=5)
-
     def refresh_category_budget_list(self):
         """Refresh the category budget tree display"""
         for item in self.category_budget_tree.get_children():
@@ -1055,7 +1066,6 @@ class FinanceTracker:
         else:
             messagebox.showinfo("Info", f"No budget limit set for {category}")
 
-    ## MODIFIED ##: Corrected the logic and explanation for the daily budget report to be clearer.
     def generate_daily_budget(self):
         month_str = self.budget_month.get()
         try:
@@ -1134,11 +1144,9 @@ class FinanceTracker:
                 report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
                 report += f"{'-'*80}\n"
 
-                # This value is the cumulative surplus (or deficit) distributed over the remaining days
                 daily_surplus_distribution = cumulative_deficit / remaining_days_forecast
 
                 if daily_surplus_distribution < 0:
-                    # This is the negative case you asked not to change.
                     total_flexible_expenses = sum(e['amount'] for e in flex_expenses_month)
                     total_expenses = total_flexible_expenses + fixed_costs
                     net_value = total_income - total_expenses
@@ -1162,10 +1170,6 @@ class FinanceTracker:
                     report += f"   \"Your goal is always €{spending_daily_budget:.2f}/day, but you are currently €{cumulative_deficit:.2f} behind schedule.\"\n\n"
 
                 else:
-                    # ### START OF CODE CORRECTION ###
-                    # This is the corrected positive case logic.
-                    
-                    # Calculate the actual new recommended total spending amount
                     new_recommended_budget = spending_daily_budget + daily_surplus_distribution
 
                     report += "You are currently under budget. Your saved amount has been redistributed.\n\n"
@@ -1181,7 +1185,6 @@ class FinanceTracker:
                     report += "To spend your entire flexible budget by the end of the month, you can now spend\n"
                     report += f"up to €{new_recommended_budget:.2f} each day. This new amount is your original target plus\n"
                     report += "your cumulative savings spread across the remaining days.\n"
-                    # ### END OF CODE CORRECTION ###
 
                 report += f"{'-'*80}\n"
 
