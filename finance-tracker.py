@@ -58,6 +58,9 @@ class FinanceTracker:
             self.budget_settings['monthly_income'] = 0
         if 'bank_account_balance' not in self.budget_settings:
             self.budget_settings['bank_account_balance'] = 0
+        # --- NEW ---
+        if 'savings_balance' not in self.budget_settings:
+            self.budget_settings['savings_balance'] = 0
         if 'daily_savings_goal' not in self.budget_settings:
             self.budget_settings['daily_savings_goal'] = 0
 
@@ -377,14 +380,22 @@ class FinanceTracker:
         if 'bank_account_balance' in self.budget_settings:
             self.bank_account_entry.insert(0, str(self.budget_settings['bank_account_balance']))
 
-        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=2, column=0, sticky='w', pady=5)
+        # --- NEW SAVINGS FIELD ---
+        ttk.Label(settings_frame, text="Current Savings:").grid(row=2, column=0, sticky='w', pady=5)
+        self.savings_entry = ttk.Entry(settings_frame, width=15)
+        self.savings_entry.grid(row=2, column=1, pady=5)
+        if 'savings_balance' in self.budget_settings:
+            self.savings_entry.insert(0, str(self.budget_settings['savings_balance']))
+        # --- END NEW SAVINGS FIELD ---
+
+        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=3, column=0, sticky='w', pady=5)
         self.daily_savings_entry = ttk.Entry(settings_frame, width=15)
-        self.daily_savings_entry.grid(row=2, column=1, pady=5)
+        self.daily_savings_entry.grid(row=3, column=1, pady=5)
         if 'daily_savings_goal' in self.budget_settings:
             self.daily_savings_entry.insert(0, str(self.budget_settings['daily_savings_goal']))
 
         ttk.Button(settings_frame, text="Save Settings", command=self.save_settings).grid(
-            row=3, column=1, pady=10, sticky='e')
+            row=4, column=1, pady=10, sticky='e')
 
         management_frame = ttk.Frame(top_frame)
         management_frame.grid(row=0, column=1, sticky='nsew')
@@ -620,21 +631,29 @@ class FinanceTracker:
             messagebox.showerror("Error", "Invalid number of months.")
             return
 
-        current_balance = self.budget_settings.get('bank_account_balance', 0)
+        bank_balance = self.budget_settings.get('bank_account_balance', 0)
+        savings_balance = self.budget_settings.get('savings_balance', 0)
         daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
+        
+        # The projection starts from the sum of the bank and savings accounts
+        starting_total_balance = bank_balance + savings_balance
 
         report = f"{'='*80}\n"
-        report += f"BANK ACCOUNT PROJECTION\n"
+        report += f"FINANCIAL PROJECTION\n"
         report += f"{'='*80}\n\n"
-        report += f"This report projects your bank balance based on your current settings,\n"
-        report += f"assuming you meet your daily savings goal every day.\n\n"
-        report += f"Starting Balance:          €{current_balance:>10.2f}\n"
-        report += f"Target Daily Savings:      €{daily_savings_goal:>10.2f}\n"
+        report += f"This report projects your total financial balance (Bank + Savings).\n"
+        report += f"It assumes you will meet your daily savings goal every day.\n"
+        report += f"The 'Daily Savings Goal' is an indicator and does not automatically change your savings balance.\n\n"
+        report += f"Bank Account Balance:      €{bank_balance:>10.2f}\n"
+        report += f"Current Savings Balance:   €{savings_balance:>10.2f}\n"
+        report += f"-----------------------------------------\n"
+        report += f"Total Starting Balance:    €{starting_total_balance:>10.2f}\n"
+        report += f"Target Daily Savings Goal: €{daily_savings_goal:>10.2f}\n"
         report += f"{'-'*80}\n\n"
-        report += f"{'Month':<15} {'Monthly Change':<20} {'Projected Balance'}\n"
+        report += f"{'Month':<15} {'Projected Monthly Savings':<30} {'Projected Total Balance'}\n"
         report += f"{'-'*80}\n"
 
-        projected_balance = current_balance
+        projected_balance = starting_total_balance
         current_date = date.today()
 
         for i in range(num_months):
@@ -643,7 +662,7 @@ class FinanceTracker:
             monthly_savings = daily_savings_goal * days_in_month
             projected_balance += monthly_savings
             
-            report += f"{current_date.strftime('%Y-%m'):<15} €{monthly_savings:<18.2f} €{projected_balance:10.2f}\n"
+            report += f"{current_date.strftime('%Y-%m'):<15} €{monthly_savings:<28.2f} €{projected_balance:10.2f}\n"
             current_date = next_month_date
 
         report += f"{'-'*80}\n"
@@ -777,10 +796,14 @@ class FinanceTracker:
         try:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
             bank_balance = float(self.bank_account_entry.get()) if self.bank_account_entry.get() else 0
+            savings = float(self.savings_entry.get()) if self.savings_entry.get() else 0 # --- NEW ---
             savings_goal = float(self.daily_savings_entry.get()) if self.daily_savings_entry.get() else 0
+
             self.budget_settings['monthly_income'] = income
             self.budget_settings['bank_account_balance'] = bank_balance
+            self.budget_settings['savings_balance'] = savings # --- NEW ---
             self.budget_settings['daily_savings_goal'] = savings_goal
+            
             self.save_data()
             messagebox.showinfo("Success", "Settings saved!")
         except ValueError:
