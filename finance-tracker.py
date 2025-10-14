@@ -1177,6 +1177,7 @@ class FinanceTracker:
         report += f"TOTAL INCOME:                            €{total_income:>10.2f}\n"
         report += f"Total Fixed Costs:                      -€{fixed_costs:>10.2f}\n"
         report += f"{'-'*50}\n"
+        report += f"Monthly Savings Goal:                    €{monthly_savings_goal:>10.2f}\n"
         report += f"Net Available for SPENDING:              €{spending_flexible_budget:>10.2f}\n"
         report += f"YOUR DAILY SPENDING TARGET:              €{spending_daily_budget:>10.2f}\n"
         report += f"{'-'*80}\n\n"
