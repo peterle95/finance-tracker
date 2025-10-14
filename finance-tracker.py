@@ -6,10 +6,11 @@ from pathlib import Path
 import calendar
 from dateutil.relativedelta import relativedelta
 
-## NEW ##: Import matplotlib for charting
+## NEW/MODIFIED ##: Import matplotlib and numpy for charting
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 import matplotlib.pyplot as plt
+import numpy as np
 
 
 class FinanceTracker:
@@ -227,8 +228,9 @@ class FinanceTracker:
 
         help_text_widget.config(state='disabled') # Make it read-only
 
+    ## NEW/MODIFIED ##
     def create_reports_tab(self):
-        """Create the UI for the reports tab with a pie chart"""
+        """Create the UI for the reports tab with multiple chart options."""
         main_frame = ttk.Frame(self.reports_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
         main_frame.rowconfigure(1, weight=1)
@@ -237,34 +239,52 @@ class FinanceTracker:
         controls_frame = ttk.LabelFrame(main_frame, text="Chart Options", padding="10")
         controls_frame.grid(row=0, column=0, sticky='ew', pady=5)
 
+        # --- Top Row of Controls ---
         top_controls_row = ttk.Frame(controls_frame)
-        top_controls_row.pack(fill='x', expand=True, pady=(0, 5))
+        top_controls_row.pack(fill='x', expand=True, pady=(0, 10))
 
-        month_frame = ttk.Frame(top_controls_row)
-        month_frame.pack(side='left', padx=(0, 15))
-        ttk.Label(month_frame, text="Select Month:").pack(side='left')
-        self.chart_month_entry = ttk.Entry(month_frame, width=15)
-        self.chart_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
-        self.chart_month_entry.pack(side='left', padx=5)
+        # Chart Style Selection (Pie, Bar, etc.)
+        style_frame = ttk.Frame(top_controls_row)
+        style_frame.pack(side='left', padx=(0, 20))
+        ttk.Label(style_frame, text="Chart Style:").pack(side='left', anchor='n')
+        self.report_style_var = tk.StringVar(value="Pie Chart")
+        ttk.Radiobutton(style_frame, text="Pie Chart", variable=self.report_style_var, value="Pie Chart",
+                        command=self._update_report_controls_visibility).pack(anchor='w')
+        ttk.Radiobutton(style_frame, text="Historical Bar Chart", variable=self.report_style_var, value="Bar Chart",
+                        command=self._update_report_controls_visibility).pack(anchor='w')
 
+        # Transaction Type Selection (Income/Expense)
         type_frame = ttk.Frame(top_controls_row)
-        type_frame.pack(side='left', padx=(0, 15))
-        ttk.Label(type_frame, text="Chart Type:").pack(side='left')
+        type_frame.pack(side='left', padx=(0, 20))
+        ttk.Label(type_frame, text="Data Type:").pack(side='left')
         self.chart_type_var = tk.StringVar(value="Expense")
         ttk.Radiobutton(type_frame, text="Expenses", variable=self.chart_type_var, value="Expense",
                         command=self._update_report_options_ui).pack(side='left')
         ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income",
                         command=self._update_report_options_ui).pack(side='left', padx=5)
 
-        value_type_frame = ttk.Frame(top_controls_row)
-        value_type_frame.pack(side='left', padx=(0, 15))
-        ttk.Label(value_type_frame, text="Display As:").pack(side='left')
+        # --- Dynamic Controls based on Chart Style ---
+        self.pie_chart_controls = ttk.Frame(top_controls_row)
+        self.pie_chart_controls.pack(side='left', padx=(0, 15))
+        ttk.Label(self.pie_chart_controls, text="Select Month:").pack(side='left')
+        self.chart_month_entry = ttk.Entry(self.pie_chart_controls, width=15)
+        self.chart_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.chart_month_entry.pack(side='left', padx=5)
+        ttk.Label(self.pie_chart_controls, text="Display As:").pack(side='left', padx=(10,0))
         self.chart_value_type_var = tk.StringVar(value="Percentage")
-        ttk.Radiobutton(value_type_frame, text="Percentage", variable=self.chart_value_type_var,
+        ttk.Radiobutton(self.pie_chart_controls, text="%", variable=self.chart_value_type_var,
                         value="Percentage").pack(side='left')
-        ttk.Radiobutton(value_type_frame, text="Total Amount", variable=self.chart_value_type_var,
+        ttk.Radiobutton(self.pie_chart_controls, text="€", variable=self.chart_value_type_var,
                         value="Total").pack(side='left', padx=5)
 
+        self.bar_chart_controls = ttk.Frame(top_controls_row)
+        # Packed later by _update_report_controls_visibility
+        ttk.Label(self.bar_chart_controls, text="Number of Months:").pack(side='left')
+        self.history_months_entry = ttk.Entry(self.bar_chart_controls, width=10)
+        self.history_months_entry.insert(0, "6")
+        self.history_months_entry.pack(side='left', padx=5)
+
+        # --- Bottom Row of Controls ---
         bottom_controls_row = ttk.Frame(controls_frame)
         bottom_controls_row.pack(fill='x', expand=True)
         
@@ -279,17 +299,48 @@ class FinanceTracker:
         self._update_report_options_ui()
 
         self.show_budget_lines_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(bottom_controls_row, text="Show Budget Limits", 
-                        variable=self.show_budget_lines_var).pack(side='left', padx=(0,15))
+        self.budget_lines_checkbutton = ttk.Checkbutton(bottom_controls_row, text="Show Budget Limits", 
+                        variable=self.show_budget_lines_var)
+        self.budget_lines_checkbutton.pack(side='left', padx=(0,15))
 
         spacer = ttk.Frame(bottom_controls_row)
         spacer.pack(side='left', fill='x', expand=True)
 
-        ttk.Button(bottom_controls_row, text="Generate Chart", command=self.generate_pie_chart).pack(side='right')
+        ttk.Button(bottom_controls_row, text="Generate Chart", command=self.generate_report).pack(side='right')
 
         self.chart_frame = ttk.Frame(main_frame)
         self.chart_frame.grid(row=1, column=0, sticky='nsew', pady=10)
         self.canvas = None
+
+        self._update_report_controls_visibility() # Initial setup
+
+    ## NEW/MODIFIED ##
+    def _update_report_controls_visibility(self):
+        """Shows or hides UI elements based on the selected chart style."""
+        style = self.report_style_var.get()
+        # Forget all dynamic controls first
+        self.pie_chart_controls.pack_forget()
+        self.bar_chart_controls.pack_forget()
+        self.budget_lines_checkbutton.pack_forget()
+
+        if style == "Pie Chart":
+            self.pie_chart_controls.pack(side='left', padx=(0, 15))
+            self.budget_lines_checkbutton.pack(side='left', padx=(0,15))
+        elif style == "Bar Chart":
+            self.bar_chart_controls.pack(side='left', padx=(0, 15))
+
+    ## NEW/MODIFIED ##
+    def generate_report(self):
+        """Dispatcher function that calls the correct chart generation method."""
+        style = self.report_style_var.get()
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+            self.canvas = None
+            
+        if style == "Pie Chart":
+            self.generate_pie_chart()
+        elif style == "Bar Chart":
+            self.generate_history_chart()
 
     def _update_report_options_ui(self):
         chart_type = self.chart_type_var.get()
@@ -299,6 +350,75 @@ class FinanceTracker:
             self.fixed_costs_checkbutton.pack()
         else:
             self.base_income_checkbutton.pack()
+
+    ## NEW/MODIFIED ##
+    def generate_history_chart(self):
+        """Generates and displays a bar chart of historical data with a trend line."""
+        try:
+            num_months = int(self.history_months_entry.get())
+            if num_months <= 1:
+                messagebox.showerror("Error", "Number of months must be greater than 1 for a historical chart.")
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Invalid number of months. Please enter an integer.")
+            return
+
+        chart_type = self.chart_type_var.get()
+        
+        # Determine data source and fixed values
+        if chart_type == "Expense":
+            data = self.expenses
+            title = f"Historical Expenses for the Last {num_months} Months"
+            fixed_value = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', [])) if self.include_fixed_costs_var.get() else 0
+        else: # Income
+            data = self.incomes
+            title = f"Historical Incomes for the Last {num_months} Months"
+            fixed_value = self.budget_settings.get('monthly_income', 0) if self.include_base_income_var.get() else 0
+
+        # Aggregate data by month
+        today = date.today()
+        monthly_totals = {}
+        for i in range(num_months - 1, -1, -1):
+            month_date = today - relativedelta(months=i)
+            month_key = month_date.strftime("%Y-%m")
+            monthly_totals[month_key] = fixed_value
+
+        for item in data:
+            item_month = item['date'][:7]
+            if item_month in monthly_totals:
+                monthly_totals[item_month] += item['amount']
+        
+        if not any(monthly_totals.values()):
+            messagebox.showinfo("No Data", f"No data to display for the selected period.")
+            return
+
+        labels = list(monthly_totals.keys())
+        values = list(monthly_totals.values())
+
+        # Create the plot
+        fig = Figure(figsize=(10, 6), dpi=100)
+        ax = fig.add_subplot(111)
+
+        ax.bar(labels, values, label=f'Monthly Totals')
+        
+        # Calculate and plot the trend line
+        if len(values) > 1:
+            x_axis = np.arange(len(labels))
+            slope, intercept = np.polyfit(x_axis, values, 1)
+            trend_line = slope * x_axis + intercept
+            ax.plot(labels, trend_line, color='red', linestyle='--', label='Trend Line')
+
+        ax.set_title(title)
+        ax.set_ylabel("Total Amount (€)")
+        ax.legend()
+        fig.autofmt_xdate(rotation=45)
+        fig.tight_layout()
+
+        # Embed the plot in Tkinter
+        self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+
 
     def generate_pie_chart(self):
         month_str = self.chart_month_entry.get()
@@ -334,8 +454,7 @@ class FinanceTracker:
             return
         labels = category_totals.keys()
         sizes = category_totals.values()
-        if self.canvas:
-            self.canvas.get_tk_widget().destroy()
+        
         fig = Figure(figsize=(8, 6), dpi=100)
         ax = fig.add_subplot(111)
         if value_type == "Percentage":
