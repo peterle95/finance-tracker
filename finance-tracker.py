@@ -5,6 +5,7 @@ from datetime import datetime, date
 from pathlib import Path
 import calendar
 from dateutil.relativedelta import relativedelta
+import random
 
 ## NEW/MODIFIED ##: Import matplotlib and numpy for charting
 from matplotlib.figure import Figure
@@ -85,10 +86,14 @@ class FinanceTracker:
             self.budget_settings['wallet_balance'] = 0
         if 'daily_savings_goal' not in self.budget_settings:
             self.budget_settings['daily_savings_goal'] = 0
+        ## NEW ##
+        if 'money_lent_balance' not in self.budget_settings:
+            self.budget_settings['money_lent_balance'] = 0
 
         if 'Expense' not in self.categories or not self.categories['Expense']:
+            ## MODIFIED ##
             self.categories['Expense'] = ["Food", "Transportation", "Entertainment", "Utilities", "Shopping",
-                                          "Healthcare", "Other"]
+                                          "Healthcare", "Money Lent", "Other"]
         if 'Income' not in self.categories or not self.categories['Income']:
             self.categories['Income'] = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
         
@@ -132,7 +137,6 @@ class FinanceTracker:
         self.notebook.add(self.projection_tab, text="Projection")
         self.create_projection_tab()
     
-    ## NEW ##
     def show_help_window(self):
         """Creates and displays the help pop-up window."""
         help_win = tk.Toplevel(self.root)
@@ -165,7 +169,7 @@ class FinanceTracker:
             ("To use this tracker effectively, it's important to understand these key ideas:", "italic"),
             
             ("\n•  Assets (Your Accounts):", "bold"),
-            (" These are the containers that hold your money. The main ones are 'Bank', 'Wallet', 'Savings', and 'Investments'. You can see their balances in the 'Budget & Settings' tab.", "none"),
+            (" These are the containers that hold your money. The main ones are 'Bank', 'Wallet', 'Savings', 'Investments', and 'Money Lent'. You can see their balances in the 'Budget & Settings' tab.", "none"),
             
             ("\n•  Transactions (Income/Expense):", "bold"),
             (" A transaction is any money that ENTERS or LEAVES your financial world. A salary is income; buying groceries is an expense. These change your total net worth.", "none"),
@@ -185,16 +189,18 @@ class FinanceTracker:
             ("This is your history book. It shows all the transactions you've logged for a specific month.", "none"),
             ("\n•  ", "none"), ("Filter by Month:", "bold"), (" Enter a month in YYYY-MM format to see only transactions from that period.", "none"),
             ("\n•  ", "none"), ("Summary:", "bold"), (" At the bottom, you can see your total income, total expenses, and the net result for the filtered month.", "none"),
-            ("\n•  ", "none"), ("Delete:", "bold"), (" Select a transaction in the list and click 'Delete Selected' to remove it permanently.", "none"),
+            ("\n•  ", "none"), ("Modify/Delete:", "bold"), (" Select a transaction in the list and click the appropriate button to edit its details or remove it permanently.", "none"),
 
             ("\nTransfers Tab", "h2"),
             ("Use this tab ONLY when moving money between your own accounts. This is NOT for recording spending.", "none"),
-            ("\n•  ", "none"), ("Example: ATM Withdrawal:", "bold"),
+            ("\n•  ", "none"), ("Example: Lending Money to a Friend:", "bold"),
             ("\n    - From Account: Bank", "none"),
-            ("\n    - To Account: Wallet", "none"),
+            ("\n    - To Account: Money Lent", "none"),
             ("\n    - Amount: 50", "none"),
-            ("\n•  ", "none"), ("Result:", "bold"), (" Your Bank Balance will decrease, and your Wallet Balance will increase. No income or expense is recorded.", "none"),
+            ("\n•  ", "none"), ("Result:", "bold"), (" Your Bank Balance will decrease, and your Money Lent Balance will increase. No income or expense is recorded because it's still your asset.", "none"),
             ("\n   This action will automatically update the balances in the 'Budget & Settings' tab.", "italic"),
+            ## MODIFIED ##
+            ("\n   ", "none"), ("Important:", "bold"), (" Only perform this transfer when the money has actually left one of your accounts (e.g., your bank account was charged). If you lend cash from your wallet, the transfer should be from 'Wallet' to 'Money Lent'.", "none"),
 
             ("\nReports Tab", "h2"),
             ("Visualize your finances with a pie chart to see where your money is going or coming from.", "none"),
@@ -209,7 +215,7 @@ class FinanceTracker:
 
             ("\nProjection Tab", "h2"),
             ("Forecast your financial future.", "none"),
-            ("\n•  ", "none"), ("Logic:", "bold"), (" The projection takes your TOTAL current assets (Bank + Wallet + Savings + Investments) and calculates their future value by adding your 'Daily Savings Goal' for each day of the projection period.", "none"),
+            ("\n•  ", "none"), ("Logic:", "bold"), (" The projection takes your TOTAL current assets (Bank + Wallet + Savings + Investments + Money Lent) and calculates their future value by adding your 'Daily Savings Goal' for each day of the projection period.", "none"),
             
             ("\nCommon Scenarios", "h1"),
             
@@ -537,6 +543,7 @@ class FinanceTracker:
         else:
             self.category_combo.set("")
 
+    ## MODIFIED ##
     def create_view_transactions_tab(self):
         frame = ttk.Frame(self.view_transactions_tab, padding="20")
         frame.pack(fill='both', expand=True)
@@ -553,7 +560,7 @@ class FinanceTracker:
         tree_frame = ttk.Frame(frame)
         tree_frame.pack(fill='both', expand=True, pady=10)
 
-        columns = ('Date', 'Type', 'Amount', 'Category', 'Description')
+        columns = ('ID', 'Date', 'Type', 'Amount', 'Category', 'Description')
         self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
         for col in columns:
             self.transaction_tree.heading(col, text=col)
@@ -562,6 +569,9 @@ class FinanceTracker:
             if col == 'Description': width = 250
             if col == 'Type': width = 80
             self.transaction_tree.column(col, width=width, anchor='w')
+        
+        # Hide the ID column
+        self.transaction_tree.column('ID', width=0, stretch=tk.NO)
 
         self.transaction_tree.tag_configure('expense', foreground='red')
         self.transaction_tree.tag_configure('income', foreground='green')
@@ -572,11 +582,16 @@ class FinanceTracker:
 
         button_frame = ttk.Frame(frame)
         button_frame.pack(fill='x', pady=5)
-        ttk.Button(button_frame, text="Delete Selected", command=self.delete_transaction).pack(side='right')
+        # Add a spacer to push buttons to the right
+        spacer = ttk.Frame(button_frame)
+        spacer.pack(side='left', expand=True, fill='x')
+        ttk.Button(button_frame, text="Modify Selected", command=self.open_modify_window).pack(side='left', padx=5)
+        ttk.Button(button_frame, text="Delete Selected", command=self.delete_transaction).pack(side='left')
         
         self.summary_label = ttk.Label(frame, text="", font=('Arial', 10, 'bold'))
         self.summary_label.pack(pady=10, fill='x')
 
+    ## MODIFIED ##
     def create_transfers_tab(self):
         """Create the UI for the new Transfers tab."""
         main_frame = ttk.Frame(self.transfers_tab, padding="20")
@@ -588,17 +603,19 @@ class FinanceTracker:
         ttk.Label(form_frame, text="This section allows you to record the movement of funds between your accounts.").grid(
             row=0, column=0, columnspan=3, sticky='w', pady=(0, 20))
         
+        account_options = ["Bank", "Wallet", "Savings", "Investments", "Money Lent"]
+
         ttk.Label(form_frame, text="From Account:").grid(row=1, column=0, sticky='w', pady=10)
         self.transfer_from_var = tk.StringVar()
         self.transfer_from_combo = ttk.Combobox(form_frame, textvariable=self.transfer_from_var, 
-                                                values=["Bank", "Wallet", "Savings", "Investments"], 
+                                                values=account_options, 
                                                 width=28, state='readonly')
         self.transfer_from_combo.grid(row=1, column=1, pady=5, sticky='w')
 
         ttk.Label(form_frame, text="To Account:").grid(row=2, column=0, sticky='w', pady=10)
         self.transfer_to_var = tk.StringVar()
         self.transfer_to_combo = ttk.Combobox(form_frame, textvariable=self.transfer_to_var,
-                                              values=["Bank", "Wallet", "Savings", "Investments"],
+                                              values=account_options,
                                               width=28, state='readonly')
         self.transfer_to_combo.grid(row=2, column=1, pady=5, sticky='w')
 
@@ -609,6 +626,7 @@ class FinanceTracker:
         ttk.Button(form_frame, text="Execute Transfer", command=self.execute_transfer).grid(
             row=4, column=1, pady=20, sticky='w')
 
+    ## MODIFIED ##
     def execute_transfer(self):
         """Logic to handle the transfer of funds between accounts."""
         from_acc = self.transfer_from_var.get()
@@ -636,7 +654,8 @@ class FinanceTracker:
             "Bank": "bank_account_balance",
             "Wallet": "wallet_balance",
             "Savings": "savings_balance",
-            "Investments": "investment_balance"
+            "Investments": "investment_balance",
+            "Money Lent": "money_lent_balance"
         }
         
         from_key = account_keys[from_acc]
@@ -653,6 +672,7 @@ class FinanceTracker:
         self.transfer_from_var.set('')
         self.transfer_to_var.set('')
 
+    ## MODIFIED ##
     def create_budget_tab(self):
         main_frame = ttk.Frame(self.budget_tab, padding="10")
         main_frame.pack(fill='both', expand=True)
@@ -686,12 +706,16 @@ class FinanceTracker:
         self.investment_entry = ttk.Entry(settings_frame, width=15)
         self.investment_entry.grid(row=4, column=1, pady=5)
 
-        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=5, column=0, sticky='w', pady=5)
+        ttk.Label(settings_frame, text="Money Lent Balance:").grid(row=5, column=0, sticky='w', pady=5)
+        self.money_lent_entry = ttk.Entry(settings_frame, width=15)
+        self.money_lent_entry.grid(row=5, column=1, pady=5)
+
+        ttk.Label(settings_frame, text="Daily Savings Goal:").grid(row=6, column=0, sticky='w', pady=5)
         self.daily_savings_entry = ttk.Entry(settings_frame, width=15)
-        self.daily_savings_entry.grid(row=5, column=1, pady=5)
+        self.daily_savings_entry.grid(row=6, column=1, pady=5)
 
         ttk.Button(settings_frame, text="Save Settings", command=self.save_settings).grid(
-            row=6, column=1, pady=10, sticky='e')
+            row=7, column=1, pady=10, sticky='e')
 
         management_frame = ttk.Frame(top_frame)
         management_frame.grid(row=0, column=1, sticky='nsew')
@@ -913,6 +937,7 @@ class FinanceTracker:
         except Exception as e:
             messagebox.showerror("Error", f"Failed to export projection.\nError: {e}")
 
+    ## MODIFIED ##
     def generate_projection(self):
         try:
             num_months = int(self.projection_months_entry.get())
@@ -927,19 +952,22 @@ class FinanceTracker:
         wallet_balance = self.budget_settings.get('wallet_balance', 0)
         savings_balance = self.budget_settings.get('savings_balance', 0)
         investment_balance = self.budget_settings.get('investment_balance', 0)
+        money_lent_balance = self.budget_settings.get('money_lent_balance', 0)
         daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
         
-        starting_total_balance = bank_balance + wallet_balance + savings_balance + investment_balance
+        starting_total_balance = (bank_balance + wallet_balance + savings_balance + 
+                                  investment_balance + money_lent_balance)
 
         report = f"{'='*80}\n"
         report += f"FINANCIAL PROJECTION\n"
         report += f"{'='*80}\n\n"
-        report += f"This report projects your total financial balance (Bank + Wallet + Savings + Investments).\n"
+        report += f"This report projects your total financial balance (Bank + Wallet + Savings + Investments + Money Lent).\n"
         report += f"It assumes you will meet your daily savings goal every day.\n\n"
         report += f"Bank Account Balance:      €{bank_balance:>10.2f}\n"
         report += f"Wallet Balance:            €{wallet_balance:>10.2f}\n"
         report += f"Current Savings Balance:   €{savings_balance:>10.2f}\n"
         report += f"Current Investment Balance:€{investment_balance:>10.2f}\n"
+        report += f"Money Lent Balance:        €{money_lent_balance:>10.2f}\n"
         report += f"-----------------------------------------\n"
         report += f"Total Starting Balance:    €{starting_total_balance:>10.2f}\n"
         report += f"Target Daily Savings Goal: €{daily_savings_goal:>10.2f}\n"
@@ -964,6 +992,7 @@ class FinanceTracker:
         self.projection_text.delete(1.0, tk.END)
         self.projection_text.insert(1.0, report)
 
+    ## MODIFIED ##
     def add_transaction(self):
         try:
             date_str = self.date_entry.get()
@@ -975,11 +1004,16 @@ class FinanceTracker:
             if not category:
                 messagebox.showerror("Error", "Please select a category.")
                 return
-            transaction = {'date': date_str, 'amount': amount, 'category': category, 'description': description}
+
+            # Add a unique ID to each transaction
+            trans_id = f"{datetime.now().timestamp()}-{random.randint(1000, 9999)}"
+            transaction = {'id': trans_id, 'date': date_str, 'amount': amount, 'category': category, 'description': description}
+
             if trans_type == "Expense":
                 self.expenses.append(transaction)
             else:
                 self.incomes.append(transaction)
+
             self.save_data()
             self.amount_entry.delete(0, tk.END)
             self.description_entry.delete(0, tk.END)
@@ -988,6 +1022,7 @@ class FinanceTracker:
         except ValueError:
             messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).")
 
+    ## MODIFIED ##
     def refresh_transaction_list(self):
         for item in self.transaction_tree.get_children():
             self.transaction_tree.delete(item)
@@ -1000,10 +1035,13 @@ class FinanceTracker:
             if i['date'].startswith(filter_month):
                 all_transactions.append({**i, 'type': 'Income'})
         all_transactions.sort(key=lambda x: x['date'])
+
         for trans in all_transactions:
             tag = 'expense' if trans['type'] == 'Expense' else 'income'
+            # Ensure an ID exists for older transactions if needed, though new ones will have it.
+            trans_id = trans.get('id', '') 
             self.transaction_tree.insert('', 'end', values=(
-                trans['date'], trans['type'], f"€{trans['amount']:.2f}",
+                trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
                 trans['category'], trans['description']), tags=(tag,))
         self.update_summary()
 
@@ -1025,28 +1063,177 @@ class FinanceTracker:
         
         self.summary_label.config(text=summary_text)
 
+    ## MODIFIED ##
     def delete_transaction(self):
         selected_item = self.transaction_tree.selection()
         if not selected_item:
             messagebox.showwarning("Warning", "Please select a transaction to delete.")
             return
+
         if messagebox.askyesno("Confirm", "Are you sure you want to delete the selected transaction?"):
-            item = self.transaction_tree.item(selected_item[0])
-            values = item['values']
-            date_str, trans_type, amount_str, category, desc = values
-            target_transaction = {
-                'date': date_str,
-                'amount': float(amount_str.replace('€', '')),
-                'category': category,
-                'description': desc
-            }
-            if trans_type == 'Expense':
-                self.expenses.remove(target_transaction)
-            else:
-                self.incomes.remove(target_transaction)
+            item_values = self.transaction_tree.item(selected_item[0])['values']
+            trans_id = item_values[0]
+            trans_type = item_values[2]
+
+            target_list = self.expenses if trans_type == 'Expense' else self.incomes
+            transaction_found = False
+            
+            for i, trans in enumerate(target_list):
+                if trans.get('id') == trans_id:
+                    del target_list[i]
+                    transaction_found = True
+                    break
+            
+            # Fallback for old data without IDs
+            if not transaction_found:
+                date_str, _, amount_str, category, desc = item_values[1:]
+                target_transaction = {
+                    'date': date_str,
+                    'amount': float(amount_str.replace('€', '')),
+                    'category': category,
+                    'description': desc
+                }
+                try:
+                    target_list.remove(target_transaction)
+                except ValueError:
+                    messagebox.showerror("Error", "Could not delete the transaction (fallback failed). It might have been modified externally.")
+                    return
+
             self.save_data()
             self.refresh_transaction_list()
+            
+    ## NEW ##
+    def open_modify_window(self):
+        """Opens a new window to modify the selected transaction."""
+        selected_item = self.transaction_tree.selection()
+        if not selected_item:
+            messagebox.showwarning("Warning", "Please select a transaction to modify.")
+            return
 
+        item_values = self.transaction_tree.item(selected_item[0])['values']
+        trans_id = item_values[0]
+
+        original_transaction = None
+        original_list_name = None
+        
+        for t in self.expenses:
+            if t.get('id') == trans_id:
+                original_transaction = t
+                original_list_name = 'Expense'
+                break
+        if not original_transaction:
+            for t in self.incomes:
+                if t.get('id') == trans_id:
+                    original_transaction = t
+                    original_list_name = 'Income'
+                    break
+        
+        if not original_transaction:
+            messagebox.showerror("Error", "Could not find the selected transaction in the data. It may be legacy data without an ID.")
+            return
+
+        modify_win = tk.Toplevel(self.root)
+        modify_win.title("Modify Transaction")
+        modify_win.transient(self.root)
+        modify_win.grab_set()
+
+        form_frame = ttk.Frame(modify_win, padding="20")
+        form_frame.pack(fill='both', expand=True)
+
+        ttk.Label(form_frame, text="Transaction Type:").grid(row=0, column=0, sticky='w', pady=10)
+        mod_transaction_type_var = tk.StringVar(value=original_list_name)
+        type_frame = ttk.Frame(form_frame)
+        type_frame.grid(row=0, column=1, sticky='w', pady=5)
+        
+        def update_mod_categories():
+            trans_type = mod_transaction_type_var.get()
+            categories = self.categories.get(trans_type, [])
+            mod_category_combo.config(values=categories)
+            if categories:
+                # If the original category is still valid, use it. Otherwise, default to first.
+                if mod_category_var.get() in categories:
+                    mod_category_combo.set(mod_category_var.get())
+                else:
+                    mod_category_combo.set(categories[0])
+            else:
+                mod_category_combo.set("")
+
+        ttk.Radiobutton(type_frame, text="Expense", variable=mod_transaction_type_var,
+                        value="Expense", command=update_mod_categories).pack(side='left', padx=5)
+        ttk.Radiobutton(type_frame, text="Income", variable=mod_transaction_type_var,
+                        value="Income", command=update_mod_categories).pack(side='left', padx=5)
+
+        ttk.Label(form_frame, text="Date:").grid(row=1, column=0, sticky='w', pady=5)
+        mod_date_entry = ttk.Entry(form_frame, width=30)
+        mod_date_entry.insert(0, original_transaction.get('date', ''))
+        mod_date_entry.grid(row=1, column=1, pady=5, sticky='w')
+
+        ttk.Label(form_frame, text="Amount:").grid(row=2, column=0, sticky='w', pady=5)
+        mod_amount_entry = ttk.Entry(form_frame, width=30)
+        mod_amount_entry.insert(0, original_transaction.get('amount', ''))
+        mod_amount_entry.grid(row=2, column=1, pady=5, sticky='w')
+
+        ttk.Label(form_frame, text="Category:").grid(row=3, column=0, sticky='w', pady=5)
+        mod_category_var = tk.StringVar(value=original_transaction.get('category', ''))
+        mod_category_combo = ttk.Combobox(form_frame, textvariable=mod_category_var, width=28, state='readonly')
+        mod_category_combo.grid(row=3, column=1, pady=5, sticky='w')
+        update_mod_categories() # Initial population
+
+        ttk.Label(form_frame, text="Description:").grid(row=4, column=0, sticky='w', pady=5)
+        mod_description_entry = ttk.Entry(form_frame, width=30)
+        mod_description_entry.insert(0, original_transaction.get('description', ''))
+        mod_description_entry.grid(row=4, column=1, pady=5, sticky='w')
+
+        def save_changes():
+            try:
+                new_date = mod_date_entry.get()
+                datetime.strptime(new_date, "%Y-%m-%d")
+                new_amount = float(mod_amount_entry.get())
+                new_category = mod_category_var.get()
+                new_description = mod_description_entry.get()
+                new_type = mod_transaction_type_var.get()
+
+                if not new_category:
+                    messagebox.showerror("Error", "Please select a category.", parent=modify_win)
+                    return
+
+                # Find the transaction again to modify it
+                transaction_to_update = None
+                current_list = None
+                if original_list_name == 'Expense':
+                    current_list = self.expenses
+                else:
+                    current_list = self.incomes
+                
+                for t in current_list:
+                    if t.get('id') == trans_id:
+                        transaction_to_update = t
+                        break
+                
+                # Update the transaction's values
+                transaction_to_update['date'] = new_date
+                transaction_to_update['amount'] = new_amount
+                transaction_to_update['category'] = new_category
+                transaction_to_update['description'] = new_description
+
+                # Handle if the type changed
+                if new_type != original_list_name:
+                    current_list.remove(transaction_to_update)
+                    if new_type == 'Expense':
+                        self.expenses.append(transaction_to_update)
+                    else:
+                        self.incomes.append(transaction_to_update)
+
+                self.save_data()
+                self.refresh_transaction_list()
+                modify_win.destroy()
+
+            except ValueError:
+                messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).", parent=modify_win)
+
+        ttk.Button(form_frame, text="Save Changes", command=save_changes).grid(row=5, column=1, pady=20, sticky='w')
+
+    ## MODIFIED ##
     def refresh_balance_entries(self):
         """Updates the balance Entry widgets on the Budget tab with current values."""
         self.income_entry.delete(0, tk.END)
@@ -1054,6 +1241,7 @@ class FinanceTracker:
         self.wallet_entry.delete(0, tk.END)
         self.savings_entry.delete(0, tk.END)
         self.investment_entry.delete(0, tk.END)
+        self.money_lent_entry.delete(0, tk.END)
         self.daily_savings_entry.delete(0, tk.END)
 
         self.income_entry.insert(0, str(self.budget_settings.get('monthly_income', 0)))
@@ -1061,8 +1249,10 @@ class FinanceTracker:
         self.wallet_entry.insert(0, str(self.budget_settings.get('wallet_balance', 0)))
         self.savings_entry.insert(0, str(self.budget_settings.get('savings_balance', 0)))
         self.investment_entry.insert(0, str(self.budget_settings.get('investment_balance', 0)))
+        self.money_lent_entry.insert(0, str(self.budget_settings.get('money_lent_balance', 0)))
         self.daily_savings_entry.insert(0, str(self.budget_settings.get('daily_savings_goal', 0)))
 
+    ## MODIFIED ##
     def save_settings(self):
         try:
             income = float(self.income_entry.get()) if self.income_entry.get() else 0
@@ -1070,6 +1260,7 @@ class FinanceTracker:
             wallet = float(self.wallet_entry.get()) if self.wallet_entry.get() else 0
             savings = float(self.savings_entry.get()) if self.savings_entry.get() else 0
             investment = float(self.investment_entry.get()) if self.investment_entry.get() else 0
+            money_lent = float(self.money_lent_entry.get()) if self.money_lent_entry.get() else 0
             savings_goal = float(self.daily_savings_entry.get()) if self.daily_savings_entry.get() else 0
 
             self.budget_settings['monthly_income'] = income
@@ -1077,6 +1268,7 @@ class FinanceTracker:
             self.budget_settings['wallet_balance'] = wallet
             self.budget_settings['savings_balance'] = savings
             self.budget_settings['investment_balance'] = investment
+            self.budget_settings['money_lent_balance'] = money_lent
             self.budget_settings['daily_savings_goal'] = savings_goal
             
             self.save_data()
