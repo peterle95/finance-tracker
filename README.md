@@ -36,15 +36,3 @@ Run the application from your terminal:
 ```bash
 python main.py
 ```
-
-You will be presented with a menu of options:
-
-```
-Welcome to Finance Tracker!
-1. Add Transaction
-2. View Transactions
-3. Get Balance
-4. View Transactions by Type
-5. View Transactions by Category
-6. Exit
-Enter your choice:
