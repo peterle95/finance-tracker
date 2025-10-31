@@ -478,12 +478,16 @@ class FinanceTracker:
         if self.show_budget_lines_var.get() and chart_type == "Expense":
             expense_budgets = self.budget_settings.get('category_budgets', {}).get('Expense', {})
             budget_info = []
+            # Compute net available for the selected month
+            net_available = self._compute_net_available_for_spending(month_str)
             for category in labels:
-                if category in expense_budgets and expense_budgets[category] > 0:
+                percent_limit = expense_budgets.get(category, 0)
+                if percent_limit > 0 and net_available > 0 and category in category_totals:
                     actual = category_totals[category]
-                    budget = expense_budgets[category]
-                    percentage = (actual / budget) * 100
-                    budget_info.append(f"{category}: {percentage:.0f}% of budget")
+                    budget_amount = (percent_limit / 100.0) * net_available
+                    used_pct = (actual / budget_amount) * 100 if budget_amount > 0 else 0
+                    remaining = max(budget_amount - actual, 0)
+                    budget_info.append(f"{category}: {used_pct:.0f}% of budget, left: €{remaining:.2f}")
         
             if budget_info:
                 budget_text = "\n".join(budget_info)
@@ -841,12 +845,14 @@ class FinanceTracker:
         budget_tree_frame.columnconfigure(0, weight=1)
         
         self.category_budget_tree = ttk.Treeview(budget_tree_frame, 
-                                                columns=('Category', 'Budget Limit'), 
+                                                columns=('Category', 'Limit (%)', 'Amount (€)'), 
                                                 show='headings', height=5)
         self.category_budget_tree.heading('Category', text='Category')
-        self.category_budget_tree.heading('Budget Limit', text='Monthly Limit (€)')
+        self.category_budget_tree.heading('Limit (%)', text='Limit (%)')
+        self.category_budget_tree.heading('Amount (€)', text='Amount (€)')
         self.category_budget_tree.column('Category', width=120)
-        self.category_budget_tree.column('Budget Limit', width=100, anchor='e')
+        self.category_budget_tree.column('Limit (%)', width=90, anchor='e')
+        self.category_budget_tree.column('Amount (€)', width=100, anchor='e')
         self.category_budget_tree.grid(row=0, column=0, sticky='nsew')
         
         budget_scrollbar = ttk.Scrollbar(budget_tree_frame, orient='vertical', 
@@ -865,7 +871,7 @@ class FinanceTracker:
                                                  width=15, state='readonly')
         self.budget_category_combo.grid(row=0, column=1, sticky='ew', padx=5)
         
-        ttk.Label(form_frame, text="Limit:").grid(row=0, column=2, padx=(10, 5))
+        ttk.Label(form_frame, text="Limit (%):").grid(row=0, column=2, padx=(10, 5))
         self.budget_limit_entry = ttk.Entry(form_frame, width=10)
         self.budget_limit_entry.grid(row=0, column=3, sticky='ew')
         
@@ -1382,10 +1388,21 @@ class FinanceTracker:
             self.budget_category_combo.set(categories[0])
         
         category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
+        # Determine month for computation (use selected report month if available, else current month)
+        month_str = None
+        try:
+            month_str = self.budget_month.get()
+        except Exception:
+            month_str = datetime.now().strftime("%Y-%m")
+        if not month_str:
+            month_str = datetime.now().strftime("%Y-%m")
+
+        net_available = self._compute_net_available_for_spending(month_str)
         for category in categories:
-            budget_limit = category_budgets.get(category, 0)
-            display_limit = f"{budget_limit:.2f}" if budget_limit > 0 else "Not Set"
-            self.category_budget_tree.insert('', 'end', values=(category, display_limit))
+            percent_limit = category_budgets.get(category, 0)
+            percent_display = f"{percent_limit:.2f}%" if percent_limit > 0 else "Not Set"
+            amount_display = f"€{(percent_limit/100.0*net_available):.2f}" if percent_limit > 0 and net_available > 0 else "€0.00"
+            self.category_budget_tree.insert('', 'end', values=(category, percent_display, amount_display))
 
     def on_category_budget_select(self, event):
         """Populate form when a category is selected"""
@@ -1413,8 +1430,8 @@ class FinanceTracker:
                 messagebox.showerror("Error", "Please select a category.")
                 return
             
-            if limit < 0:
-                messagebox.showerror("Error", "Budget limit cannot be negative.")
+            if limit < 0 or limit > 100:
+                messagebox.showerror("Error", "Budget limit must be between 0 and 100 percent.")
                 return
             
             cat_type = self.budget_cat_type_var.get()
@@ -1425,7 +1442,11 @@ class FinanceTracker:
             self.save_data()
             self.refresh_category_budget_list()
             self.update_summary()
-            messagebox.showinfo("Success", f"Budget limit set for {category}: €{limit:.2f}")
+            # Show computed amount for the selected month
+            month_str = self.budget_month.get() if hasattr(self, 'budget_month') else datetime.now().strftime("%Y-%m")
+            net_available = self._compute_net_available_for_spending(month_str)
+            computed_amount = (limit/100.0) * net_available
+            messagebox.showinfo("Success", f"Budget limit set for {category}: {limit:.2f}% (≈ €{computed_amount:.2f})")
             
         except ValueError:
             messagebox.showerror("Error", "Invalid budget limit amount.")
@@ -1449,6 +1470,29 @@ class FinanceTracker:
             messagebox.showinfo("Success", f"Budget limit removed for {category}")
         else:
             messagebox.showinfo("Info", f"No budget limit set for {category}")
+
+    def _compute_net_available_for_spending(self, month_str: str) -> float:
+        """Compute Net Available for Spending for a given month (YYYY-MM)."""
+        try:
+            datetime.strptime(month_str, "%Y-%m")
+        except ValueError:
+            month_str = datetime.now().strftime("%Y-%m")
+
+        base_income = self.budget_settings.get('monthly_income', 0)
+        daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
+        flex_income_month = sum(i['amount'] for i in self.incomes if i['date'].startswith(month_str))
+        total_income = base_income + flex_income_month
+        fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
+
+        try:
+            year, month = map(int, month_str.split('-'))
+            days_in_month = calendar.monthrange(year, month)[1]
+        except Exception:
+            days_in_month = 30
+
+        monthly_savings_goal = daily_savings_goal * days_in_month
+        spending_flexible_budget = total_income - fixed_costs - monthly_savings_goal
+        return max(spending_flexible_budget, 0)
 
     def generate_daily_budget(self):
         month_str = self.budget_month.get()
