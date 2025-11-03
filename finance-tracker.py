@@ -14,6 +14,11 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
+
+#I'm going to create a new class
+
+class test:
+    def gino(self)
 class FinanceTracker:
     def __init__(self, root):
         self.root = root
