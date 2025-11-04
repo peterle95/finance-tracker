@@ -1540,16 +1540,25 @@ class FinanceTracker:
         flex_income_month = sum(i['amount'] for i in self.incomes if i['date'].startswith(month_str))
         total_income = base_income + flex_income_month
         fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
-        days_in_month = calendar.monthrange(year, month)[1]
+        
+        # Calculate days in the selected month
+        try:
+            days_in_month = calendar.monthrange(year, month)[1]
+        except calendar.IllegalMonthError:
+            messagebox.showerror("Error", "Invalid month number in date.")
+            return
 
         monthly_savings_goal = daily_savings_goal * days_in_month
-        spending_flexible_budget = total_income - fixed_costs - monthly_savings_goal
+        
+        # This is the total pool for flexible spending for the month
+        monthly_flexible_spending_budget = total_income - fixed_costs - monthly_savings_goal
 
         if days_in_month == 0:
             messagebox.showerror("Error", "Cannot divide by zero days in month.")
             return
 
-        spending_daily_budget = spending_flexible_budget / days_in_month
+        # Initial daily target based on the full monthly flexible budget
+        initial_daily_spending_target = monthly_flexible_spending_budget / days_in_month
 
         flex_expenses_month = [e for e in self.expenses if e['date'].startswith(month_str)]
         daily_expenses = {}
@@ -1565,80 +1574,91 @@ class FinanceTracker:
         report += f"TOTAL INCOME:                            €{total_income:>10.2f}\n"
         report += f"Total Fixed Costs:                      -€{fixed_costs:>10.2f}\n"
         report += f"{'-'*50}\n"
-        report += f"Monthly Savings Goal:                    €{monthly_savings_goal:>10.2f}\n"
-        report += f"Net Available for SPENDING:              €{spending_flexible_budget:>10.2f}\n"
-        report += f"YOUR DAILY SPENDING TARGET:              €{spending_daily_budget:>10.2f}\n"
+        report += f"Monthly Savings Goal:                   -€{monthly_savings_goal:>10.2f}\n" # Mark as deduction
+        report += f"NET MONTHLY FLEXIBLE BUDGET:             €{monthly_flexible_spending_budget:>10.2f}\n" # Renamed for clarity
+        report += f"INITIAL DAILY SPENDING TARGET:           €{initial_daily_spending_target:>10.2f}\n" # Renamed for clarity
         report += f"{'-'*80}\n\n"
-        report += f"DAILY BREAKDOWN (Performance against your daily target)\n"
+        report += f"DAILY BREAKDOWN (Performance against your initial daily target)\n" # Updated header
         report += f"{'-'*80}\n"
         report += f"{'Date':<12} {'Target':<12} {'Spent':<12} {'Daily +/-':<12} {'Cumulative':<12} {'Status'}\n"
         report += f"{'-'*80}\n"
 
-        cumulative_deficit = 0
+        cumulative_flexible_balance = monthly_flexible_spending_budget # Track the actual flexible balance
+        
         today = datetime.now().date()
+        current_month_start_date = date(year, month, 1)
+        
+        # Loop through each day of the month up to today
         for day in range(1, days_in_month + 1):
             date_str = f"{year}-{month:02d}-{day:02d}"
             date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
-            if date_obj > today:
+            
+            if date_obj > today: # Stop at the current day for past performance
                 break
 
             day_total_spent = sum(e['amount'] for e in daily_expenses.get(date_str, []))
-            daily_plus_minus = spending_daily_budget - day_total_spent
-            cumulative_deficit += daily_plus_minus
             
-            status = "✓ On Track" if daily_plus_minus >= 0 else "✗ Overspent"
+            # Update the cumulative flexible balance directly
+            cumulative_flexible_balance -= day_total_spent
+
+            # For 'Daily +/-', compare to the *initial* daily target
+            daily_plus_minus_from_target = initial_daily_spending_target - day_total_spent
+            
+            # Status based on daily performance vs initial target
+            status = "✓ On Track" if daily_plus_minus_from_target >= 0 else "✗ Overspent"
             if day_total_spent == 0: status = "- No spending"
 
-            report += (f"{date_str:<12} €{spending_daily_budget:<10.2f} €{day_total_spent:<10.2f} "
-                       f"€{daily_plus_minus:<10.2f} €{cumulative_deficit:<10.2f} {status}\n")
+            report += (f"{date_str:<12} €{initial_daily_spending_target:<10.2f} €{day_total_spent:<10.2f} "
+                       f"€{daily_plus_minus_from_target:<10.2f} €{cumulative_flexible_balance:<10.2f} {status}\n") # Use cumulative_flexible_balance here
 
         report += f"{'-'*80}\n\n"
 
+        # Forecast for remaining days
         if today.year == year and today.month == month and today.day < days_in_month:
-            remaining_days_forecast = days_in_month - today.day
+            days_passed_this_month = today.day - current_month_start_date.day + 1
+            remaining_days_forecast = days_in_month - days_passed_this_month
+
+            report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
+            report += f"{'-'*80}\n"
+
             if remaining_days_forecast > 0:
+                new_daily_spending_target = cumulative_flexible_balance / remaining_days_forecast
+            else: # No remaining days, but still in the forecast block if today is the last day
+                new_daily_spending_target = cumulative_flexible_balance # whatever is left is for today
+
+            if new_daily_spending_target < 0:
+                report += f"Your current flexible budget balance is €{cumulative_flexible_balance:.2f}.\n\n"
+                report += f"You have overspent your **monthly flexible budget**.\n"
+                report += f"You need to reduce future spending or pull from other sources.\n\n"
                 
-                report += f"FORECAST FOR REMAINING {remaining_days_forecast} DAYS\n"
-                report += f"{'-'*80}\n"
+                report += f"To cover your deficit for the remainder of the month, you would need to\n"
+                report += f"spend €{new_daily_spending_target:.2f} per day, which is not possible.\n\n"
+                
+                # Re-calculating net_value with consistent elements
+                total_flexible_expenses_incurred = sum(e['amount'] for e in flex_expenses_month)
+                
+                # The "Net" as in total financial bottom line for the month, including savings goal
+                overall_net_value_including_savings = total_income - fixed_costs - total_flexible_expenses_incurred - monthly_savings_goal
+                
+                report += f"--- Understanding the Key Numbers ---\n\n"
+                report += f" * Overall Net Value (Including Savings Goal): €{overall_net_value_including_savings:.2f}\n"
+                report += f"   This is your actual financial bottom line for the month if you meet your goals.\n\n"
+                report += f" * Your Current Flexible Budget Balance: €{cumulative_flexible_balance:.2f}\n"
+                report += f"   This is the remaining portion of your `NET MONTHLY FLEXIBLE BUDGET` after your spending.\n"
+                report += f"   A negative value indicates you have spent more than your monthly flexible budget allows\n"
+                report += f"   (after fixed costs and savings goal).\n\n"
+                report += f"   The system is showing that you've overspent your flexible allowance for the month.\n"
+                report += f"   You will need to adjust your spending or allocate funds from elsewhere to avoid debt or missing your savings goal.\n\n"
 
-                daily_surplus_distribution = cumulative_deficit / remaining_days_forecast
-
-                if daily_surplus_distribution < 0:
-                    total_flexible_expenses = sum(e['amount'] for e in flex_expenses_month)
-                    total_expenses = total_flexible_expenses + fixed_costs
-                    net_value = total_income - total_expenses
-                    
-                    report += f"Your cumulative spending deficit is currently €{-cumulative_deficit:.2f}.\n\n"
-                    report += f"You have overspent your flexible budget for the month.\n"
-                    report += f"No further flexible budget left for the remainder of the month.\n\n"
-                    report += f"--- Understanding the Key Numbers ---\n\n"
-                    report += f"It's important to understand what the 'Net Value' and 'Cumulative Deficit' represent:\n\n"
-                    report += f" * Summary Net Value (€{net_value:.2f}): This is your actual financial bottom line for the month.\n"
-                    report += f"   (Total Income) - (Total Expenses, both fixed and flexible).\n\n"
-                    report += f" * Cumulative Deficit (€{-cumulative_deficit:.2f}): This is a BUDGETING metric.\n"
-                    report += f"   It specifically tracks how much you have overspent on your FLEXIBLE budget (e.g., food, shopping).\n"
-                    report += f"   This number shows you exactly where your budget is breaking down.\n\n"
-                    report += f"   So, while the Net Value tells you the final result of your total income\n"
-                    report += f"   versus your total expenses, the Cumulative number is the\n"
-                    report += f"   day-by-day indicator that helps you manage your spending to achieve\n"
-                    report += f"   a good Net Value at the end of the month.\n\n"
-                    report += f"   This method forces you to pay attention to the Cumulative value. The system is essentially saying,\n"
-                    report += f"   \"Your goal is always €{spending_daily_budget:.2f}/day, but you are currently €{cumulative_deficit:.2f} behind schedule.\"\n\n"
-
-                else:
-                    new_recommended_budget = spending_daily_budget + daily_surplus_distribution
-
-                    report += "You are currently under budget. Your saved amount has been redistributed.\n\n"
-                    report += "Here's how we calculated your new recommended daily budget:\n"
-                    report += f"  Daily Surplus Calculation: Daily Surplus = Cumulative Deficit / Remaining Days\n"
-                    report += f"                            {daily_surplus_distribution:>10.2f}     = {cumulative_deficit:>10.2f}     /     {remaining_days_forecast}\n\n"
-                    report += f"  Original Daily Target:         €{spending_daily_budget:>10.2f}\n"
-                    report += f"  Redistributed Surplus / Day:   +€{daily_surplus_distribution:>10.2f}\n"
-                    report += f"                                 -----------\n"
-                    report += f"  New Recommended Daily Budget:  =€{new_recommended_budget:>10.2f}\n\n"
-                    
-                    report += "Explanation:\n"
-                    report += f"To spend your entire flexible budget by month's end, you can now spend up to €{new_recommended_budget:.2f} each day.\n"
+            else:
+                report += f"Your current flexible budget balance is €{cumulative_flexible_balance:.2f}.\n"
+                if remaining_days_forecast > 0:
+                    report += f"You can now spend up to €{new_daily_spending_target:.2f} each day for the remaining {remaining_days_forecast} days.\n\n"
+                    report += f"Here's how we calculated your new recommended daily budget:\n"
+                    report += f"  New Daily Target = Remaining Flexible Budget / Remaining Days\n"
+                    report += f"                   €{new_daily_spending_target:>10.2f} = €{cumulative_flexible_balance:>10.2f} / {remaining_days_forecast}\n"
+                else: # today is the last day of the month
+                    report += f"Today is the last day of the month. You have €{new_daily_spending_target:.2f} left to spend.\n"
                 report += f"{'-'*80}\n"
 
         self.budget_text.delete(1.0, tk.END)
