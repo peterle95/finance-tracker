@@ -1054,17 +1054,50 @@ class FinanceTracker:
     def update_summary(self):
         filter_month = self.month_filter.get()
         base_income = self.budget_settings.get('monthly_income', 0)
+        
+        # Calculate flexible income for the current month
         monthly_flexible_incomes = [i['amount'] for i in self.incomes if i['date'].startswith(filter_month)]
         total_flexible_income = sum(monthly_flexible_incomes)
         total_income = base_income + total_flexible_income
+        
+        # Calculate flexible expenses for the current month
         monthly_expenses = [e['amount'] for e in self.expenses if e['date'].startswith(filter_month)]
         total_flexible_expenses = sum(monthly_expenses)
+        
+        # Total fixed costs are constant regardless of month
         total_fixed_costs = sum(fc['amount'] for fc in self.budget_settings.get('fixed_costs', []))
+        
         total_expenses = total_flexible_expenses + total_fixed_costs
+        
+        # The 'flexible_costs' in budget_settings seems to be an old/unused key in your data structure.
+        # Based on your daily budget report, 'Net Available for SPENDING' is what you consider flexible.
+        # Let's calculate the 'Net Available for Spending' for the current month.
+        
+        # Get days in the current month for daily savings goal calculation
+        try:
+            year, month = map(int, filter_month.split('-'))
+            days_in_month = calendar.monthrange(year, month)[1]
+        except ValueError:
+            # Fallback for invalid month format, or if month_filter is empty
+            days_in_month = 30 
+
+        daily_savings_goal = self.budget_settings.get('daily_savings_goal', 0)
+        monthly_savings_goal = daily_savings_goal * days_in_month
+        
+        # "Flexible Costs" in the context of the summary should represent the actual flexible expenses incurred
+        flexible_costs_incurred = total_flexible_expenses 
+
+        # Net is the total income minus total expenses (fixed + flexible + savings goal)
+        # However, your current `net` calculation is just `total_income - total_expenses`.
+        # If "Flexible Costs" refers to actual flexible spending, `net` calculation should match the daily budget report's definition of "Net Available for SPENDING"
+        # Let's use the definition: Total Income - Total Fixed Costs - Monthly Savings Goal - Actual Flexible Expenses (if that's what you want for 'net')
+        # Or if `net` is meant to be simple (Income - Expenses), then keep it as is.
+        # For consistency with the report, let's keep it as `total_income - total_expenses` here.
         net = total_income - total_expenses
         
         summary_text = (f"Total Income: €{total_income:.2f}  |  "
                         f"Total Expenses: €{total_expenses:.2f}  |  "
+                        f"Flexible Costs Incurred: €{flexible_costs_incurred:.2f}  |  "
                         f"Net: €{net:.2f}")
         
         self.summary_label.config(text=summary_text)
