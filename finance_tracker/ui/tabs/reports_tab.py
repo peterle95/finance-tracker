@@ -13,7 +13,7 @@ class ReportsTab:
         self.canvas = None
 
         main = ttk.Frame(notebook, padding="10")
-        notebook.add(main, text="Reports")
+        notebook.add(main, text="Charts")
         main.rowconfigure(1, weight=1)
         main.columnconfigure(0, weight=1)
 

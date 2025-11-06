@@ -48,13 +48,13 @@ def show_help(root):
         ("\nTransfers Tab", "h2"),
         ("Move funds between accounts (e.g., Bank → Wallet).", "none"),
 
-        ("\nReports Tab", "h2"),
+        ("\Charts Tab", "h2"),
         ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays.", "none"),
 
-        ("\nBudget & Settings Tab", "h2"),
+        ("\nBudget Report Tab", "h2"),
         ("Balances, fixed costs, daily budget report.", "none"),
 
-        ("\nBudgets Tab", "h2"),
+        ("\nBudgets Limits Tab", "h2"),
         ("Manage category budget limits as % of monthly flexible budget. Auto-Assign from expenses; Normalize.", "none"),
 
         ("\nProjection Tab", "h2"),
