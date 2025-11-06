@@ -8,7 +8,7 @@ class SettingsTab:
         self.state = state
 
         main = ttk.Frame(notebook, padding="10")
-        notebook.add(main, text="Budget & Settings")
+        notebook.add(main, text="Budget Report")
         main.rowconfigure(1, weight=1)
         main.columnconfigure(0, weight=1)
 

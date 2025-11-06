@@ -10,7 +10,7 @@ class BudgetsTab:
         self._slider_lock = False
 
         main = ttk.Frame(notebook, padding="10")
-        notebook.add(main, text="Budgets")
+        notebook.add(main, text="Budgets Limits")
         main.rowconfigure(1, weight=1)
         main.columnconfigure(0, weight=1)
 
