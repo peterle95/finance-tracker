@@ -46,8 +46,7 @@ class FinanceTracker:
         self.create_widgets()
         self.refresh_transaction_list()
         self.refresh_fixed_costs_tree()
-        self.refresh_category_list()
-        self.refresh_category_budget_list()
+
         self.refresh_balance_entries()
 
         ## NEW ## - Help Button
@@ -827,7 +826,7 @@ class FinanceTracker:
         ttk.Button(cat_btn_frame, text="Delete Selected", command=self.delete_category).pack(side='left', padx=5)
 
     def create_category_budget_widgets(self, parent_frame):
-        """Create UI for managing category budget limits"""
+        """Create UI for managing category budget limits using sliders."""
         parent_frame.rowconfigure(1, weight=1)
         parent_frame.columnconfigure(0, weight=1)
 
@@ -837,48 +836,133 @@ class FinanceTracker:
         type_frame.grid(row=0, column=0, sticky='ew', pady=2)
         ttk.Label(type_frame, text="Type:").pack(side='left')
         ttk.Radiobutton(type_frame, text="Expense", variable=self.budget_cat_type_var,
-                        value="Expense", command=self.refresh_category_budget_list).pack(side='left', padx=5)
+                        value="Expense", command=self._create_budget_sliders).pack(side='left', padx=5)
         
-        budget_tree_frame = ttk.Frame(parent_frame)
-        budget_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
-        budget_tree_frame.rowconfigure(0, weight=1)
-        budget_tree_frame.columnconfigure(0, weight=1)
-        
-        self.category_budget_tree = ttk.Treeview(budget_tree_frame, 
-                                                columns=('Category', 'Limit (%)', 'Amount (€)'), 
-                                                show='headings', height=5)
-        self.category_budget_tree.heading('Category', text='Category')
-        self.category_budget_tree.heading('Limit (%)', text='Limit (%)')
-        self.category_budget_tree.heading('Amount (€)', text='Amount (€)')
-        self.category_budget_tree.column('Category', width=120)
-        self.category_budget_tree.column('Limit (%)', width=90, anchor='e')
-        self.category_budget_tree.column('Amount (€)', width=100, anchor='e')
-        self.category_budget_tree.grid(row=0, column=0, sticky='nsew')
-        
-        budget_scrollbar = ttk.Scrollbar(budget_tree_frame, orient='vertical', 
-                                        command=self.category_budget_tree.yview)
-        budget_scrollbar.grid(row=0, column=1, sticky='ns')
-        self.category_budget_tree.configure(yscrollcommand=budget_scrollbar.set)
-        
-        self.category_budget_tree.bind('<<TreeviewSelect>>', self.on_category_budget_select)
-        
-        form_frame = ttk.Frame(parent_frame)
-        form_frame.grid(row=2, column=0, sticky='ew', pady=5)
-        form_frame.columnconfigure(1, weight=1)
-        ttk.Label(form_frame, text="Category:").grid(row=0, column=0, sticky='w', padx=(0, 5))
-        self.budget_category_var = tk.StringVar()
-        self.budget_category_combo = ttk.Combobox(form_frame, textvariable=self.budget_category_var, 
-                                                 width=15, state='readonly')
-        self.budget_category_combo.grid(row=0, column=1, sticky='ew', padx=5)
-        
-        ttk.Label(form_frame, text="Limit (%):").grid(row=0, column=2, padx=(10, 5))
-        self.budget_limit_entry = ttk.Entry(form_frame, width=10)
-        self.budget_limit_entry.grid(row=0, column=3, sticky='ew')
+        self.sliders_frame = ttk.Frame(parent_frame)
+        self.sliders_frame.grid(row=1, column=0, sticky='nsew', pady=5)
         
         btn_frame = ttk.Frame(parent_frame)
-        btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
-        ttk.Button(btn_frame, text="Set Budget", command=self.set_category_budget).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text="Remove Budget", command=self.remove_category_budget).pack(side='left', padx=5)
+        btn_frame.grid(row=2, column=0, sticky='ew', pady=5)
+        ttk.Button(btn_frame, text="Save Budgets", command=self.save_category_budgets).pack(side='left', padx=5)
+        
+        self.budget_sliders = {}
+        self._create_budget_sliders()
+
+    def _create_budget_sliders(self):
+        """Create and arrange the budget sliders for each category."""
+        for widget in self.sliders_frame.winfo_children():
+            widget.destroy()
+            
+        self.budget_sliders = {}
+        cat_type = self.budget_cat_type_var.get()
+        categories = self.categories.get(cat_type, [])
+        category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
+
+        # Distribute 100% among categories that have no budget yet
+        unbudgeted_categories = [c for c in categories if c not in category_budgets]
+        total_budgeted = sum(category_budgets.values())
+        
+        if unbudgeted_categories and total_budgeted < 100:
+            remaining_percentage = 100 - total_budgeted
+            per_category_share = remaining_percentage / len(unbudgeted_categories)
+            for category in unbudgeted_categories:
+                category_budgets[category] = per_category_share
+
+        # Normalize to 100% if the total is off
+        total_budgeted = sum(category_budgets.values())
+        if total_budgeted > 0:
+            for category in category_budgets:
+                category_budgets[category] = (category_budgets[category] / total_budgeted) * 100
+
+        for i, category in enumerate(categories):
+            frame = ttk.Frame(self.sliders_frame)
+            frame.pack(fill='x', pady=2)
+            
+            ttk.Label(frame, text=category, width=15).pack(side='left')
+            
+            var = tk.DoubleVar(value=category_budgets.get(category, 0))
+            
+            slider = ttk.Scale(frame, from_=0, to=100, orient='horizontal', variable=var,
+                               command=lambda v, cat=category: self._on_slider_change(cat, float(v)))
+            slider.pack(side='left', fill='x', expand=True, padx=5)
+            
+            label = ttk.Label(frame, text=f"{var.get():.1f}%", width=7)
+            label.pack(side='left')
+            
+            self.budget_sliders[category] = {'var': var, 'slider': slider, 'label': label}
+
+    def _on_slider_change(self, changed_category, new_value):
+        """Callback for when a slider's value changes."""
+        # Lock to prevent recursive updates
+        if hasattr(self, '_slider_lock') and self._slider_lock:
+            return
+            
+        self._slider_lock = True
+        
+        # Get the old value from the variable
+        old_value = self.budget_sliders[changed_category]['var'].get()
+        self.budget_sliders[changed_category]['var'].set(new_value)
+        
+        # Update the label for the changed slider
+        self.budget_sliders[changed_category]['label'].config(text=f"{new_value:.1f}%")
+        
+        # Distribute the change among other sliders
+        self._adjust_other_sliders(changed_category, new_value, old_value)
+        
+        self._slider_lock = False
+
+    def _adjust_other_sliders(self, changed_category, new_value, old_value):
+        """Adjust other sliders to maintain a total of 100%."""
+        delta = new_value - old_value
+        other_sliders = {cat: self.budget_sliders[cat] for cat in self.budget_sliders if cat != changed_category}
+        
+        # Total value of other sliders
+        other_total = sum(s['var'].get() for s in other_sliders.values())
+        
+        if other_total > 0:
+            for category, slider_info in other_sliders.items():
+                current_val = slider_info['var'].get()
+                # Distribute the delta proportionally
+                adjustment = delta * (current_val / other_total)
+                new_slider_val = max(0, min(100, current_val - adjustment))
+                slider_info['var'].set(new_slider_val)
+                slider_info['label'].config(text=f"{new_slider_val:.1f}%")
+        else:
+            # If all other sliders are at 0, distribute the change equally
+            if len(other_sliders) > 0:
+                per_slider_adjustment = delta / len(other_sliders)
+                for category, slider_info in other_sliders.items():
+                    new_slider_val = max(0, min(100, slider_info['var'].get() - per_slider_adjustment))
+                    slider_info['var'].set(new_slider_val)
+                    slider_info['label'].config(text=f"{new_slider_val:.1f}%")
+
+        # Final normalization pass to ensure it's exactly 100%
+        self._normalize_sliders()
+
+    def _normalize_sliders(self):
+        """Ensure the total of all sliders is exactly 100%."""
+        total = sum(s['var'].get() for s in self.budget_sliders.values())
+        if total == 0: return # Avoid division by zero
+        
+        if abs(total - 100.0) > 0.01: # Only normalize if there's a significant deviation
+            for slider_info in self.budget_sliders.values():
+                current_val = slider_info['var'].get()
+                normalized_val = (current_val / total) * 100
+                slider_info['var'].set(normalized_val)
+                slider_info['label'].config(text=f"{normalized_val:.1f}%")
+
+    def save_category_budgets(self):
+        """Save the current slider values to the budget settings."""
+        cat_type = self.budget_cat_type_var.get()
+        if cat_type not in self.budget_settings['category_budgets']:
+            self.budget_settings['category_budgets'][cat_type] = {}
+            
+        for category, slider_info in self.budget_sliders.items():
+            self.budget_settings['category_budgets'][cat_type][category] = slider_info['var'].get()
+            
+        self.save_data()
+        self._create_budget_sliders()
+        messagebox.showinfo("Success", "Category budgets have been saved.")
 
     def create_projection_tab(self):
         main_frame = ttk.Frame(self.projection_tab, padding="10")
@@ -1408,101 +1492,9 @@ class FinanceTracker:
             self.refresh_category_list()
             self.update_categories()
             
-    def refresh_category_budget_list(self):
-        """Refresh the category budget tree display"""
-        for item in self.category_budget_tree.get_children():
-            self.category_budget_tree.delete(item)
-        
-        cat_type = self.budget_cat_type_var.get()
-        categories = self.categories.get(cat_type, [])
-        
-        self.budget_category_combo.config(values=categories)
-        if categories:
-            self.budget_category_combo.set(categories[0])
-        
-        category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
-        # Determine month for computation (use selected report month if available, else current month)
-        month_str = None
-        try:
-            month_str = self.budget_month.get()
-        except Exception:
-            month_str = datetime.now().strftime("%Y-%m")
-        if not month_str:
-            month_str = datetime.now().strftime("%Y-%m")
 
-        net_available = self._compute_net_available_for_spending(month_str)
-        for category in categories:
-            percent_limit = category_budgets.get(category, 0)
-            percent_display = f"{percent_limit:.2f}%" if percent_limit > 0 else "Not Set"
-            amount_display = f"€{(percent_limit/100.0*net_available):.2f}" if percent_limit > 0 and net_available > 0 else "€0.00"
-            self.category_budget_tree.insert('', 'end', values=(category, percent_display, amount_display))
 
-    def on_category_budget_select(self, event):
-        """Populate form when a category is selected"""
-        selected = self.category_budget_tree.selection()
-        if selected:
-            values = self.category_budget_tree.item(selected[0])['values']
-            category = values[0]
-            self.budget_category_var.set(category)
-            
-            cat_type = self.budget_cat_type_var.get()
-            category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
-            budget_limit = category_budgets.get(category, 0)
-            
-            self.budget_limit_entry.delete(0, tk.END)
-            if budget_limit > 0:
-                self.budget_limit_entry.insert(0, str(budget_limit))
 
-    def set_category_budget(self):
-        """Set or update a category budget limit"""
-        try:
-            category = self.budget_category_var.get()
-            limit = float(self.budget_limit_entry.get()) if self.budget_limit_entry.get() else 0
-            
-            if not category:
-                messagebox.showerror("Error", "Please select a category.")
-                return
-            
-            if limit < 0 or limit > 100:
-                messagebox.showerror("Error", "Budget limit must be between 0 and 100 percent.")
-                return
-            
-            cat_type = self.budget_cat_type_var.get()
-            if cat_type not in self.budget_settings['category_budgets']:
-                self.budget_settings['category_budgets'][cat_type] = {}
-            
-            self.budget_settings['category_budgets'][cat_type][category] = limit
-            self.save_data()
-            self.refresh_category_budget_list()
-            self.update_summary()
-            # Show computed amount for the selected month
-            month_str = self.budget_month.get() if hasattr(self, 'budget_month') else datetime.now().strftime("%Y-%m")
-            net_available = self._compute_net_available_for_spending(month_str)
-            computed_amount = (limit/100.0) * net_available
-            messagebox.showinfo("Success", f"Budget limit set for {category}: {limit:.2f}% (≈ €{computed_amount:.2f})")
-            
-        except ValueError:
-            messagebox.showerror("Error", "Invalid budget limit amount.")
-
-    def remove_category_budget(self):
-        """Remove a category budget limit"""
-        category = self.budget_category_var.get()
-        if not category:
-            messagebox.showwarning("Warning", "Please select a category.")
-            return
-        
-        cat_type = self.budget_cat_type_var.get()
-        category_budgets = self.budget_settings.get('category_budgets', {}).get(cat_type, {})
-        
-        if category in category_budgets:
-            del self.budget_settings['category_budgets'][cat_type][category]
-            self.save_data()
-            self.refresh_category_budget_list()
-            self.update_summary()
-            self.budget_limit_entry.delete(0, tk.END)
-            messagebox.showinfo("Success", f"Budget limit removed for {category}")
-        else:
-            messagebox.showinfo("Info", f"No budget limit set for {category}")
 
     def _compute_net_available_for_spending(self, month_str: str) -> float:
         """Compute Net Available for Spending for a given month (YYYY-MM)."""
