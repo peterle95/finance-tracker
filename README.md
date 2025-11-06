@@ -34,5 +34,5 @@ A simple command-line finance tracker application built with Python.
 Run the application from your terminal:
 
 ```bash
-python main.py
+python run.py
 ```
