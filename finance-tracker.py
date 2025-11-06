@@ -756,9 +756,7 @@ class FinanceTracker:
         ttk.Button(fc_btn_frame, text="Update", command=self.update_fixed_cost).pack(side='left', padx=5)
         ttk.Button(fc_btn_frame, text="Delete", command=self.delete_fixed_cost).pack(side='left', padx=5)
 
-        categories_frame = ttk.LabelFrame(management_frame, text="Manage Categories", padding="10")
-        categories_frame.grid(row=0, column=1, sticky='nsew', padx=(0, 10))
-        self.create_category_management_widgets(categories_frame)
+
 
         budget_limits_frame = ttk.LabelFrame(management_frame, text="Category Budget Limits", padding="10")
         budget_limits_frame.grid(row=0, column=2, sticky='nsew')
@@ -788,46 +786,11 @@ class FinanceTracker:
         budget_text_scrollbar.grid(row=0, column=1, sticky='ns')
         self.budget_text.configure(yscrollcommand=budget_text_scrollbar.set)
 
-    def create_category_management_widgets(self, parent_frame):
-        parent_frame.rowconfigure(1, weight=1)
-        parent_frame.columnconfigure(0, weight=1)
 
-        self.cat_type_var = tk.StringVar(value="Expense")
-        cat_type_frame = ttk.Frame(parent_frame)
-        cat_type_frame.grid(row=0, column=0, sticky='ew', pady=2)
-        ttk.Label(cat_type_frame, text="Type:").pack(side='left')
-        ttk.Radiobutton(cat_type_frame, text="Expense", variable=self.cat_type_var,
-                        value="Expense", command=self.refresh_category_list).pack(side='left', padx=5)
-        ttk.Radiobutton(cat_type_frame, text="Income", variable=self.cat_type_var,
-                        value="Income", command=self.refresh_category_list).pack(side='left', padx=5)
-
-        cat_tree_frame = ttk.Frame(parent_frame)
-        cat_tree_frame.grid(row=1, column=0, sticky='nsew', pady=5)
-        cat_tree_frame.rowconfigure(0, weight=1)
-        cat_tree_frame.columnconfigure(0, weight=1)
-        self.category_tree = ttk.Treeview(cat_tree_frame, columns=('Category',), show='headings', height=5)
-        self.category_tree.heading('Category', text='Category Name')
-        self.category_tree.column('Category', width=180)
-        self.category_tree.grid(row=0, column=0, sticky='nsew')
-        cat_scrollbar = ttk.Scrollbar(cat_tree_frame, orient='vertical', command=self.category_tree.yview)
-        cat_scrollbar.grid(row=0, column=1, sticky='ns')
-        self.category_tree.configure(yscrollcommand=cat_scrollbar.set)
-        
-        cat_form_frame = ttk.Frame(parent_frame)
-        cat_form_frame.grid(row=2, column=0, sticky='ew', pady=5)
-        cat_form_frame.columnconfigure(1, weight=1)
-        ttk.Label(cat_form_frame, text="Name:").grid(row=0, column=0, padx=(0, 5))
-        self.cat_name_entry = ttk.Entry(cat_form_frame)
-        self.cat_name_entry.grid(row=0, column=1, sticky='ew')
-
-        cat_btn_frame = ttk.Frame(parent_frame)
-        cat_btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
-        ttk.Button(cat_btn_frame, text="Add", command=self.add_category).pack(side='left', padx=5)
-        ttk.Button(cat_btn_frame, text="Delete Selected", command=self.delete_category).pack(side='left', padx=5)
 
     def create_category_budget_widgets(self, parent_frame):
         """Create UI for managing category budget limits using sliders."""
-        parent_frame.rowconfigure(1, weight=1)
+        parent_frame.rowconfigure(2, weight=1)
         parent_frame.columnconfigure(0, weight=1)
 
         self.budget_cat_type_var = tk.StringVar(value="Expense")
@@ -837,12 +800,28 @@ class FinanceTracker:
         ttk.Label(type_frame, text="Type:").pack(side='left')
         ttk.Radiobutton(type_frame, text="Expense", variable=self.budget_cat_type_var,
                         value="Expense", command=self._create_budget_sliders).pack(side='left', padx=5)
+        ttk.Radiobutton(type_frame, text="Income", variable=self.budget_cat_type_var,
+                        value="Income", command=self._create_budget_sliders).pack(side='left', padx=5)
+
+        # Frame for adding/removing categories
+        management_frame = ttk.Frame(parent_frame)
+        management_frame.grid(row=1, column=0, sticky='ew', pady=5)
+
+        ttk.Label(management_frame, text="New Category:").pack(side='left', padx=(0, 5))
+        self.new_cat_entry = ttk.Entry(management_frame, width=20)
+        self.new_cat_entry.pack(side='left')
+        ttk.Button(management_frame, text="Add", command=self.add_category_from_budget).pack(side='left', padx=5)
+
+        ttk.Label(management_frame, text="Remove Category:").pack(side='left', padx=(10, 5))
+        self.remove_cat_combo = ttk.Combobox(management_frame, width=20, state='readonly')
+        self.remove_cat_combo.pack(side='left')
+        ttk.Button(management_frame, text="Remove", command=self.remove_category_from_budget).pack(side='left', padx=5)
         
         self.sliders_frame = ttk.Frame(parent_frame)
-        self.sliders_frame.grid(row=1, column=0, sticky='nsew', pady=5)
+        self.sliders_frame.grid(row=2, column=0, sticky='nsew', pady=5)
         
         btn_frame = ttk.Frame(parent_frame)
-        btn_frame.grid(row=2, column=0, sticky='ew', pady=5)
+        btn_frame.grid(row=3, column=0, sticky='ew', pady=5)
         ttk.Button(btn_frame, text="Save Budgets", command=self.save_category_budgets).pack(side='left', padx=5)
         
         self.budget_sliders = {}
@@ -874,6 +853,7 @@ class FinanceTracker:
             for category in category_budgets:
                 category_budgets[category] = (category_budgets[category] / total_budgeted) * 100
 
+        self.remove_cat_combo['values'] = categories
         for i, category in enumerate(categories):
             frame = ttk.Frame(self.sliders_frame)
             frame.pack(fill='x', pady=2)
@@ -963,6 +943,76 @@ class FinanceTracker:
         self.save_data()
         self._create_budget_sliders()
         messagebox.showinfo("Success", "Category budgets have been saved.")
+
+    def add_category_from_budget(self):
+        cat_type = self.budget_cat_type_var.get()
+        new_cat = self.new_cat_entry.get().strip()
+        if not new_cat:
+            messagebox.showerror("Error", "Category name cannot be empty.")
+            return
+        if new_cat.lower() in [c.lower() for c in self.categories[cat_type]]:
+            messagebox.showwarning("Warning", "This category already exists.")
+            return
+        self.categories[cat_type].append(new_cat)
+        self.categories[cat_type].sort()
+        self.save_data()
+        self._create_budget_sliders()
+        self.update_categories()
+        self.new_cat_entry.delete(0, tk.END)
+
+    def remove_category_from_budget(self):
+        cat_type = self.budget_cat_type_var.get()
+        category_to_delete = self.remove_cat_combo.get()
+        if not category_to_delete:
+            messagebox.showwarning("Warning", "Please select a category to delete.")
+            return
+        if category_to_delete.lower() == "other":
+            messagebox.showerror("Error", "Cannot delete the 'Other' category.")
+            return
+        if messagebox.askyesno("Confirm",
+                               f"Are you sure you want to delete the '{category_to_delete}' category? \nExisting transactions with this category will not be changed."):
+            self.categories[cat_type].remove(category_to_delete)
+            # Also remove from budget settings
+            if cat_type in self.budget_settings['category_budgets'] and category_to_delete in self.budget_settings['category_budgets'][cat_type]:
+                del self.budget_settings['category_budgets'][cat_type][category_to_delete]
+            self.save_data()
+            self._create_budget_sliders()
+            self.update_categories()
+
+    def add_category_from_budget(self):
+        cat_type = self.budget_cat_type_var.get()
+        new_cat = self.new_cat_entry.get().strip()
+        if not new_cat:
+            messagebox.showerror("Error", "Category name cannot be empty.")
+            return
+        if new_cat.lower() in [c.lower() for c in self.categories[cat_type]]:
+            messagebox.showwarning("Warning", "This category already exists.")
+            return
+        self.categories[cat_type].append(new_cat)
+        self.categories[cat_type].sort()
+        self.save_data()
+        self._create_budget_sliders()
+        self.update_categories()
+        self.new_cat_entry.delete(0, tk.END)
+
+    def remove_category_from_budget(self):
+        cat_type = self.budget_cat_type_var.get()
+        category_to_delete = self.remove_cat_combo.get()
+        if not category_to_delete:
+            messagebox.showwarning("Warning", "Please select a category to delete.")
+            return
+        if category_to_delete.lower() == "other":
+            messagebox.showerror("Error", "Cannot delete the 'Other' category.")
+            return
+        if messagebox.askyesno("Confirm",
+                               f"Are you sure you want to delete the '{category_to_delete}' category? \nExisting transactions with this category will not be changed."):
+            self.categories[cat_type].remove(category_to_delete)
+            # Also remove from budget settings
+            if cat_type in self.budget_settings['category_budgets'] and category_to_delete in self.budget_settings['category_budgets'][cat_type]:
+                del self.budget_settings['category_budgets'][cat_type][category_to_delete]
+            self.save_data()
+            self._create_budget_sliders()
+            self.update_categories()
 
     def create_projection_tab(self):
         main_frame = ttk.Frame(self.projection_tab, padding="10")
@@ -1452,45 +1502,7 @@ class FinanceTracker:
         self.save_data()
         self.refresh_fixed_costs_tree()
 
-    def refresh_category_list(self):
-        for item in self.category_tree.get_children():
-            self.category_tree.delete(item)
-        cat_type = self.cat_type_var.get()
-        for category in self.categories.get(cat_type, []):
-            self.category_tree.insert('', 'end', values=(category,))
 
-    def add_category(self):
-        cat_type = self.cat_type_var.get()
-        new_cat = self.cat_name_entry.get().strip()
-        if not new_cat:
-            messagebox.showerror("Error", "Category name cannot be empty.")
-            return
-        if new_cat.lower() in [c.lower() for c in self.categories[cat_type]]:
-            messagebox.showwarning("Warning", "This category already exists.")
-            return
-        self.categories[cat_type].append(new_cat)
-        self.categories[cat_type].sort()
-        self.save_data()
-        self.refresh_category_list()
-        self.update_categories()
-        self.cat_name_entry.delete(0, tk.END)
-
-    def delete_category(self):
-        selected = self.category_tree.selection()
-        if not selected:
-            messagebox.showwarning("Warning", "Please select a category to delete.")
-            return
-        cat_type = self.cat_type_var.get()
-        category_to_delete = self.category_tree.item(selected[0])['values'][0]
-        if category_to_delete.lower() == "other":
-            messagebox.showerror("Error", "Cannot delete the 'Other' category.")
-            return
-        if messagebox.askyesno("Confirm",
-                               f"Are you sure you want to delete the '{category_to_delete}' category? \nExisting transactions with this category will not be changed."):
-            self.categories[cat_type].remove(category_to_delete)
-            self.save_data()
-            self.refresh_category_list()
-            self.update_categories()
             
 
 
