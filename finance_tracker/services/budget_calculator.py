@@ -129,7 +129,7 @@ def generate_daily_budget_report(state, month_str: str) -> str:
             elif new_daily_target <= initial_daily_spending_target * 0.7:
                 report += f"⚠️  SPENDING CAUTION NEEDED\n\n"
                 report += f"You've spent more than planned in the first part of the month.\n"
-                report += f"Your adjusted daily target is now: €{new_daily_target:.2f}/day\n"
+                report += f"Your adjusted daily target is now: €{new_daily_target:.2f}/day (= €{cumulative_flexible_balance:.2f} / {remaining_days})\n"
                 report += f"(Original target was: €{initial_daily_spending_target:.2f}/day)\n\n"
                 report += f"Action Steps:\n"
                 report += f"  • Try to limit spending to €{new_daily_target:.2f} per day\n"
@@ -151,11 +151,6 @@ def generate_daily_budget_report(state, month_str: str) -> str:
                 report += f"  • Days remaining: {remaining_days}\n"
                 report += f"  • Remaining flexible budget: €{cumulative_flexible_balance:.2f}\n"
                 report += f"  • Adjusted daily target: €{new_daily_target:.2f}\n\n"
-            
-            report += f"{'-'*80}\n"
-            report += f"Note: The 'Target' column shows what you could have spent each day\n"
-            report += f"      based on your remaining budget at the start of that day.\n"
-            report += f"      Once budget reaches €0, the target becomes €0 (no money left to spend).\n"
         else:
             new_daily_target = cumulative_flexible_balance
             if new_daily_target < 0:
