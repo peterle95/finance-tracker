@@ -52,7 +52,7 @@ class ReportsTab:
         self.month_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.month_entry.pack(side='left', padx=5)
         ttk.Label(self.pie_controls, text="Display As:").pack(side='left', padx=(10, 0))
-        self.value_type_var = tk.StringVar(value="Percentage")
+        self.value_type_var = tk.StringVar(value="Total")
         ttk.Radiobutton(self.pie_controls, text="%", variable=self.value_type_var, value="Percentage").pack(side='left')
         ttk.Radiobutton(self.pie_controls, text="€", variable=self.value_type_var, value="Total").pack(side='left', padx=5)
 
