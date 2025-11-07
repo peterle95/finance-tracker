@@ -1,3 +1,5 @@
+# finance_tracker/services/budget_calculator.py
+
 from datetime import datetime
 import calendar
 
@@ -75,8 +77,12 @@ def generate_daily_budget_report(state, month_str: str) -> str:
             break
         
         # Calculate flexible target for THIS day based on remaining days INCLUDING today
+        # If budget is depleted (≤0), target becomes 0
         remaining_days_including_today = days_in_month - day + 1
-        daily_target_for_this_day = cumulative_flexible_balance / remaining_days_including_today if remaining_days_including_today > 0 else 0
+        if cumulative_flexible_balance <= 0:
+            daily_target_for_this_day = 0
+        else:
+            daily_target_for_this_day = cumulative_flexible_balance / remaining_days_including_today if remaining_days_including_today > 0 else 0
         
         day_spent = sum(e['amount'] for e in daily_expenses.get(date_str, []))
         cumulative_flexible_balance -= day_spent
@@ -95,28 +101,28 @@ def generate_daily_budget_report(state, month_str: str) -> str:
     if today.year == year and today.month == month and today.day < days_in_month:
         remaining_days = days_in_month - today.day
         if remaining_days > 0:
-            new_daily_target = cumulative_flexible_balance / remaining_days
+            new_daily_target = cumulative_flexible_balance / remaining_days if cumulative_flexible_balance > 0 else 0
             
             report += f"{'='*80}\n"
             report += f"YOUR PATH FORWARD\n"
             report += f"{'='*80}\n\n"
             
-            if new_daily_target < 0:
+            if cumulative_flexible_balance <= 0:
                 total_flexible_expenses_incurred = sum(e['amount'] for e in flex_expenses_month)
                 overall_net_value = total_income - fixed_costs - total_flexible_expenses_incurred - monthly_savings_goal
                 overspend_amount = abs(cumulative_flexible_balance)
                 
-                report += f"⚠️  BUDGET DEFICIT: You have overspent your flexible budget by €{overspend_amount:.2f}\n\n"
+                report += f"⚠️  BUDGET DEPLETED: You have overspent your flexible budget by €{overspend_amount:.2f}\n\n"
                 report += f"To get back on track, you have {remaining_days} days remaining and need to:\n\n"
                 report += f"OPTION 1: Zero Spending Challenge\n"
                 report += f"  • Spend €0.00 per day for the remaining {remaining_days} days\n"
-                report += f"  • This will reduce your deficit to €{overspend_amount:.2f}\n\n"
+                report += f"  • This will keep your deficit at €{overspend_amount:.2f}\n\n"
                 report += f"OPTION 2: Accept the Deficit\n"
                 report += f"  • Continue spending normally\n"
                 report += f"  • Make up the €{overspend_amount:.2f} deficit next month\n\n"
                 report += f"OPTION 3: Partial Recovery\n"
-                report += f"  • If you spend €{max(0, new_daily_target + (overspend_amount / remaining_days)):.2f}/day, "
-                report += f"you'll end the month at €0.00\n\n"
+                report += f"  • Reduce spending as much as possible\n"
+                report += f"  • Any amount you save reduces the deficit\n\n"
                 report += f"--- Key Numbers for Context ---\n"
                 report += f"Overall Net Value (Income - All Expenses - Savings): €{overall_net_value:.2f}\n"
                 report += f"Current Flexible Budget Balance:                      €{cumulative_flexible_balance:.2f}\n\n"
@@ -147,8 +153,9 @@ def generate_daily_budget_report(state, month_str: str) -> str:
                 report += f"  • Adjusted daily target: €{new_daily_target:.2f}\n\n"
             
             report += f"{'-'*80}\n"
-            report += f"Note: The 'Target' column shows what you should have spent each day\n"
+            report += f"Note: The 'Target' column shows what you could have spent each day\n"
             report += f"      based on your remaining budget at the start of that day.\n"
+            report += f"      Once budget reaches €0, the target becomes €0 (no money left to spend).\n"
         else:
             new_daily_target = cumulative_flexible_balance
             if new_daily_target < 0:
