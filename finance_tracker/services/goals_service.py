@@ -65,12 +65,14 @@ def calculate_monthly_savings(goal):
         return None, "Invalid target date format."
 
     today = date.today()
-    if target_date <= today:
-        return None, "Target date must be in the future."
-
     remaining_amount = goal['target_amount'] - goal.get('allocated_amount', 0)
+    
     if remaining_amount <= 0:
         return 0, "Goal already achieved."
+    
+    if target_date <= today:
+        # Target date is in the past - show as overdue
+        return remaining_amount, f"OVERDUE - Remaining: €{remaining_amount:,.2f}"
 
     delta = relativedelta(target_date, today)
     months_remaining = delta.years * 12 + delta.months + delta.days / 30.0
