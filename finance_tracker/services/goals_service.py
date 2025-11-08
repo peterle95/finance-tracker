@@ -222,7 +222,8 @@ def generate_goals_report(state) -> str:
         for goal in active_goals:
             progress = calculate_goal_progress(goal, goal.get('allocated_amount', 0))
             completion_date, completion_msg = estimate_completion_date(goal)
-            
+            monthly_savings, monthly_savings_str = calculate_monthly_savings(goal)
+    
             report += f"Goal: {goal['name']}\n"
             if goal.get('description'):
                 report += f"Description: {goal['description']}\n"
@@ -231,10 +232,15 @@ def generate_goals_report(state) -> str:
             report += f"Allocated Savings:     €{goal.get('allocated_amount', 0):,.2f}\n"
             report += f"Still Needed:          €{progress['remaining']:,.2f}\n"
             report += f"Progress:              {progress['progress_pct']:.1f}%\n"
-            report += f"Priority:              {goal.get('priority', 'Medium')}\n"
-            report += f"Category:              {goal.get('category', 'General')}\n"
+    
+            # Show target date and required monthly savings if set
+            if goal.get('target_date'):
+                report += f"Target Date:           {goal['target_date']}\n"
+                if monthly_savings is not None:
+                    report += f"Required Monthly:      {monthly_savings_str}\n"
+    
             report += f"Completion Estimate:   {completion_msg}\n"
-            
+    
             # Progress bar
             bar_length = 40
             filled = int(bar_length * progress['progress_pct'] / 100)
