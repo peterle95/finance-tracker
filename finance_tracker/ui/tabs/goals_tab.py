@@ -115,13 +115,6 @@ class GoalsTab:
                            value=priority).pack(side='left', padx=2)
         
         row += 1
-        ttk.Label(form, text="Category:").grid(row=row, column=0, sticky='w', pady=5)
-        self.goal_category_var = tk.StringVar(value="General")
-        category_combo = ttk.Combobox(form, textvariable=self.goal_category_var, width=23, state='readonly')
-        category_combo['values'] = ["Emergency Fund", "Vacation", "Electronics", "Home", "Vehicle", "Education", "Investment", "Other", "General"]
-        category_combo.grid(row=row, column=1, pady=5, sticky='ew')
-        
-        row += 1
         ttk.Separator(form, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
         
         row += 1
@@ -221,17 +214,12 @@ class GoalsTab:
         header = ttk.Frame(goal_frame)
         header.pack(fill='x', padx=10, pady=(10, 5))
         
-        # Goal name and category
+        # Goal name 
         name_frame = ttk.Frame(header)
         name_frame.pack(side='left', fill='x', expand=True)
         
         name_label = ttk.Label(name_frame, text=goal['name'], font=('Arial', 11, 'bold'))
         name_label.pack(side='left')
-        
-        if goal.get('category'):
-            category_label = ttk.Label(name_frame, text=f"  [{goal['category']}]", 
-                                      font=('Arial', 9), foreground='gray')
-            category_label.pack(side='left')
         
         if goal.get('priority'):
             priority_colors = {'High': 'red', 'Medium': 'orange', 'Low': 'green'}
@@ -276,7 +264,7 @@ class GoalsTab:
             completion_date, completion_msg = estimate_completion_date(goal, monthly_savings)
             
             estimate_label = ttk.Label(goal_frame, text=completion_msg, 
-                                      font=('Arial', 9, 'italic'), foreground='blue')
+                                      font=('Arial', 9, 'italic'), foreground='orange')
             estimate_label.pack(anchor='w', padx=10, pady=(0, 5))
         else:
             complete_label = ttk.Label(goal_frame, text="✓ Goal Achieved!", 
@@ -335,7 +323,6 @@ class GoalsTab:
                 'target_amount': target,
                 'allocated_amount': 0.0,  # Start with 0 allocation
                 'priority': self.goal_priority_var.get(),
-                'category': self.goal_category_var.get(),
                 'created_date': date.today().strftime('%Y-%m-%d'),
                 'completion_date': None
             }
@@ -372,7 +359,6 @@ class GoalsTab:
         self.goal_target_entry.insert(0, str(goal['target_amount']))
         
         self.goal_priority_var.set(goal.get('priority', 'Medium'))
-        self.goal_category_var.set(goal.get('category', 'General'))
     
     def update_goal(self):
         """Update the selected goal"""

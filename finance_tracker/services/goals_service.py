@@ -34,7 +34,7 @@ def estimate_completion_date(goal, monthly_savings_rate):
     remaining_days = (months_needed - int(months_needed)) * 30
     completion_date += timedelta(days=int(remaining_days))
     
-    return completion_date, f"Estimated: {completion_date.strftime('%B %Y')}"
+    return completion_date, f"Estimated completion: {completion_date.strftime('%B %Y')}"
 
 def get_total_savings_available(state):
     """Get total savings available for allocation"""
