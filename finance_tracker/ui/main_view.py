@@ -11,6 +11,7 @@ from .tabs.reports_tab import ReportsTab
 from .tabs.settings_tab import SettingsTab
 from .tabs.budgets_tab import BudgetsTab
 from .tabs.projection_tab import ProjectionTab
+from .tabs.goals_tab import GoalsTab  # Add this import
 
 class MainView:
     def __init__(self, root, state):
@@ -32,6 +33,7 @@ class MainView:
             self.view_tab.refresh()
             self.settings_tab.refresh_fixed_costs_tree()
             self.settings_tab.refresh_balance_entries()
+            self.goals_tab.refresh_goals()  # Add this line
         self.on_data_changed = on_data_changed
 
         # Tabs
@@ -41,6 +43,7 @@ class MainView:
         self.reports_tab = ReportsTab(self.notebook, self.state)
         self.settings_tab = SettingsTab(self.notebook, self.state)
         self.budgets_tab = BudgetsTab(self.notebook, self.state)
+        self.goals_tab = GoalsTab(self.notebook, self.state)  # Add this line
         self.projection_tab = ProjectionTab(self.notebook, self.state)
 
         # Help Button
