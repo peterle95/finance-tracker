@@ -297,19 +297,13 @@ class GoalsTab:
                                            font=('Arial', 8), foreground='gray')
                 comp_date_label.pack(anchor='w', padx=10, pady=(0, 5))
         else:
-            # Target date and monthly savings
+            # Target date only (no required amount in view)
             if goal.get('target_date'):
-                monthly_savings, monthly_savings_str = calculate_monthly_savings(goal)
-                
                 target_date_frame = ttk.Frame(goal_frame)
                 target_date_frame.pack(fill='x', padx=10, pady=(0, 5))
                 
                 ttk.Label(target_date_frame, text=f"Target Date: {goal['target_date']}", 
                           font=('Arial', 9, 'italic')).pack(side='left')
-                
-                if monthly_savings is not None:
-                    ttk.Label(target_date_frame, text=f"  |  Required: {monthly_savings_str}", 
-                              font=('Arial', 9, 'bold')).pack(side='left')
 
         # Buttons
         button_frame = ttk.Frame(goal_frame)
