@@ -12,6 +12,7 @@ from ...services.goals_service import (
     validate_allocation,
     auto_distribute_savings
 )
+from ..style import configure_canvas, configure_toplevel
 
 class GoalsTab:
     def __init__(self, notebook, state):
@@ -72,6 +73,7 @@ class GoalsTab:
         
         self.goals_container.bind('<Configure>', self._on_goals_frame_configure)
         self.goals_canvas.bind('<Configure>', self._on_canvas_configure)
+        configure_canvas(self.goals_canvas)
         
         # Buttons below goals list
         goals_buttons = ttk.Frame(left_frame)
@@ -473,6 +475,7 @@ class GoalsTab:
         dialog.geometry("450x450")
         dialog.transient(self.goals_container)
         dialog.grab_set()
+        configure_toplevel(dialog)
         
         ttk.Label(dialog, text=f"Allocate savings to: {goal['name']}", 
                  font=('Arial', 11, 'bold')).pack(pady=10)
@@ -604,6 +607,7 @@ class GoalsTab:
         report_win = tk.Toplevel(self.goals_container)
         report_win.title("Savings Goals Report")
         report_win.geometry("900x700")
+        configure_toplevel(report_win)
         
         main_frame = ttk.Frame(report_win, padding=10)
         main_frame.pack(fill='both', expand=True)
@@ -617,6 +621,7 @@ class GoalsTab:
         
         text_widget.insert('1.0', report_text)
         text_widget.config(state='disabled')
+        configure_text_widget(text_widget)
         
         button_frame = ttk.Frame(report_win, padding=10)
         button_frame.pack(fill='x')

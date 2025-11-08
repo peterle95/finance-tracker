@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 from ...services.projection_service import projection_text
+from ..style import configure_text_widget
 
 class ProjectionTab:
     def __init__(self, notebook, state):
@@ -23,6 +24,7 @@ class ProjectionTab:
 
         self.text = tk.Text(main, height=20, width=90, font=('Courier New', 9))
         self.text.grid(row=1, column=0, sticky='nsew', pady=10)
+        configure_text_widget(self.text)
 
     def generate(self):
         try:

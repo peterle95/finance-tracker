@@ -6,6 +6,7 @@ import numpy as np
 
 from ...services.report_builder import pie_data, history_data
 from ...services.budget_calculator import compute_net_available_for_spending
+from ..style import get_colors
 
 class ReportsTab:
     def __init__(self, notebook, state):
@@ -164,6 +165,21 @@ class ReportsTab:
         title = self.bar_chart_data['title']
         
         fig = Figure(figsize=(10, 6), dpi=100)
+        colors = get_colors()
+        fig.patch.set_facecolor(colors['bg'])
+        ax.set_facecolor(colors['field_bg'])
+        ax.tick_params(colors=colors['fg'])
+        ax.xaxis.label.set_color(colors['fg'])
+        ax.yaxis.label.set_color(colors['fg'])
+        ax.title.set_color(colors['fg'])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(colors['border'])
+        if ax.get_legend():
+            legend = ax.get_legend()
+            legend.get_frame().set_facecolor(colors['frame_bg'])
+            legend.get_frame().set_edgecolor(colors['border'])
+            for text in legend.get_texts():
+                text.set_color(colors['fg'])
         ax = fig.add_subplot(111)
 
         if self.bar_breakdown_mode == "total":
@@ -306,6 +322,21 @@ class ReportsTab:
         sizes = list(totals.values())
 
         fig = Figure(figsize=(8, 6), dpi=100)
+        colors = get_colors()
+        fig.patch.set_facecolor(colors['bg'])
+        ax.set_facecolor(colors['field_bg'])
+        ax.tick_params(colors=colors['fg'])
+        ax.xaxis.label.set_color(colors['fg'])
+        ax.yaxis.label.set_color(colors['fg'])
+        ax.title.set_color(colors['fg'])
+        for spine in ax.spines.values():
+            spine.set_edgecolor(colors['border'])
+        if ax.get_legend():
+            legend = ax.get_legend()
+            legend.get_frame().set_facecolor(colors['frame_bg'])
+            legend.get_frame().set_edgecolor(colors['border'])
+            for text in legend.get_texts():
+                text.set_color(colors['fg'])
         ax = fig.add_subplot(111)
 
         if self.value_type_var.get() == "Percentage":

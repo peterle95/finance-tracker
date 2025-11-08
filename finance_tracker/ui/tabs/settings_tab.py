@@ -2,6 +2,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 from ...services.budget_calculator import generate_daily_budget_report
+from ..style import configure_text_widget
 
 class SettingsTab:
     def __init__(self, notebook, state):
@@ -109,6 +110,7 @@ class SettingsTab:
         text_frame.columnconfigure(0, weight=1)
         self.report_text = tk.Text(text_frame, height=20, width=90, font=('Courier New', 9))
         self.report_text.grid(row=0, column=0, sticky='nsew')
+        configure_text_widget(self.report_text)
         scroll = ttk.Scrollbar(text_frame, orient='vertical', command=self.report_text.yview)
         scroll.grid(row=0, column=1, sticky='ns')
         self.report_text.configure(yscrollcommand=scroll.set)

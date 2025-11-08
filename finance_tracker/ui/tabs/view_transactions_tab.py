@@ -152,6 +152,8 @@ class ViewTransactionsTab:
         win.title("Modify Transaction")
         win.transient(self.frame)
         win.grab_set()
+        from ..style import configure_toplevel
+        configure_toplevel(win)
 
         form = ttk.Frame(win, padding="20")
         form.pack(fill='both', expand=True)

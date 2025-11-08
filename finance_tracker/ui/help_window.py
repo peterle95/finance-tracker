@@ -1,11 +1,13 @@
 import tkinter as tk
 from tkinter import ttk
+from .style import configure_text_widget, configure_toplevel, DARK_FG
 
 def show_help(root):
     help_win = tk.Toplevel(root)
     help_win.title("Help & Instructions")
     help_win.geometry("800x600")
     help_win.minsize(600, 400)
+    configure_toplevel(help_win)  # Add this line
 
     main_frame = ttk.Frame(help_win, padding=10)
     main_frame.pack(fill='both', expand=True)
@@ -14,15 +16,16 @@ def show_help(root):
     text_frame.pack(fill='both', expand=True)
 
     help_text_widget = tk.Text(text_frame, wrap='word', font=('Arial', 10), spacing3=5)
+    configure_text_widget(help_text_widget)  # Add this line
     scrollbar = ttk.Scrollbar(text_frame, orient='vertical', command=help_text_widget.yview)
     help_text_widget.configure(yscrollcommand=scrollbar.set)
     scrollbar.pack(side='right', fill='y')
     help_text_widget.pack(side='left', fill='both', expand=True)
 
-    help_text_widget.tag_configure('h1', font=('Arial', 16, 'bold'), spacing1=10)
-    help_text_widget.tag_configure('h2', font=('Arial', 12, 'bold'), spacing1=10)
-    help_text_widget.tag_configure('bold', font=('Arial', 10, 'bold'))
-    help_text_widget.tag_configure('italic', font=('Arial', 10, 'italic'))
+    help_text_widget.tag_configure('h1', font=('Arial', 16, 'bold'), spacing1=10, foreground=DARK_FG)
+    help_text_widget.tag_configure('h2', font=('Arial', 12, 'bold'), spacing1=10, foreground=DARK_FG)
+    help_text_widget.tag_configure('bold', font=('Arial', 10, 'bold'), foreground=DARK_FG)
+    help_text_widget.tag_configure('italic', font=('Arial', 10, 'italic'), foreground='#a0a0a0')
 
     content = [
         ("Core Concepts", "h1"),
