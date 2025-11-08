@@ -1,4 +1,4 @@
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 
 def calculate_goal_progress(goal, current_savings):
@@ -15,20 +15,38 @@ def calculate_goal_progress(goal, current_savings):
         'is_complete': allocated >= target
     }
 
-def estimate_completion_date(goal, monthly_savings_rate):
-    """Estimate when a goal will be completed based on monthly savings rate"""
-    remaining = goal['target_amount'] - goal['allocated_amount']
-    
+def estimate_completion_date(goal):
+    """Estimate when a goal will be completed based on average monthly allocation."""
+    remaining = goal['target_amount'] - goal.get('allocated_amount', 0)
     if remaining <= 0:
         return None, "Goal already achieved!"
+
+    created_date_str = goal.get('created_date')
+    if not created_date_str:
+        return None, "Cannot estimate without a creation date."
+
+    created_date = datetime.strptime(created_date_str, '%Y-%m-%d').date()
+    today = date.today()
     
-    if monthly_savings_rate <= 0:
-        return None, "Set a daily savings goal to estimate completion."
+    # Calculate months since creation, with a minimum of 1 to avoid division by zero
+    delta = relativedelta(today, created_date)
+    months_since_creation = delta.years * 12 + delta.months
+    if months_since_creation == 0:
+        months_since_creation = 1
+
+    allocated_amount = goal.get('allocated_amount', 0)
+    if allocated_amount <= 0:
+        return None, "Allocate funds to estimate completion."
+
+    # Calculate average monthly savings for this goal
+    average_monthly_savings = allocated_amount / months_since_creation
     
-    months_needed = remaining / monthly_savings_rate
+    if average_monthly_savings <= 0:
+        return None, "No average monthly savings to estimate completion."
+
+    months_needed = remaining / average_monthly_savings
     
-    start_date = date.today()
-    completion_date = start_date + relativedelta(months=int(months_needed))
+    completion_date = today + relativedelta(months=int(months_needed))
     
     # Add remaining days
     remaining_days = (months_needed - int(months_needed)) * 30
@@ -39,18 +57,15 @@ def estimate_completion_date(goal, monthly_savings_rate):
 def get_total_savings_available(state):
     """Get total savings available for allocation"""
     return state.budget_settings.get('savings_balance', 0)
-
 def get_total_allocated(state):
     """Get total amount already allocated to goals"""
     goals = state.budget_settings.get('savings_goals', [])
     return sum(g.get('allocated_amount', 0) for g in goals)
-
 def get_unallocated_savings(state):
     """Get savings not yet allocated to any goal"""
     total = get_total_savings_available(state)
     allocated = get_total_allocated(state)
     return max(total - allocated, 0)
-
 def validate_allocation(state, goal_index, new_amount):
     """
     Validate if a new allocation amount is valid
@@ -76,7 +91,6 @@ def validate_allocation(state, goal_index, new_amount):
         return False, f"Insufficient savings. Available: €{available:.2f}", available
     
     return True, "", available
-
 def auto_distribute_savings(state):
     """
     Automatically distribute available savings across goals based on priority and need
@@ -142,14 +156,12 @@ def generate_goals_report(state) -> str:
         report += f"No savings goals set. Create your first goal to start tracking!\n"
         return report
     
-    daily_savings = state.budget_settings.get('daily_savings_goal', 0)
-    monthly_savings_rate = daily_savings * 30
-    
     report = f"{'='*80}\n"
     report += f"SAVINGS GOALS REPORT\n"
     report += f"{'='*80}\n\n"
     report += f"Generated: {date.today().strftime('%B %d, %Y')}\n"
-    report += f"Daily Savings Goal: €{daily_savings:.2f} (€{monthly_savings_rate:.2f}/month)\n\n"
+    report += f"Note: The completion estimate is based on the average monthly allocation to the goal since its creation.\n"
+    report += f"      If no funds are allocated, no estimate can be provided.\n\n"
     report += f"{'-'*80}\n\n"
     
     total_target = sum(g['target_amount'] for g in goals)
@@ -180,7 +192,7 @@ def generate_goals_report(state) -> str:
         
         for goal in active_goals:
             progress = calculate_goal_progress(goal, goal.get('allocated_amount', 0))
-            completion_date, completion_msg = estimate_completion_date(goal, monthly_savings_rate)
+            completion_date, completion_msg = estimate_completion_date(goal)
             
             report += f"Goal: {goal['name']}\n"
             if goal.get('description'):
