@@ -54,6 +54,33 @@ def estimate_completion_date(goal):
     
     return completion_date, f"Estimated: {completion_date.strftime('%B %Y')}"
 
+def calculate_monthly_savings(goal):
+    """Calculate the monthly savings required to meet a goal by its target date."""
+    if not goal.get('target_date'):
+        return None, "No target date set."
+
+    try:
+        target_date = datetime.strptime(goal['target_date'], '%Y-%m-%d').date()
+    except (ValueError, TypeError):
+        return None, "Invalid target date format."
+
+    today = date.today()
+    if target_date <= today:
+        return None, "Target date must be in the future."
+
+    remaining_amount = goal['target_amount'] - goal.get('allocated_amount', 0)
+    if remaining_amount <= 0:
+        return 0, "Goal already achieved."
+
+    delta = relativedelta(target_date, today)
+    months_remaining = delta.years * 12 + delta.months + delta.days / 30.0
+
+    if months_remaining <= 0:
+        return remaining_amount, "Target date is this month."
+
+    monthly_savings = remaining_amount / months_remaining
+    return monthly_savings, f"€{monthly_savings:,.2f}/month"
+
 def get_total_savings_available(state):
     """Get total savings available for allocation"""
     return state.budget_settings.get('savings_balance', 0)
