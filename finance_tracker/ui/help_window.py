@@ -37,6 +37,9 @@ def show_help(root):
         ("\n• Transfers:", "bold"),
         (" Move money between your accounts (doesn't change net worth).", "none"),
 
+        ("\n• Savings Goals:", "bold"),
+        (" Allocate your existing savings across different objectives. The Savings Balance (set in Budget Report) is the source - you distribute it to goals.", "none"),
+
         ("\nHow To Use Each Tab", "h1"),
 
         ("\nAdd Transaction Tab", "h2"),
@@ -48,14 +51,17 @@ def show_help(root):
         ("\nTransfers Tab", "h2"),
         ("Move funds between accounts (e.g., Bank → Wallet).", "none"),
 
-        ("\Charts Tab", "h2"),
-        ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays.", "none"),
+        ("\nCharts Tab", "h2"),
+        ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays. Click bar chart to toggle views.", "none"),
 
         ("\nBudget Report Tab", "h2"),
-        ("Balances, fixed costs, daily budget report.", "none"),
+        ("Balances, fixed costs, daily budget report. UPDATE YOUR SAVINGS BALANCE HERE.", "none"),
 
         ("\nBudgets Limits Tab", "h2"),
         ("Manage category budget limits as % of monthly flexible budget. Auto-Assign from expenses; Normalize.", "none"),
+
+        ("\nSavings Goals Tab", "h2"),
+        ("Create savings goals and allocate your existing savings to them. The tab shows your total Savings Balance and lets you distribute it across goals (emergency fund, vacation, laptop, etc.). Use 'Allocate Savings' to assign amounts to each goal. The 'Auto-Distribute' button will intelligently distribute unallocated savings based on priorities.", "none"),
 
         ("\nProjection Tab", "h2"),
         ("Project future total assets based on daily savings goal.", "none"),

@@ -11,6 +11,8 @@ class ReportsTab:
     def __init__(self, notebook, state):
         self.state = state
         self.canvas = None
+        self.bar_breakdown_mode = "total"  # "total" or "categories"
+        self.bar_display_mode = "value"  # "value" or "percentage"
 
         main = ttk.Frame(notebook, padding="10")
         notebook.add(main, text="Charts")
@@ -80,6 +82,10 @@ class ReportsTab:
 
         ttk.Button(bottom, text="Generate Chart", command=self.generate).pack(side='right')
 
+        # Info label for bar chart interaction
+        self.info_label = ttk.Label(main, text="", foreground="blue", font=('Arial', 9, 'italic'))
+        self.info_label.grid(row=2, column=0, sticky='ew', pady=(5, 0))
+
         self.chart_frame = ttk.Frame(main)
         self.chart_frame.grid(row=1, column=0, sticky='nsew', pady=10)
 
@@ -93,8 +99,10 @@ class ReportsTab:
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
             self.budget_lines_check.pack(side='left', padx=(0, 15))
+            self.info_label.config(text="")
         else:
             self.bar_controls.pack(side='left', padx=(0, 15))
+            self.info_label.config(text="Click on chart to toggle: Total/Categories view | Right-click to toggle: Value/Percentage display")
 
     def _toggle_fixed_controls(self):
         self.fixed_check.pack_forget()
@@ -112,6 +120,9 @@ class ReportsTab:
         if style == "Pie Chart":
             self._make_pie()
         else:
+            # Reset to defaults when generating new chart
+            self.bar_breakdown_mode = "total"
+            self.bar_display_mode = "value"
             self._make_bar()
 
     def _make_bar(self):
@@ -133,25 +144,152 @@ class ReportsTab:
             messagebox.showinfo("No Data", "No data to display for the selected period.")
             return
 
+        # Store data for interactive updates
+        self.bar_chart_data = {
+            'labels': labels,
+            'values': values,
+            'title': title,
+            'num_months': n
+        }
+
+        self._render_bar_chart()
+
+    def _render_bar_chart(self):
+        """Render the bar chart based on current breakdown and display modes"""
+        if self.canvas:
+            self.canvas.get_tk_widget().destroy()
+            self.canvas = None
+
+        labels = self.bar_chart_data['labels']
+        title = self.bar_chart_data['title']
+        
         fig = Figure(figsize=(10, 6), dpi=100)
         ax = fig.add_subplot(111)
-        ax.bar(labels, values, label="Monthly Totals")
 
-        if len(values) > 1:
-            x = np.arange(len(labels))
-            slope, intercept = np.polyfit(x, values, 1)
-            trend = slope * x + intercept
-            ax.plot(labels, trend, color='red', linestyle='--', label='Trend Line')
+        if self.bar_breakdown_mode == "total":
+            # Show total bars
+            values = self.bar_chart_data['values']
+            ax.bar(labels, values, label="Monthly Totals", color='steelblue')
 
-        ax.set_title(title)
-        ax.set_ylabel("Total Amount (€)")
-        ax.legend()
+            if len(values) > 1:
+                x = np.arange(len(labels))
+                slope, intercept = np.polyfit(x, values, 1)
+                trend = slope * x + intercept
+                ax.plot(labels, trend, color='red', linestyle='--', label='Trend Line')
+
+            ax.set_title(f"{title} - Total View")
+            ax.set_ylabel("Total Amount (€)")
+            ax.legend()
+
+        else:
+            # Show stacked bars by category
+            category_data = self._get_category_breakdown_data(labels)
+            
+            if not category_data:
+                messagebox.showinfo("No Data", "No category data available for breakdown.")
+                self.bar_breakdown_mode = "total"
+                self._render_bar_chart()
+                return
+
+            categories = list(category_data.keys())
+            bottom = np.zeros(len(labels))
+            
+            # Color palette
+            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
+                     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+            
+            for idx, category in enumerate(categories):
+                values = category_data[category]
+                
+                if self.bar_display_mode == "percentage":
+                    # Convert to percentages
+                    total_values = [sum(category_data[cat][i] for cat in categories) for i in range(len(labels))]
+                    percentages = [values[i] / total_values[i] * 100 if total_values[i] > 0 else 0 
+                                  for i in range(len(values))]
+                    ax.bar(labels, percentages, bottom=bottom, label=category, 
+                          color=colors[idx % len(colors)])
+                    bottom += percentages
+                else:
+                    # Show absolute values
+                    ax.bar(labels, values, bottom=bottom, label=category, 
+                          color=colors[idx % len(colors)])
+                    bottom += values
+
+            if self.bar_display_mode == "percentage":
+                ax.set_title(f"{title} - Category Breakdown (Percentage)")
+                ax.set_ylabel("Percentage (%)")
+                ax.set_ylim(0, 100)
+            else:
+                ax.set_title(f"{title} - Category Breakdown (Values)")
+                ax.set_ylabel("Amount (€)")
+            
+            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
+
         fig.autofmt_xdate(rotation=45)
         fig.tight_layout()
 
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True)
+        
+        # Bind click events
+        self.canvas.mpl_connect('button_press_event', self._on_bar_click)
+
+    def _get_category_breakdown_data(self, months):
+        """Get category-wise data for each month"""
+        chart_type = self.chart_type_var.get()
+        data_source = self.state.expenses if chart_type == "Expense" else self.state.incomes
+        
+        # Get all categories
+        categories = self.state.categories.get(chart_type, [])
+        
+        # Initialize data structure
+        category_data = {cat: [0.0] * len(months) for cat in categories}
+        
+        # Populate data
+        for month_idx, month in enumerate(months):
+            for item in data_source:
+                if item['date'].startswith(month):
+                    cat = item['category']
+                    if cat in category_data:
+                        category_data[cat][month_idx] += item['amount']
+        
+        # Remove categories with no data
+        category_data = {cat: values for cat, values in category_data.items() if sum(values) > 0}
+        
+        # Add fixed costs or base income if needed
+        if chart_type == "Expense" and self.include_fixed_var.get():
+            fixed_total = sum(fc['amount'] for fc in self.state.budget_settings.get('fixed_costs', []))
+            if fixed_total > 0:
+                category_data["Fixed Costs"] = [fixed_total] * len(months)
+        elif chart_type == "Income" and self.include_base_var.get():
+            base_income = self.state.budget_settings.get('monthly_income', 0)
+            if base_income > 0:
+                category_data["Base Income"] = [base_income] * len(months)
+        
+        return category_data
+
+    def _on_bar_click(self, event):
+        """Handle click events on the bar chart"""
+        if event.inaxes is None:
+            return
+        
+        # Left click: toggle breakdown mode
+        if event.button == 1:
+            if self.bar_breakdown_mode == "total":
+                self.bar_breakdown_mode = "categories"
+            else:
+                self.bar_breakdown_mode = "total"
+            self._render_bar_chart()
+        
+        # Right click: toggle display mode (only in category view)
+        elif event.button == 3:
+            if self.bar_breakdown_mode == "categories":
+                if self.bar_display_mode == "value":
+                    self.bar_display_mode = "percentage"
+                else:
+                    self.bar_display_mode = "value"
+                self._render_bar_chart()
 
     def _make_pie(self):
         month = self.month_entry.get()
