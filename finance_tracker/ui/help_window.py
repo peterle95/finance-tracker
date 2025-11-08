@@ -37,6 +37,9 @@ def show_help(root):
         ("\n• Transfers:", "bold"),
         (" Move money between your accounts (doesn't change net worth).", "none"),
 
+        ("\n• Savings Goals:", "bold"),
+        (" Track multiple savings objectives with progress bars and completion estimates.", "none"),
+
         ("\nHow To Use Each Tab", "h1"),
 
         ("\nAdd Transaction Tab", "h2"),
@@ -48,14 +51,17 @@ def show_help(root):
         ("\nTransfers Tab", "h2"),
         ("Move funds between accounts (e.g., Bank → Wallet).", "none"),
 
-        ("\Charts Tab", "h2"),
-        ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays.", "none"),
+        ("\nCharts Tab", "h2"),
+        ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays. Click bar chart to toggle views.", "none"),
 
         ("\nBudget Report Tab", "h2"),
         ("Balances, fixed costs, daily budget report.", "none"),
 
         ("\nBudgets Limits Tab", "h2"),
         ("Manage category budget limits as % of monthly flexible budget. Auto-Assign from expenses; Normalize.", "none"),
+
+        ("\nSavings Goals Tab", "h2"),
+        ("Create and track multiple savings goals (emergency fund, vacation, etc.). Set target amounts, monthly contributions, and track progress with visual progress bars. Completion dates are estimated based on your contributions.", "none"),
 
         ("\nProjection Tab", "h2"),
         ("Project future total assets based on daily savings goal.", "none"),
