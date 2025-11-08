@@ -72,6 +72,11 @@ class GoalsTab:
         
         self.goals_container.bind('<Configure>', self._on_goals_frame_configure)
         self.goals_canvas.bind('<Configure>', self._on_canvas_configure)
+
+        # Mouse wheel scrolling
+        self.goals_canvas.bind_all("<MouseWheel>", self._on_mouse_wheel)
+        self.goals_canvas.bind_all("<Button-4>", self._on_mouse_wheel)
+        self.goals_canvas.bind_all("<Button-5>", self._on_mouse_wheel)
         
         # Buttons below goals list
         goals_buttons = ttk.Frame(left_frame)
@@ -135,6 +140,14 @@ class GoalsTab:
         # Initialize
         self.refresh_goals()
     
+    def _on_mouse_wheel(self, event):
+        """Handle mouse wheel scrolling"""
+        # For Windows and MacOS
+        if event.num == 5 or event.delta == -120:
+            self.goals_canvas.yview_scroll(1, "units")
+        if event.num == 4 or event.delta == 120:
+            self.goals_canvas.yview_scroll(-1, "units")
+
     def _on_goals_frame_configure(self, event=None):
         """Update scrollregion when goals container changes"""
         self.goals_canvas.configure(scrollregion=self.goals_canvas.bbox('all'))
@@ -143,6 +156,14 @@ class GoalsTab:
         """Update the width of the canvas window to match the canvas"""
         self.goals_canvas.itemconfig(self.goals_canvas_window, width=event.width)
     
+    def _bind_mouse_wheel(self, widget):
+        """Recursively bind mouse wheel event to all children"""
+        widget.bind("<MouseWheel>", self._on_mouse_wheel)
+        widget.bind("<Button-4>", self._on_mouse_wheel)
+        widget.bind("<Button-5>", self._on_mouse_wheel)
+        for child in widget.winfo_children():
+            self._bind_mouse_wheel(child)
+
     def refresh_goals(self):
         """Refresh the goals display"""
         # Clear existing widgets
@@ -175,8 +196,9 @@ class GoalsTab:
             
             sorted_goals = active_goals + completed_goals
             
-            for idx, goal in enumerate(sorted_goals):
-                self._create_goal_widget(idx, goal)
+            for goal in sorted_goals:
+                original_index = goals.index(goal)
+                self._create_goal_widget(original_index, goal)
         
         # Update summaries
         self._update_savings_overview()
@@ -210,6 +232,9 @@ class GoalsTab:
         # Main goal frame
         goal_frame = ttk.Frame(self.goals_container, relief='solid', borderwidth=1)
         goal_frame.pack(fill='x', padx=5, pady=5)
+        
+        # Bind mouse wheel for scrolling
+        self._bind_mouse_wheel(goal_frame)
         
         # Highlight if completed
         if progress['is_complete']:
