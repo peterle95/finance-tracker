@@ -292,16 +292,7 @@ class GoalsTab:
         progress_label.pack(side='left', padx=5)
         
         # Completion estimate
-        if not progress['is_complete']:
-            daily_savings = self.state.budget_settings.get('daily_savings_goal', 0)
-            monthly_savings = daily_savings * 30
-            
-            completion_date, completion_msg = estimate_completion_date(goal, monthly_savings)
-            
-            estimate_label = ttk.Label(goal_frame, text=completion_msg, 
-                                      font=('Arial', 9, 'italic'), foreground='blue')
-            estimate_label.pack(anchor='w', padx=10, pady=(0, 5))
-        else:
+        if progress['is_complete']:
             complete_label = ttk.Label(goal_frame, text="✓ Goal Achieved!", 
                                       font=('Arial', 10, 'bold'), foreground='green')
             complete_label.pack(anchor='w', padx=10, pady=(0, 5))
