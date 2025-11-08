@@ -118,13 +118,6 @@ class GoalsTab:
                            value=priority).pack(side='left', padx=2)
         
         row += 1
-        ttk.Label(form, text="Category:").grid(row=row, column=0, sticky='w', pady=5)
-        self.goal_category_var = tk.StringVar(value="General")
-        category_combo = ttk.Combobox(form, textvariable=self.goal_category_var, width=23, state='readonly')
-        category_combo['values'] = ["Emergency Fund", "Vacation", "Electronics", "Home", "Vehicle", "Education", "Investment", "Other", "General"]
-        category_combo.grid(row=row, column=1, pady=5, sticky='ew')
-        
-        row += 1
         ttk.Separator(form, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
         
         row += 1
@@ -251,11 +244,6 @@ class GoalsTab:
         name_label = ttk.Label(name_frame, text=goal['name'], font=('Arial', 11, 'bold'))
         name_label.pack(side='left')
         
-        if goal.get('category'):
-            category_label = ttk.Label(name_frame, text=f"  [{goal['category']}]", 
-                                      font=('Arial', 9), foreground='gray')
-            category_label.pack(side='left')
-        
         if goal.get('priority'):
             priority_colors = {'High': 'red', 'Medium': 'orange', 'Low': 'green'}
             priority_label = ttk.Label(header, text=goal['priority'], 
@@ -349,7 +337,6 @@ class GoalsTab:
                 'target_amount': target,
                 'allocated_amount': 0.0,  # Start with 0 allocation
                 'priority': self.goal_priority_var.get(),
-                'category': self.goal_category_var.get(),
                 'created_date': date.today().strftime('%Y-%m-%d'),
                 'completion_date': None
             }
@@ -386,7 +373,6 @@ class GoalsTab:
         self.goal_target_entry.insert(0, str(goal['target_amount']))
         
         self.goal_priority_var.set(goal.get('priority', 'Medium'))
-        self.goal_category_var.set(goal.get('category', 'General'))
     
     def update_goal(self):
         """Update the selected goal"""
@@ -416,7 +402,6 @@ class GoalsTab:
             goal['description'] = self.goal_desc_entry.get().strip()
             goal['target_amount'] = target
             goal['priority'] = self.goal_priority_var.get()
-            goal['category'] = self.goal_category_var.get()
             
             if is_complete and not was_complete:
                 goal['completion_date'] = date.today().strftime('%Y-%m-%d')
@@ -610,7 +595,6 @@ class GoalsTab:
         self.goal_desc_entry.delete(0, tk.END)
         self.goal_target_entry.delete(0, tk.END)
         self.goal_priority_var.set("Medium")
-        self.goal_category_var.set("General")
         self.selected_goal_index = None
     
     def show_report(self):
