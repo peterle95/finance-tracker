@@ -4,6 +4,7 @@ from datetime import datetime, date
 from ...services.goals_service import (
     calculate_goal_progress, 
     estimate_completion_date,
+    calculate_monthly_savings,
     generate_goals_report,
     calculate_all_goals_summary,
     get_total_savings_available,
@@ -72,6 +73,11 @@ class GoalsTab:
         
         self.goals_container.bind('<Configure>', self._on_goals_frame_configure)
         self.goals_canvas.bind('<Configure>', self._on_canvas_configure)
+
+        # Mouse wheel scrolling
+        self.goals_canvas.bind_all("<MouseWheel>", self._on_mouse_wheel)
+        self.goals_canvas.bind_all("<Button-4>", self._on_mouse_wheel)
+        self.goals_canvas.bind_all("<Button-5>", self._on_mouse_wheel)
         
         # Buttons below goals list
         goals_buttons = ttk.Frame(left_frame)
@@ -113,11 +119,9 @@ class GoalsTab:
                            value=priority).pack(side='left', padx=2)
         
         row += 1
-        ttk.Label(form, text="Category:").grid(row=row, column=0, sticky='w', pady=5)
-        self.goal_category_var = tk.StringVar(value="General")
-        category_combo = ttk.Combobox(form, textvariable=self.goal_category_var, width=23, state='readonly')
-        category_combo['values'] = ["Emergency Fund", "Vacation", "Electronics", "Home", "Vehicle", "Education", "Investment", "Other", "General"]
-        category_combo.grid(row=row, column=1, pady=5, sticky='ew')
+        ttk.Label(form, text="Target Date (YYYY-MM-DD):").grid(row=row, column=0, sticky='w', pady=5)
+        self.goal_target_date_entry = ttk.Entry(form, width=25)
+        self.goal_target_date_entry.grid(row=row, column=1, pady=5, sticky='ew')
         
         row += 1
         ttk.Separator(form, orient='horizontal').grid(row=row, column=0, columnspan=2, sticky='ew', pady=10)
@@ -135,6 +139,14 @@ class GoalsTab:
         # Initialize
         self.refresh_goals()
     
+    def _on_mouse_wheel(self, event):
+        """Handle mouse wheel scrolling"""
+        # For Windows and MacOS
+        if event.num == 5 or event.delta == -120:
+            self.goals_canvas.yview_scroll(1, "units")
+        if event.num == 4 or event.delta == 120:
+            self.goals_canvas.yview_scroll(-1, "units")
+
     def _on_goals_frame_configure(self, event=None):
         """Update scrollregion when goals container changes"""
         self.goals_canvas.configure(scrollregion=self.goals_canvas.bbox('all'))
@@ -143,6 +155,14 @@ class GoalsTab:
         """Update the width of the canvas window to match the canvas"""
         self.goals_canvas.itemconfig(self.goals_canvas_window, width=event.width)
     
+    def _bind_mouse_wheel(self, widget):
+        """Recursively bind mouse wheel event to all children"""
+        widget.bind("<MouseWheel>", self._on_mouse_wheel)
+        widget.bind("<Button-4>", self._on_mouse_wheel)
+        widget.bind("<Button-5>", self._on_mouse_wheel)
+        for child in widget.winfo_children():
+            self._bind_mouse_wheel(child)
+
     def refresh_goals(self):
         """Refresh the goals display"""
         # Clear existing widgets
@@ -175,8 +195,9 @@ class GoalsTab:
             
             sorted_goals = active_goals + completed_goals
             
-            for idx, goal in enumerate(sorted_goals):
-                self._create_goal_widget(idx, goal)
+            for goal in sorted_goals:
+                original_index = goals.index(goal)
+                self._create_goal_widget(original_index, goal)
         
         # Update summaries
         self._update_savings_overview()
@@ -211,6 +232,9 @@ class GoalsTab:
         goal_frame = ttk.Frame(self.goals_container, relief='solid', borderwidth=1)
         goal_frame.pack(fill='x', padx=5, pady=5)
         
+        # Bind mouse wheel for scrolling
+        self._bind_mouse_wheel(goal_frame)
+        
         # Highlight if completed
         if progress['is_complete']:
             goal_frame.configure(style='Complete.TFrame')
@@ -225,11 +249,6 @@ class GoalsTab:
         
         name_label = ttk.Label(name_frame, text=goal['name'], font=('Arial', 11, 'bold'))
         name_label.pack(side='left')
-        
-        if goal.get('category'):
-            category_label = ttk.Label(name_frame, text=f"  [{goal['category']}]", 
-                                      font=('Arial', 9), foreground='gray')
-            category_label.pack(side='left')
         
         if goal.get('priority'):
             priority_colors = {'High': 'red', 'Medium': 'orange', 'Low': 'green'}
@@ -267,16 +286,7 @@ class GoalsTab:
         progress_label.pack(side='left', padx=5)
         
         # Completion estimate
-        if not progress['is_complete']:
-            daily_savings = self.state.budget_settings.get('daily_savings_goal', 0)
-            monthly_savings = daily_savings * 30
-            
-            completion_date, completion_msg = estimate_completion_date(goal, monthly_savings)
-            
-            estimate_label = ttk.Label(goal_frame, text=completion_msg, 
-                                      font=('Arial', 9, 'italic'), foreground='blue')
-            estimate_label.pack(anchor='w', padx=10, pady=(0, 5))
-        else:
+        if progress['is_complete']:
             complete_label = ttk.Label(goal_frame, text="✓ Goal Achieved!", 
                                       font=('Arial', 10, 'bold'), foreground='green')
             complete_label.pack(anchor='w', padx=10, pady=(0, 5))
@@ -286,7 +296,15 @@ class GoalsTab:
                                            text=f"Completed: {goal['completion_date']}",
                                            font=('Arial', 8), foreground='gray')
                 comp_date_label.pack(anchor='w', padx=10, pady=(0, 5))
-        
+        else:
+            # Target date only (no required amount in view)
+            if goal.get('target_date'):
+                target_date_frame = ttk.Frame(goal_frame)
+                target_date_frame.pack(fill='x', padx=10, pady=(0, 5))
+                
+                ttk.Label(target_date_frame, text=f"Target Date: {goal['target_date']}", 
+                          font=('Arial', 9, 'italic')).pack(side='left')
+
         # Buttons
         button_frame = ttk.Frame(goal_frame)
         button_frame.pack(fill='x', padx=10, pady=(5, 10))
@@ -327,13 +345,21 @@ class GoalsTab:
                 messagebox.showerror("Error", "Target amount must be positive.")
                 return
             
+            target_date_str = self.goal_target_date_entry.get().strip()
+            if target_date_str:
+                try:
+                    datetime.strptime(target_date_str, '%Y-%m-%d')
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                    return
+            
             goal = {
                 'name': name,
                 'description': self.goal_desc_entry.get().strip(),
                 'target_amount': target,
                 'allocated_amount': 0.0,  # Start with 0 allocation
                 'priority': self.goal_priority_var.get(),
-                'category': self.goal_category_var.get(),
+                'target_date': target_date_str if target_date_str else None,
                 'created_date': date.today().strftime('%Y-%m-%d'),
                 'completion_date': None
             }
@@ -370,7 +396,9 @@ class GoalsTab:
         self.goal_target_entry.insert(0, str(goal['target_amount']))
         
         self.goal_priority_var.set(goal.get('priority', 'Medium'))
-        self.goal_category_var.set(goal.get('category', 'General'))
+
+        self.goal_target_date_entry.delete(0, tk.END)
+        self.goal_target_date_entry.insert(0, goal.get('target_date', ''))
     
     def update_goal(self):
         """Update the selected goal"""
@@ -389,6 +417,15 @@ class GoalsTab:
                 messagebox.showerror("Error", "Target amount must be positive.")
                 return
             
+            
+            target_date_str = self.goal_target_date_entry.get().strip()
+            if target_date_str:
+                try:
+                    datetime.strptime(target_date_str, '%Y-%m-%d')
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid date format. Please use YYYY-MM-DD.")
+                    return
+
             goals = self.state.budget_settings['savings_goals']
             goal = goals[self.selected_goal_index]
             
@@ -400,7 +437,7 @@ class GoalsTab:
             goal['description'] = self.goal_desc_entry.get().strip()
             goal['target_amount'] = target
             goal['priority'] = self.goal_priority_var.get()
-            goal['category'] = self.goal_category_var.get()
+            goal['target_date'] = target_date_str if target_date_str else None
             
             if is_complete and not was_complete:
                 goal['completion_date'] = date.today().strftime('%Y-%m-%d')
@@ -593,8 +630,8 @@ class GoalsTab:
         self.goal_name_entry.delete(0, tk.END)
         self.goal_desc_entry.delete(0, tk.END)
         self.goal_target_entry.delete(0, tk.END)
+        self.goal_target_date_entry.delete(0, tk.END)
         self.goal_priority_var.set("Medium")
-        self.goal_category_var.set("General")
         self.selected_goal_index = None
     
     def show_report(self):
