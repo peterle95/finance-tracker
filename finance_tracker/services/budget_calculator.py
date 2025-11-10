@@ -113,7 +113,7 @@ def generate_daily_budget_report(state, month_str: str) -> str:
                 overspend_amount = abs(cumulative_flexible_balance)
                 
                 report += f"⚠️  BUDGET DEPLETED: You have overspent your flexible budget by €{overspend_amount:.2f}\n\n"
-                report += f"To get back on track, you have {remaining_days} days remaining and need to:\n\n"
+                report += f"You have {remaining_days} days remaining and need to:\n\n"
                 report += f"OPTION 1: Zero Spending Challenge\n"
                 report += f"  • Spend €0.00 per day for the remaining {remaining_days} days\n"
                 report += f"  • This will keep your deficit at €{overspend_amount:.2f}\n\n"
