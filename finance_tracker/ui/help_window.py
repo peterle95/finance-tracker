@@ -6,6 +6,9 @@ def show_help(root):
     help_win.title("Help & Instructions")
     help_win.geometry("800x600")
     help_win.minsize(600, 400)
+    
+    # Bind ESC to close window
+    help_win.bind('<Escape>', lambda e: help_win.destroy())
 
     main_frame = ttk.Frame(help_win, padding=10)
     main_frame.pack(fill='both', expand=True)
@@ -63,8 +66,14 @@ def show_help(root):
         ("\nSavings Goals Tab", "h2"),
         ("Create savings goals and allocate your existing savings to them. The tab shows your total Savings Balance and lets you distribute it across goals (emergency fund, vacation, laptop, etc.). Use 'Allocate Savings' to assign amounts to each goal. The 'Auto-Distribute' button will intelligently distribute unallocated savings based on priorities.", "none"),
 
+        ("\nNet Worth Tab", "h2"),
+        ("Track your total financial wealth over time. Record snapshots of your asset balances to visualize growth. View net worth trends, asset allocation pie charts, and asset breakdown over time. Use Ctrl+Shift+N to quickly record a snapshot. This helps you see the big picture of your financial progress.", "none"),
+
         ("\nProjection Tab", "h2"),
         ("Project future total assets based on daily savings goal.", "none"),
+        
+        ("\n\nKeyboard Shortcuts", "h1"),
+        ("Press the ⌨ button or press Escape to close this window. See the keyboard shortcuts reference for all available shortcuts.", "italic"),
     ]
     for text, tag in content:
         if tag == "none":
@@ -73,3 +82,8 @@ def show_help(root):
             help_text_widget.insert(tk.END, text, tag)
 
     help_text_widget.config(state='disabled')
+    
+    # Close button
+    button_frame = ttk.Frame(main_frame)
+    button_frame.pack(fill='x', pady=(10, 0))
+    ttk.Button(button_frame, text="Close", command=help_win.destroy).pack(side='right')
