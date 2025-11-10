@@ -153,6 +153,8 @@ class ViewTransactionsTab:
         win.transient(self.frame)
         win.grab_set()
 
+        win.bind('<Escape>', lambda e: win.destroy())
+
         form = ttk.Frame(win, padding="20")
         form.pack(fill='both', expand=True)
 
