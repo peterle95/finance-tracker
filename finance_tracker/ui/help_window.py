@@ -66,6 +66,9 @@ def show_help(root):
         ("\nSavings Goals Tab", "h2"),
         ("Create savings goals and allocate your existing savings to them. The tab shows your total Savings Balance and lets you distribute it across goals (emergency fund, vacation, laptop, etc.). Use 'Allocate Savings' to assign amounts to each goal. The 'Auto-Distribute' button will intelligently distribute unallocated savings based on priorities.", "none"),
 
+        ("\nNet Worth Tab", "h2"),
+        ("Track your total financial wealth over time. Record snapshots of your asset balances to visualize growth. View net worth trends, asset allocation pie charts, and asset breakdown over time. Use Ctrl+Shift+N to quickly record a snapshot. This helps you see the big picture of your financial progress.", "none"),
+
         ("\nProjection Tab", "h2"),
         ("Project future total assets based on daily savings goal.", "none"),
         
