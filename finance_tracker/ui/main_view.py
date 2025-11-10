@@ -12,6 +12,7 @@ from .tabs.settings_tab import SettingsTab
 from .tabs.budgets_tab import BudgetsTab
 from .tabs.projection_tab import ProjectionTab
 from .tabs.goals_tab import GoalsTab
+from .tabs.net_worth_tab import NetWorthTab
 
 class MainView:
     def __init__(self, root, state):
@@ -44,6 +45,7 @@ class MainView:
         self.settings_tab = SettingsTab(self.notebook, self.state)
         self.budgets_tab = BudgetsTab(self.notebook, self.state)
         self.goals_tab = GoalsTab(self.notebook, self.state)
+        self.net_worth_tab = NetWorthTab(self.notebook, self.state)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
 
         # Help Buttons
@@ -91,8 +93,10 @@ class MainView:
         self.root.bind('<Control-L>', lambda e: self._switch_to_tab(5))
         self.root.bind('<Control-g>', lambda e: self._switch_to_tab(6))
         self.root.bind('<Control-G>', lambda e: self._switch_to_tab(6))
-        self.root.bind('<Control-p>', lambda e: self._switch_to_tab(7))
-        self.root.bind('<Control-P>', lambda e: self._switch_to_tab(7))
+        self.root.bind('<Control-w>', lambda e: self._switch_to_tab(7))
+        self.root.bind('<Control-W>', lambda e: self._switch_to_tab(7))
+        self.root.bind('<Control-p>', lambda e: self._switch_to_tab(8))
+        self.root.bind('<Control-P>', lambda e: self._switch_to_tab(8))
         
         # Help
         self.root.bind('<Control-h>', lambda e: show_help(self.root))
@@ -119,6 +123,7 @@ class MainView:
         self.root.bind('<Control-Shift-R>', self._shortcut_generate_report)
         self.root.bind('<Control-Shift-E>', self._shortcut_export)
         self.root.bind('<Control-Shift-G>', self._shortcut_budget_report)
+        self.root.bind('<Control-Shift-N>', self._shortcut_net_worth_snapshot)
         
         # Quick Entry - Toggle Expense/Income
         self.root.bind('<Alt-e>', self._shortcut_toggle_type)
@@ -198,6 +203,8 @@ class MainView:
                 self.goals_tab.update_goal()
             else:
                 self.goals_tab.add_goal()
+        elif current_index == 7:  # Net Worth - record snapshot
+            self.net_worth_tab.record_snapshot()
         
         return 'break'
     
@@ -211,6 +218,8 @@ class MainView:
             # Delete selected goal if any widget has focus in goals tab
             if self.goals_tab.selected_goal_index is not None:
                 self.goals_tab.delete_goal(self.goals_tab.selected_goal_index)
+        elif current_index == 7:  # Net Worth
+            self.net_worth_tab.delete_selected_snapshot()
         
         return 'break'
     
@@ -235,6 +244,8 @@ class MainView:
             self.budgets_tab._update_monetary_labels()
         elif current_index == 6:  # Goals
             self.goals_tab.refresh_goals()
+        elif current_index == 7:  # Net Worth
+            self.net_worth_tab.refresh()
         
         return 'break'
     
@@ -248,7 +259,9 @@ class MainView:
             self.settings_tab.generate_report()
         elif current_index == 6:  # Goals
             self.goals_tab.show_report()
-        elif current_index == 7:  # Projection
+        elif current_index == 7:  # Net Worth
+            self.net_worth_tab.show_report()
+        elif current_index == 8:  # Projection
             self.projection_tab.generate()
         
         return 'break'
@@ -261,7 +274,9 @@ class MainView:
             self.settings_tab.export_report()
         elif current_index == 6:  # Goals
             self.goals_tab.export_report()
-        elif current_index == 7:  # Projection
+        elif current_index == 7:  # Net Worth
+            self.net_worth_tab.export_report()
+        elif current_index == 8:  # Projection
             self.projection_tab.export()
         
         return 'break'
@@ -270,6 +285,12 @@ class MainView:
         """Handle Ctrl+Shift+G to generate budget report"""
         self.notebook.select(4)  # Switch to Budget Report tab
         self.settings_tab.generate_report()
+        return 'break'
+    
+    def _shortcut_net_worth_snapshot(self, event):
+        """Handle Ctrl+Shift+N to record net worth snapshot"""
+        self.notebook.select(7)  # Switch to Net Worth tab
+        self.net_worth_tab.record_snapshot()
         return 'break'
     
     def _shortcut_toggle_type(self, event):
