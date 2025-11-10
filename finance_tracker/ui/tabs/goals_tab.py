@@ -503,14 +503,17 @@ class GoalsTab:
         
         goal = goals[index]
         current_allocation = goal.get('allocated_amount', 0)
-        
+    
         # Create dialog
         dialog = tk.Toplevel(self.goals_container)
         dialog.title(f"Allocate Savings to {goal['name']}")
         dialog.geometry("450x450")
         dialog.transient(self.goals_container)
         dialog.grab_set()
-        
+    
+        # Bind ESC to close dialog
+        dialog.bind('<Escape>', lambda e: dialog.destroy())
+    
         ttk.Label(dialog, text=f"Allocate savings to: {goal['name']}", 
                  font=('Arial', 11, 'bold')).pack(pady=10)
         

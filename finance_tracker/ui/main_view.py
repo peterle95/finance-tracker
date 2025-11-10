@@ -56,6 +56,20 @@ class MainView:
         
         # Setup keyboard shortcuts
         self._setup_keyboard_shortcuts()
+        
+        # Enable Enter key on buttons globally
+        self._setup_button_enter_key()
+
+    def _setup_button_enter_key(self):
+        """Enable Enter key to activate focused buttons"""
+        def on_button_enter(event):
+            widget = event.widget
+            if isinstance(widget, ttk.Button):
+                widget.invoke()
+                return 'break'
+        
+        self.root.bind_class('TButton', '<Return>', on_button_enter)
+        self.root.bind_class('TButton', '<KP_Enter>', on_button_enter)
 
     def _setup_keyboard_shortcuts(self):
         """Setup global keyboard shortcuts for the application"""
@@ -301,6 +315,9 @@ class MainView:
         shortcuts_win.title("Keyboard Shortcuts Reference")
         shortcuts_win.geometry("700x650")
         shortcuts_win.minsize(600, 500)
+        
+        # Bind ESC to close window
+        shortcuts_win.bind('<Escape>', lambda e: shortcuts_win.destroy())
 
         main_frame = ttk.Frame(shortcuts_win, padding=10)
         main_frame.pack(fill='both', expand=True)
@@ -343,7 +360,9 @@ class MainView:
             ("Delete", "shortcut"), (" - Delete selected item\n", "description"),
             ("Ctrl+E", "shortcut"), (" - Edit/Modify selected transaction\n", "description"),
             ("F5", "shortcut"), (" - Refresh current view\n", "description"),
-            ("Escape", "shortcut"), (" - Clear current form or field\n\n", "description"),
+            ("Escape", "shortcut"), (" - Clear current form or close dialog windows\n", "description"),
+            ("Tab", "shortcut"), (" - Navigate between fields and buttons\n", "description"),
+            ("Enter", "shortcut"), (" - Activate focused button\n\n", "description"),
             
             ("Report Shortcuts\n", "section"),
             ("Ctrl+Shift+R", "shortcut"), (" - Generate report in current tab\n", "description"),
@@ -365,6 +384,7 @@ class MainView:
             ("Ctrl", "shortcut"), (" for most shortcuts\n", "description"),
             ("• Context-aware shortcuts behave differently based on the active tab\n", "description"),
             ("• Some shortcuts work globally, others only in specific tabs\n", "description"),
+            ("• Press ", "description"), ("Escape", "shortcut"), (" to close this window\n", "description"),
         ]
         
         for text, tag in content:
