@@ -1,0 +1,31 @@
+Bewerbung als Frontend Developer (m/w/d)
+Kartenliebe GmbH
+
+Sehr geehrtes Kartenliebe-Team,
+
+mit großer Begeisterung habe ih Ihre Ausschreibung als Frontend Developer gelesen. Die Kombination aus modernem Tech-Stack, einer vollständig inhouse entwickelten Infrastruktur und der engen Zusammenarbeit zwischen Engineering, UX und Produkt spricht mich sehr an. Da ich mich in den letzten Jahren intensiv mit Webentwicklung, Softwarearchitektur und modernen Frontend-Frameworks beschäftigt habe – sowohl im Rahmen meiner Ausbildung an der 42 Berlin als auch in beruflichen Projekten – möchte ich Teil Ihres Teams werden und den Kartenliebe-Shop aktiv weiterentwickeln.
+
+In meinen aktuellen Rollen als Fullstack- und Frontend-Entwickler habe ich umfangreiche Erfahrung mit modernen JavaScript-Frameworks, insbesondere React, TypeScript, Vite und Docker-basierten Entwicklungsumgebungen, gesammelt. Auch wenn ich bisher überwiegend mit React gearbeitet habe, konnte ich bereits erste Projekte in Vue begleiten. Mir fällt der Wechsel zwischen Frameworks grundsätzlich leicht, da ich die zugrunde liegenden Paradigmen sowie Clean-Code- und Best-Practice-Standards sicher beherrsche.
+
+Zu meinen bisherigen Aufgaben gehörten unter anderem:
+
+- Entwicklung performanter, wiederverwendbarer UI-Komponenten und responsiver Frontends
+
+- Einrichtung automatisierter CI/CD-Pipelines mit GitHub Actions
+
+- mplementierung von ESLint- und TypeScript-Standards zur Codequalität
+
+- Entwicklung komplexerer Features, u. a. Konfiguratoren, API-Integrationen oder Schema-Synchronisationen zwischen Frontend und Backend
+
+- Arbeit mit Docker, Linux-Umgebungen, Microservices und GitHub-Repositories
+
+- Schreiben automatisierter Tests (u. a. Cypress, Vitest, Playwright)
+
+Besonders spannend an Kartenliebe finde ich den Anspruch, digitale Produkte zu bauen, die direkt spürbare Wirkung haben – Features, die jeden Tag von tausenden Nutzern verwendet werden. Der Gedanke, Konfiguratoren und Shop-Features zu entwickeln, die echte Produkte in Ihrer eigenen Produktion auslösen, motiviert mich sehr. Gleichzeitig reizt mich Ihr klarer Fokus auf moderne Tools, KI-Unterstützung und kontinuierliche Optimierung. Genau diese Art von technisch anspruchsvoller, lebendiger Umgebung suche ich.
+
+Ich arbeite gerne eigenverantwortlich, bringe mich konstruktiv ins Team ein und habe – auch durch meinen kaufmännischen Hintergrund – einen guten Blick für User Experience, Produktzusammenhänge und datenbasierte Entscheidungen. In schnelllebigen, iterativen Arbeitsumgebungen fühle ich mich besonders wohl.
+
+Ich freue mich darauf, meine Fähigkeiten im Bereich Frontend-Architektur, UI-Engineering und Testing bei Ihnen einzubringen und gemeinsam mit Ihrem Team Produkte zu entwickeln, die Kund:innen wirklich begeistern. Über eine Einladung zu einem persönlichen Gespräch freue ich mich sehr.
+
+Mit freundlichen Grüßen,
+Peter Mölzer
