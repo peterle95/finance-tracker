@@ -35,9 +35,9 @@ class BudgetsTab:
         type_frame.grid(row=0, column=0, sticky='ew', pady=2)
         ttk.Label(type_frame, text="Type:").pack(side='left')
         ttk.Radiobutton(type_frame, text="Expense", variable=self.cat_type_var, value="Expense",
-                        command=self._create_budget_sliders).pack(side='left', padx=5)
+                        command=self._on_category_type_changed).pack(side='left', padx=5)
         ttk.Radiobutton(type_frame, text="Income", variable=self.cat_type_var, value="Income",
-                        command=self._create_budget_sliders).pack(side='left', padx=5)
+                        command=self._on_category_type_changed).pack(side='left', padx=5)
 
         manage = ttk.Frame(parent)
         manage.grid(row=1, column=0, sticky='ew', pady=5)
@@ -56,15 +56,46 @@ class BudgetsTab:
 
         btns = ttk.Frame(parent)
         btns.grid(row=3, column=0, sticky='ew', pady=5)
-        ttk.Button(btns, text="Auto-Assign From Expenses", command=self.auto_assign).pack(side='left', padx=(0, 5))
-        ttk.Button(btns, text="Normalize to 100%", command=lambda: (self._normalize_sliders(), self._update_total_percentage_label())).pack(side='left', padx=(0, 10))
+        
+        # Create buttons and labels
+        self.auto_assign_btn = ttk.Button(btns, text="Auto-Assign From Expenses", command=self.auto_assign)
+        self.auto_assign_btn.pack(side='left', padx=(0, 5))
+        
+        self.normalize_btn = ttk.Button(btns, text="Normalize to 100%", 
+                                      command=lambda: (self._normalize_sliders(), self._update_total_percentage_label()))
+        self.normalize_btn.pack(side='left', padx=(0, 10))
+        
         spacer = ttk.Frame(btns)
         spacer.pack(side='left', expand=True, fill='x')
+        
         self.total_pct_label = ttk.Label(btns, text="Total: 0.0%")
         self.total_pct_label.pack(side='left', padx=(0, 10))
-        ttk.Button(btns, text="Save Budgets", command=self.save_budgets).pack(side='left', padx=5)
+        
+        self.save_btn = ttk.Button(btns, text="Save Budgets", command=self.save_budgets)
+        self.save_btn.pack(side='left', padx=5)
+        
+        # Update button visibility based on category type
+        self._update_button_visibility()
 
         self._create_budget_sliders()
+
+    def _on_category_type_changed(self):
+        """Handle category type change (Expense/Income)"""
+        self._create_budget_sliders()
+        self._update_button_visibility()
+
+    def _update_button_visibility(self):
+        cat_type = self.cat_type_var.get()
+        if cat_type == 'Expense':
+            self.auto_assign_btn.pack(side='left', padx=(0, 5))
+            self.normalize_btn.pack(side='left', padx=(0, 10))
+            self.total_pct_label.pack(side='left', padx=(0, 10))
+            self.save_btn.pack(side='left', padx=5)
+        else:
+            self.auto_assign_btn.pack_forget()
+            self.normalize_btn.pack_forget()
+            self.total_pct_label.pack_forget()
+            self.save_btn.pack_forget()
 
     def _create_budget_sliders(self):
         for w in self.sliders_frame.winfo_children():
@@ -77,7 +108,7 @@ class BudgetsTab:
 
         if not saved:
             if categories:
-                even = 100.0 / len(categories)
+                even = 100.0 / len(categories) if cat_type == 'Expense' else 0.0
                 for c in categories:
                     saved[c] = even
         else:
@@ -91,17 +122,21 @@ class BudgetsTab:
             frame = ttk.Frame(self.sliders_frame)
             frame.pack(fill='x', pady=2)
 
-            ttk.Label(frame, text=c, width=15).pack(side='left')
-            var = tk.DoubleVar(value=float(saved.get(c, 0)))
-            slider = ttk.Scale(frame, from_=0, to=100, orient='horizontal', variable=var,
-                               command=lambda v, cat=c: self._on_slider_change(cat, float(v)))
-            slider.pack(side='left', fill='x', expand=True, padx=5)
-            label = ttk.Label(frame, text=f"{var.get():.1f}%", width=7)
-            label.pack(side='left')
-            amount_label = ttk.Label(frame, text="€0.00", width=12)
-            amount_label.pack(side='left')
-
-            self.budget_sliders[c] = {'var': var, 'slider': slider, 'label': label, 'amount_label': amount_label}
+            if cat_type == 'Expense':
+                ttk.Label(frame, text=c, width=15).pack(side='left')
+                var = tk.DoubleVar(value=float(saved.get(c, 0)))
+                slider = ttk.Scale(frame, from_=0, to=100, orient='horizontal', variable=var,
+                                command=lambda v, cat=c: self._on_slider_change(cat, float(v)))
+                slider.pack(side='left', fill='x', expand=True, padx=5)
+                label = ttk.Label(frame, text=f"{var.get():.1f}%", width=7)
+                label.pack(side='left')
+                amount_label = ttk.Label(frame, text="€0.00", width=12)
+                amount_label.pack(side='left')
+                self.budget_sliders[c] = {'var': var, 'slider': slider, 'label': label, 'amount_label': amount_label}
+            else:
+                # For income categories, use a single label with proper padding
+                ttk.Label(frame, text=c, width=50, anchor='w').pack(side='left', padx=5)
+                self.budget_sliders[c] = {'var': tk.DoubleVar(value=0), 'slider': None, 'label': None, 'amount_label': None}
 
         self._update_monetary_labels()
         self._update_total_percentage_label()
@@ -150,16 +185,21 @@ class BudgetsTab:
         self._update_monetary_labels()
 
     def _update_monetary_labels(self):
-        month = self.month_var.get()
-        nav = compute_net_available_for_spending(self.state, month)
-        for _, info in self.budget_sliders.items():
-            pct = info['var'].get()
-            amount = (pct / 100.0) * nav
-            info['amount_label'].config(text=f"€{amount:.2f}")
+        if self.cat_type_var.get() == 'Expense':
+            month = self.month_var.get()
+            nav = compute_net_available_for_spending(self.state, month)
+            for _, info in self.budget_sliders.items():
+                if info['amount_label']:  # Only update if amount_label exists
+                    pct = info['var'].get()
+                    amount = (pct / 100.0) * nav
+                    info['amount_label'].config(text=f"€{amount:.2f}")
 
     def _update_total_percentage_label(self):
-        total = sum(s['var'].get() for s in self.budget_sliders.values())
-        self.total_pct_label.config(text=f"Total: {total:.1f}%")
+        if self.cat_type_var.get() == 'Expense':
+            total = sum(s['var'].get() for s in self.budget_sliders.values())
+            self.total_pct_label.config(text=f"Total: {total:.1f}%")
+        else:
+            self.total_pct_label.config(text="")
 
     def add_category(self):
         cat_type = self.cat_type_var.get()
