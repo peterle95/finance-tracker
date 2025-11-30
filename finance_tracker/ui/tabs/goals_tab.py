@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/goals_tab.py
+
+Tab for creating and managing savings goals.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime, date

@@ -1,3 +1,9 @@
+"""
+finance_tracker/services/asset_tracking_service.py
+
+Service for tracking asset snapshots and calculating net worth.
+"""
+
 from datetime import datetime, date
 from dateutil.relativedelta import relativedelta
 

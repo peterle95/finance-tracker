@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/projection_tab.py
+
+Tab for projecting future financial state based on current trends.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime

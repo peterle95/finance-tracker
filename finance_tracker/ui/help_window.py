@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/help_window.py
+
+Displays the help and instructions window for the application.
+"""
+
 import tkinter as tk
 from tkinter import ttk
 

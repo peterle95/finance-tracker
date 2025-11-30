@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/transfers_tab.py
+
+Tab for recording fund transfers between different asset accounts.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 

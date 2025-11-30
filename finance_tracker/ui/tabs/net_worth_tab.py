@@ -1,12 +1,13 @@
+"""
+finance_tracker/ui/tabs/net_worth_tab.py
+
+Tab for tracking and visualizing net worth over time.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime, date
-import matplotlib
-matplotlib.use('TkAgg')
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib.dates as mdates
-import matplotlib.pyplot as plt
 
 from ...services.asset_tracking_service import (
     record_asset_snapshot, 
@@ -17,6 +18,7 @@ from ...services.asset_tracking_service import (
     generate_net_worth_report,
     get_asset_allocation_data
 )
+from ..charts import create_net_worth_figure, create_allocation_figure, create_breakdown_figure
 
 class NetWorthTab:
     def __init__(self, notebook, state):
@@ -274,37 +276,7 @@ class NetWorthTab:
             }
             snapshots = snapshots + [current_snapshot]
         
-        dates = [datetime.strptime(s['date'], '%Y-%m-%d') for s in snapshots]
-        net_worths = [s['net_worth'] for s in snapshots]
-        
-        fig = Figure(figsize=(8, 6), dpi=100)
-        ax = fig.add_subplot(111)
-        
-        # Plot line
-        ax.plot(dates, net_worths, marker='o', linewidth=2, markersize=6, color='steelblue')
-        
-        # Fill area - handle positive and negative separately
-        ax.fill_between(dates, net_worths, 0, where=[nw >= 0 for nw in net_worths], 
-                       alpha=0.3, color='green', interpolate=True)
-        ax.fill_between(dates, net_worths, 0, where=[nw < 0 for nw in net_worths], 
-                       alpha=0.3, color='red', interpolate=True)
-        
-        # Add horizontal line at 0
-        ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
-        
-        ax.set_title('Net Worth Over Time', fontsize=14, fontweight='bold')
-        ax.set_xlabel('Date')
-        ax.set_ylabel('Net Worth (€)')
-        
-        # Format y-axis
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
-        
-        # Format x-axis
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        fig.autofmt_xdate(rotation=45)
-        
-        ax.grid(True, alpha=0.3)
-        fig.tight_layout()
+        fig = create_net_worth_figure(snapshots)
         
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_container)
         self.canvas.draw()
@@ -323,8 +295,6 @@ class NetWorthTab:
             'Money Lent': bs.get('money_lent_balance', 0)
         }
         
-        total = sum(assets.values())
-        
         # Filter to only positive assets for pie chart
         positive_assets = {k: v for k, v in assets.items() if v > 0}
         negative_assets = {k: v for k, v in assets.items() if v < 0}
@@ -338,39 +308,7 @@ class NetWorthTab:
             label.pack(expand=True)
             return
         
-        labels = list(positive_assets.keys())
-        sizes = list(positive_assets.values())
-        
-        fig = Figure(figsize=(8, 6), dpi=100)
-        ax = fig.add_subplot(111)
-        
-        wedges, texts, autotexts = ax.pie(sizes, autopct='%1.1f%%', startangle=140,
-                                          textprops=dict(color="w"))
-        
-        ax.axis('equal')
-        
-        # Build title with warning if there are negative assets
-        title = f'Asset Allocation (Positive Assets Only)\nTotal Positive: €{sum(sizes):,.2f}'
-        if negative_assets:
-            total_negative = sum(negative_assets.values())
-            title += f'\n⚠️ Negative Assets: €{total_negative:,.2f} (not shown in chart)'
-        
-        ax.set_title(title, fontsize=12, fontweight='bold')
-        ax.legend(wedges, labels, title="Assets", loc="center left", 
-                 bbox_to_anchor=(1, 0, 0.5, 1))
-        
-        plt.setp(autotexts, size=9, weight="bold")
-        
-        # Add text box showing negative assets if any
-        if negative_assets:
-            negative_text = "Negative Assets:\n" + "\n".join(
-                [f"{k}: €{v:,.2f}" for k, v in negative_assets.items()]
-            )
-            ax.text(0.02, 0.02, negative_text, transform=ax.transAxes,
-                   fontsize=9, verticalalignment='bottom',
-                   bbox=dict(boxstyle='round', facecolor='#ffcccc', alpha=0.8))
-        
-        fig.tight_layout()
+        fig = create_allocation_figure(positive_assets, negative_assets, sum(positive_assets.values()))
         
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_container)
         self.canvas.draw()
@@ -387,58 +325,7 @@ class NetWorthTab:
             label.pack(expand=True)
             return
         
-        dates = [datetime.strptime(s['date'], '%Y-%m-%d') for s in snapshots]
-        
-        # Extract each asset type
-        bank = [s['bank_balance'] for s in snapshots]
-        wallet = [s['wallet_balance'] for s in snapshots]
-        savings = [s['savings_balance'] for s in snapshots]
-        investments = [s['investment_balance'] for s in snapshots]
-        money_lent = [s['money_lent_balance'] for s in snapshots]
-        
-        fig = Figure(figsize=(8, 6), dpi=100)
-        ax = fig.add_subplot(111)
-        
-        # For stacked area chart, we need to handle negative values differently
-        # We'll plot each asset as a separate line instead when there are negatives
-        has_negatives = any(
-            any(val < 0 for val in asset_list) 
-            for asset_list in [bank, wallet, savings, investments, money_lent]
-        )
-        
-        if has_negatives:
-            # Plot as lines instead of stacked area
-            ax.plot(dates, bank, label='Bank', marker='o', markersize=4, linewidth=2)
-            ax.plot(dates, wallet, label='Wallet', marker='s', markersize=4, linewidth=2)
-            ax.plot(dates, savings, label='Savings', marker='^', markersize=4, linewidth=2)
-            ax.plot(dates, investments, label='Investments', marker='d', markersize=4, linewidth=2)
-            ax.plot(dates, money_lent, label='Money Lent', marker='*', markersize=4, linewidth=2)
-            
-            # Add horizontal line at 0
-            ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
-            
-            ax.set_title('Asset Breakdown Over Time\n(Line chart used due to negative values)', 
-                        fontsize=12, fontweight='bold')
-        else:
-            # Original stacked area chart for all positive values
-            ax.stackplot(dates, bank, wallet, savings, investments, money_lent,
-                        labels=['Bank', 'Wallet', 'Savings', 'Investments', 'Money Lent'],
-                        alpha=0.8)
-            ax.set_title('Asset Breakdown Over Time', fontsize=14, fontweight='bold')
-        
-        ax.set_xlabel('Date')
-        ax.set_ylabel('Amount (€)')
-        
-        # Format y-axis
-        ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
-        
-        # Format x-axis
-        ax.xaxis.set_major_formatter(mdates.DateFormatter('%Y-%m-%d'))
-        fig.autofmt_xdate(rotation=45)
-        
-        ax.legend(loc='upper left')
-        ax.grid(True, alpha=0.3)
-        fig.tight_layout()
+        fig = create_breakdown_figure(snapshots)
         
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_container)
         self.canvas.draw()
