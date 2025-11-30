@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/view_transactions_tab.py
+
+Tab for viewing, filtering, modifying, and deleting transactions.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime

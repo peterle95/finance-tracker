@@ -1,3 +1,9 @@
+"""
+finance_tracker/services/goals_service.py
+
+Service for managing savings goals, including progress calculation and reports.
+"""
+
 from datetime import date, timedelta, datetime
 from dateutil.relativedelta import relativedelta
 
