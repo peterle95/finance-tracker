@@ -1,3 +1,9 @@
+"""
+finance_tracker/services/projection_service.py
+
+Service for generating financial projections based on current data.
+"""
+
 from datetime import date
 from dateutil.relativedelta import relativedelta
 

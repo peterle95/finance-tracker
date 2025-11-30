@@ -1,11 +1,16 @@
+"""
+finance_tracker/ui/tabs/reports_tab.py
+
+Tab for generating and viewing various financial reports and charts.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
-from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import numpy as np
 
 from ...services.report_builder import pie_data, history_data
 from ...services.budget_calculator import compute_net_available_for_spending
+from ..charts import create_bar_figure, create_pie_figure
 
 class ReportsTab:
     def __init__(self, notebook, state):
@@ -162,71 +167,24 @@ class ReportsTab:
 
         labels = self.bar_chart_data['labels']
         title = self.bar_chart_data['title']
+        values = self.bar_chart_data['values']
         
-        fig = Figure(figsize=(10, 6), dpi=100)
-        ax = fig.add_subplot(111)
-
-        if self.bar_breakdown_mode == "total":
-            # Show total bars
-            values = self.bar_chart_data['values']
-            ax.bar(labels, values, label="Monthly Totals", color='steelblue')
-
-            if len(values) > 1:
-                x = np.arange(len(labels))
-                slope, intercept = np.polyfit(x, values, 1)
-                trend = slope * x + intercept
-                ax.plot(labels, trend, color='red', linestyle='--', label='Trend Line')
-
-            ax.set_title(f"{title} - Total View")
-            ax.set_ylabel("Total Amount (€)")
-            ax.legend()
-
-        else:
-            # Show stacked bars by category
+        category_data = None
+        if self.bar_breakdown_mode == "categories":
             category_data = self._get_category_breakdown_data(labels)
-            
             if not category_data:
                 messagebox.showinfo("No Data", "No category data available for breakdown.")
                 self.bar_breakdown_mode = "total"
-                self._render_bar_chart()
-                return
+                # Fallback to total view
+                category_data = None
 
-            categories = list(category_data.keys())
-            bottom = np.zeros(len(labels))
-            
-            # Color palette
-            colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-                     '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
-            
-            for idx, category in enumerate(categories):
-                values = category_data[category]
-                
-                if self.bar_display_mode == "percentage":
-                    # Convert to percentages
-                    total_values = [sum(category_data[cat][i] for cat in categories) for i in range(len(labels))]
-                    percentages = [values[i] / total_values[i] * 100 if total_values[i] > 0 else 0 
-                                  for i in range(len(values))]
-                    ax.bar(labels, percentages, bottom=bottom, label=category, 
-                          color=colors[idx % len(colors)])
-                    bottom += percentages
-                else:
-                    # Show absolute values
-                    ax.bar(labels, values, bottom=bottom, label=category, 
-                          color=colors[idx % len(colors)])
-                    bottom += values
-
-            if self.bar_display_mode == "percentage":
-                ax.set_title(f"{title} - Category Breakdown (Percentage)")
-                ax.set_ylabel("Percentage (%)")
-                ax.set_ylim(0, 100)
-            else:
-                ax.set_title(f"{title} - Category Breakdown (Values)")
-                ax.set_ylabel("Amount (€)")
-            
-            ax.legend(bbox_to_anchor=(1.05, 1), loc='upper left')
-
-        fig.autofmt_xdate(rotation=45)
-        fig.tight_layout()
+        fig = create_bar_figure(labels, values, title, 
+                              breakdown_mode=self.bar_breakdown_mode,
+                              display_mode=self.bar_display_mode,
+                              category_data=category_data)
+        
+        if not fig:
+            return
 
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
@@ -305,28 +263,9 @@ class ReportsTab:
         labels = list(totals.keys())
         sizes = list(totals.values())
 
-        fig = Figure(figsize=(8, 6), dpi=100)
-        ax = fig.add_subplot(111)
-
-        if self.value_type_var.get() == "Percentage":
-            autopct = '%1.1f%%'
-        else:
-            def absolute_value(val):
-                a = (val / 100.0) * sum(sizes)
-                return f'€{a:.2f}'
-            autopct = absolute_value
-
-        wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140, textprops=dict(color="w"))
-        ax.axis('equal')
-        ax.set_title(title)
-        ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-
-        from matplotlib import pyplot as plt
-        plt.setp(autotexts, size=8, weight="bold")
-
+        budget_info = []
         if self.show_budget_lines_var.get() and self.chart_type_var.get() == "Expense":
             expense_budgets = self.state.budget_settings.get('category_budgets', {}).get('Expense', {})
-            budget_info = []
             nav = compute_net_available_for_spending(self.state, month)
             for cat in labels:
                 pct_limit = expense_budgets.get(cat, 0)
@@ -337,12 +276,10 @@ class ReportsTab:
                     remaining = max(budget_amount - actual, 0)
                     budget_info.append(f"{cat}: {used_pct:.0f}% of budget, left: €{remaining:.2f}")
 
-            if budget_info:
-                ax.text(1.5, 0.5, "Budget Status:\n" + "\n".join(budget_info),
-                        transform=ax.transAxes, fontsize=9, va='center',
-                        bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
-
-        fig.tight_layout()
+        fig = create_pie_figure(labels, sizes, title, 
+                              value_type=self.value_type_var.get(),
+                              budget_info=budget_info)
+        
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True)

@@ -1,3 +1,9 @@
+"""
+finance_tracker/services/report_builder.py
+
+Service for preparing data for various financial reports and charts.
+"""
+
 from datetime import date
 from dateutil.relativedelta import relativedelta
 

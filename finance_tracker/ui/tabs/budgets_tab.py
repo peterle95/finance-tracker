@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/budgets_tab.py
+
+Tab for managing category budget limits and viewing budget status.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime

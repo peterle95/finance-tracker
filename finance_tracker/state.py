@@ -1,3 +1,9 @@
+"""
+finance_tracker/state.py
+
+Manages the application state, including data loading, saving, and transaction management.
+"""
+
 from pathlib import Path
 from datetime import datetime
 import json
