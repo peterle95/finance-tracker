@@ -1,4 +1,8 @@
-# finance_tracker/services/budget_calculator.py
+"""
+finance_tracker/services/budget_calculator.py
+
+Service for calculating budget limits and available spending.
+"""
 
 from datetime import datetime
 import calendar
@@ -123,9 +127,6 @@ def generate_daily_budget_report(state, month_str: str) -> str:
                 report += f"OPTION 3: Partial Recovery\n"
                 report += f"  • Reduce spending as much as possible\n"
                 report += f"  • Any amount you save reduces the deficit\n\n"
-                report += f"--- Key Numbers for Context ---\n"
-                report += f"Overall Net Value (Income - All Expenses - Savings): €{overall_net_value:.2f}\n"
-                report += f"Current Flexible Budget Balance:                      €{cumulative_flexible_balance:.2f}\n\n"
             elif new_daily_target <= initial_daily_spending_target * 0.7:
                 report += f"⚠️  SPENDING CAUTION NEEDED\n\n"
                 report += f"You've spent more than planned in the first part of the month.\n"

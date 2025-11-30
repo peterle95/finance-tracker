@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/add_transaction_tab.py
+
+Tab for adding new income or expense transactions.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime

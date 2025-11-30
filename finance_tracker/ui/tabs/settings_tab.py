@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/tabs/settings_tab.py
+
+Tab for configuring budget settings, fixed costs, and viewing daily reports.
+"""
+
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime

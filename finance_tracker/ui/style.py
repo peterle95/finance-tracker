@@ -1,3 +1,9 @@
+"""
+finance_tracker/ui/style.py
+
+Defines and applies custom Tkinter styles for the application.
+"""
+
 from tkinter import ttk
 
 def apply_styles():
