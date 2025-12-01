@@ -170,9 +170,8 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
         categories = list(category_data.keys())
         bottom = np.zeros(len(labels))
         
-        # Color palette
-        colors = ['#1f77b4', '#ff7f0e', '#2ca02c', '#d62728', '#9467bd', 
-                 '#8c564b', '#e377c2', '#7f7f7f', '#bcbd22', '#17becf']
+        # Color palette - use tab20 for more distinct colors
+        colors = plt.get_cmap('tab20').colors
         
         for idx, category in enumerate(categories):
             cat_values = category_data[category]
@@ -206,7 +205,7 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
     
     return fig
 
-def create_pie_figure(labels, sizes, title, value_type="Total", budget_info=None):
+def create_pie_figure(labels, sizes, title, value_type="Total"):
     """Generate pie chart"""
     fig = Figure(figsize=(8, 6), dpi=100)
     ax = fig.add_subplot(111)
@@ -222,14 +221,11 @@ def create_pie_figure(labels, sizes, title, value_type="Total", budget_info=None
     wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140, textprops=dict(color="w"))
     ax.axis('equal')
     ax.set_title(title)
+    
+    # Improved legend placement
     ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
 
     plt.setp(autotexts, size=8, weight="bold")
-
-    if budget_info:
-        ax.text(1.5, 0.5, "Budget Status:\n" + "\n".join(budget_info),
-                transform=ax.transAxes, fontsize=9, va='center',
-                bbox=dict(boxstyle='round', facecolor='wheat', alpha=0.5))
 
     fig.tight_layout()
     return fig

@@ -87,12 +87,20 @@ class ReportsTab:
 
         ttk.Button(bottom, text="Generate Chart", command=self.generate).pack(side='right')
 
-        # Info label for bar chart interaction
-        self.info_label = ttk.Label(main, text="", foreground="blue", font=('Arial', 9, 'italic'))
-        self.info_label.grid(row=2, column=0, sticky='ew', pady=(5, 0))
-
-        self.chart_frame = ttk.Frame(main)
-        self.chart_frame.grid(row=1, column=0, sticky='nsew', pady=10)
+        # Split view for Chart and Info
+        self.paned = ttk.PanedWindow(main, orient='horizontal')
+        self.paned.grid(row=1, column=0, sticky='nsew', pady=10)
+        
+        self.chart_frame = ttk.Frame(self.paned)
+        self.paned.add(self.chart_frame, weight=4)
+        
+        self.info_frame = ttk.LabelFrame(self.paned, text="Details", padding=10)
+        self.paned.add(self.info_frame, weight=1)
+        
+        # Info text widget
+        self.info_text = tk.Text(self.info_frame, wrap='word', width=30, height=20, state='disabled', 
+                               bg='#f0f0f0', relief='flat', font=('Arial', 10))
+        self.info_text.pack(fill='both', expand=True)
 
         self._toggle_controls()
 
@@ -104,10 +112,12 @@ class ReportsTab:
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
             self.budget_lines_check.pack(side='left', padx=(0, 15))
-            self.info_label.config(text="")
+            self.budget_lines_check.pack(side='left', padx=(0, 15))
+            self._update_info_panel([])
         else:
             self.bar_controls.pack(side='left', padx=(0, 15))
-            self.info_label.config(text="Click on chart to toggle: Total/Categories view | Right-click to toggle: Value/Percentage display")
+            self._update_info_panel(["Click on chart to toggle: Total/Categories view", 
+                                   "Right-click to toggle: Value/Percentage display"])
 
     def _toggle_fixed_controls(self):
         self.fixed_check.pack_forget()
@@ -129,6 +139,15 @@ class ReportsTab:
             self.bar_breakdown_mode = "total"
             self.bar_display_mode = "value"
             self._make_bar()
+
+    def _update_info_panel(self, lines, title="Details"):
+        self.info_frame.config(text=title)
+        self.info_text.config(state='normal')
+        self.info_text.delete('1.0', tk.END)
+        if lines:
+            for line in lines:
+                self.info_text.insert(tk.END, line + "\n\n")
+        self.info_text.config(state='disabled')
 
     def _make_bar(self):
         try:
@@ -274,11 +293,15 @@ class ReportsTab:
                     budget_amount = (pct_limit / 100.0) * nav
                     used_pct = (actual / budget_amount) * 100 if budget_amount > 0 else 0
                     remaining = max(budget_amount - actual, 0)
-                    budget_info.append(f"{cat}: {used_pct:.0f}% of budget, left: €{remaining:.2f}")
+                    budget_info.append(f"{cat}:\n{used_pct:.0f}% of budget\nLeft: €{remaining:.2f}")
+
+        if budget_info:
+            self._update_info_panel(budget_info, title="Budget Status")
+        else:
+            self._update_info_panel([], title="Details")
 
         fig = create_pie_figure(labels, sizes, title, 
-                              value_type=self.value_type_var.get(),
-                              budget_info=budget_info)
+                              value_type=self.value_type_var.get())
         
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
