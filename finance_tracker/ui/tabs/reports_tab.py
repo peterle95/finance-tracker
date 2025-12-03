@@ -113,7 +113,7 @@ class ReportsTab:
             self.pie_controls.pack(side='left', padx=(0, 15))
             self.budget_lines_check.pack(side='left', padx=(0, 15))
             self._update_info_panel([])
-            self.paned.pane(self.chart_frame, weight=4)
+            self.paned.pane(self.chart_frame, weight=110)
             self.paned.pane(self.info_frame, weight=1)
         else:
             self.bar_controls.pack(side='left', padx=(0, 15))
