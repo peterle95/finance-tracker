@@ -112,12 +112,15 @@ class ReportsTab:
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
             self.budget_lines_check.pack(side='left', padx=(0, 15))
-            self.budget_lines_check.pack(side='left', padx=(0, 15))
             self._update_info_panel([])
+            self.paned.pane(self.chart_frame, weight=4)
+            self.paned.pane(self.info_frame, weight=1)
         else:
             self.bar_controls.pack(side='left', padx=(0, 15))
             self._update_info_panel(["Click on chart to toggle: Total/Categories view", 
                                    "Right-click to toggle: Value/Percentage display"])
+            self.paned.pane(self.chart_frame, weight=90)
+            self.paned.pane(self.info_frame, weight=1)
 
     def _toggle_fixed_controls(self):
         self.fixed_check.pack_forget()
