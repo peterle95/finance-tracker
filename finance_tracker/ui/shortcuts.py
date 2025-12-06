@@ -26,20 +26,18 @@ class ShortcutManager:
         # Navigation Shortcuts - Tabs
         self.root.bind('<Control-v>', lambda e: self._switch_to_tab(1))
         self.root.bind('<Control-V>', lambda e: self._switch_to_tab(1))
-        self.root.bind('<Control-t>', lambda e: self._switch_to_tab(2))
-        self.root.bind('<Control-T>', lambda e: self._switch_to_tab(2))
-        self.root.bind('<Control-r>', lambda e: self._switch_to_tab(3))
-        self.root.bind('<Control-R>', lambda e: self._switch_to_tab(3))
-        self.root.bind('<Control-b>', lambda e: self._switch_to_tab(4))
-        self.root.bind('<Control-B>', lambda e: self._switch_to_tab(4))
-        self.root.bind('<Control-l>', lambda e: self._switch_to_tab(5))
-        self.root.bind('<Control-L>', lambda e: self._switch_to_tab(5))
-        self.root.bind('<Control-g>', lambda e: self._switch_to_tab(6))
-        self.root.bind('<Control-G>', lambda e: self._switch_to_tab(6))
-        self.root.bind('<Control-w>', lambda e: self._switch_to_tab(7))
-        self.root.bind('<Control-W>', lambda e: self._switch_to_tab(7))
-        self.root.bind('<Control-p>', lambda e: self._switch_to_tab(8))
-        self.root.bind('<Control-P>', lambda e: self._switch_to_tab(8))
+        self.root.bind('<Control-r>', lambda e: self._switch_to_tab(2))
+        self.root.bind('<Control-R>', lambda e: self._switch_to_tab(2))
+        self.root.bind('<Control-b>', lambda e: self._switch_to_tab(3))
+        self.root.bind('<Control-B>', lambda e: self._switch_to_tab(3))
+        self.root.bind('<Control-l>', lambda e: self._switch_to_tab(4))
+        self.root.bind('<Control-L>', lambda e: self._switch_to_tab(4))
+        self.root.bind('<Control-g>', lambda e: self._switch_to_tab(5))
+        self.root.bind('<Control-G>', lambda e: self._switch_to_tab(5))
+        self.root.bind('<Control-w>', lambda e: self._switch_to_tab(6))
+        self.root.bind('<Control-W>', lambda e: self._switch_to_tab(6))
+        self.root.bind('<Control-p>', lambda e: self._switch_to_tab(7))
+        self.root.bind('<Control-P>', lambda e: self._switch_to_tab(7))
         
         # Help
         self.root.bind('<Control-h>', lambda e: show_help(self.root))
@@ -150,16 +148,16 @@ class ShortcutManager:
         
         if current_index == 0:  # Add Transaction
             self.mv.add_tab.add_transaction()
-        elif current_index == 4:  # Budget Report (Settings)
+        elif current_index == 3:  # Budget Report (Settings)
             self.mv.settings_tab.save_settings()
-        elif current_index == 5:  # Budgets Limits
+        elif current_index == 4:  # Budgets Limits
             self.mv.budgets_tab.save_budgets()
-        elif current_index == 6:  # Goals
+        elif current_index == 5:  # Goals
             if self.mv.goals_tab.selected_goal_index is not None:
                 self.mv.goals_tab.update_goal()
             else:
                 self.mv.goals_tab.add_goal()
-        elif current_index == 7:  # Net Worth - record snapshot
+        elif current_index == 6:  # Net Worth - record snapshot
             self.mv.net_worth_tab.record_snapshot()
         
         return 'break'
@@ -170,11 +168,11 @@ class ShortcutManager:
         
         if current_index == 1:  # View Transactions
             self.mv.view_tab.delete_transaction()
-        elif current_index == 6:  # Goals
+        elif current_index == 5:  # Goals
             # Delete selected goal if any widget has focus in goals tab
             if self.mv.goals_tab.selected_goal_index is not None:
                 self.mv.goals_tab.delete_goal(self.mv.goals_tab.selected_goal_index)
-        elif current_index == 7:  # Net Worth
+        elif current_index == 6:  # Net Worth
             self.mv.net_worth_tab.delete_selected_snapshot()
         
         return 'break'
@@ -194,13 +192,13 @@ class ShortcutManager:
         
         if current_index == 1:  # View Transactions
             self.mv.view_tab.refresh()
-        elif current_index == 4:  # Budget Report
+        elif current_index == 3:  # Budget Report
             self.mv.settings_tab.generate_report()
-        elif current_index == 5:  # Budgets Limits
+        elif current_index == 4:  # Budgets Limits
             self.mv.budgets_tab._update_monetary_labels()
-        elif current_index == 6:  # Goals
+        elif current_index == 5:  # Goals
             self.mv.goals_tab.refresh_goals()
-        elif current_index == 7:  # Net Worth
+        elif current_index == 6:  # Net Worth
             self.mv.net_worth_tab.refresh()
         
         return 'break'
@@ -209,15 +207,15 @@ class ShortcutManager:
         """Handle Ctrl+Shift+R to generate report in current tab"""
         current_index = self.notebook.index(self.notebook.select())
         
-        if current_index == 3:  # Charts/Reports
+        if current_index == 2:  # Charts/Reports
             self.mv.reports_tab.generate()
-        elif current_index == 4:  # Budget Report
+        elif current_index == 3:  # Budget Report
             self.mv.settings_tab.generate_report()
-        elif current_index == 6:  # Goals
+        elif current_index == 5:  # Goals
             self.mv.goals_tab.show_report()
-        elif current_index == 7:  # Net Worth
+        elif current_index == 6:  # Net Worth
             self.mv.net_worth_tab.show_report()
-        elif current_index == 8:  # Projection
+        elif current_index == 7:  # Projection
             self.mv.projection_tab.generate()
         
         return 'break'
@@ -226,26 +224,26 @@ class ShortcutManager:
         """Handle Ctrl+Shift+E to export current report"""
         current_index = self.notebook.index(self.notebook.select())
         
-        if current_index == 4:  # Budget Report
+        if current_index == 3:  # Budget Report
             self.mv.settings_tab.export_report()
-        elif current_index == 6:  # Goals
+        elif current_index == 5:  # Goals
             self.mv.goals_tab.export_report()
-        elif current_index == 7:  # Net Worth
+        elif current_index == 6:  # Net Worth
             self.mv.net_worth_tab.export_report()
-        elif current_index == 8:  # Projection
+        elif current_index == 7:  # Projection
             self.mv.projection_tab.export()
         
         return 'break'
     
     def _shortcut_budget_report(self, event):
         """Handle Ctrl+Shift+G to generate budget report"""
-        self.notebook.select(4)  # Switch to Budget Report tab
+        self.notebook.select(3)  # Switch to Budget Report tab
         self.mv.settings_tab.generate_report()
         return 'break'
     
     def _shortcut_net_worth_snapshot(self, event):
         """Handle Ctrl+Shift+N to record net worth snapshot"""
-        self.notebook.select(7)  # Switch to Net Worth tab
+        self.notebook.select(6)  # Switch to Net Worth tab
         self.mv.net_worth_tab.record_snapshot()
         return 'break'
     
@@ -267,10 +265,10 @@ class ShortcutManager:
         if current_index == 1:  # View Transactions
             self.mv.view_tab.month_filter.focus_set()
             self.mv.view_tab.month_filter.select_range(0, tk.END)
-        elif current_index == 3:  # Charts
+        elif current_index == 2:  # Charts
             self.mv.reports_tab.month_entry.focus_set()
             self.mv.reports_tab.month_entry.select_range(0, tk.END)
-        elif current_index == 5:  # Budgets Limits
+        elif current_index == 4:  # Budgets Limits
             self.mv.budgets_tab.month_var.get()
         
         return 'break'
@@ -281,7 +279,7 @@ class ShortcutManager:
         
         if current_index == 0:  # Add Transaction - clear description
             self.mv.add_tab.description_entry.delete(0, tk.END)
-        elif current_index == 6:  # Goals - clear form
+        elif current_index == 5:  # Goals - clear form
             self.mv.goals_tab.clear_form()
         
         return 'break'

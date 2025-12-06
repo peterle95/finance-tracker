@@ -43,9 +43,6 @@ def show_help(root):
         ("\n• Transactions (Income/Expense):", "bold"),
         (" Money entering/leaving your finances.", "none"),
 
-        ("\n• Transfers:", "bold"),
-        (" Move money between your accounts (doesn't change net worth).", "none"),
-
         ("\n• Savings Goals:", "bold"),
         (" Allocate your existing savings across different objectives. The Savings Balance (set in Budget Report) is the source - you distribute it to goals.", "none"),
 
@@ -56,9 +53,6 @@ def show_help(root):
 
         ("\nView Transactions Tab", "h2"),
         ("Filter by month, modify/delete, see monthly summary.", "none"),
-
-        ("\nTransfers Tab", "h2"),
-        ("Move funds between accounts (e.g., Bank → Wallet).", "none"),
 
         ("\nCharts Tab", "h2"),
         ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays. Click bar chart to toggle views.", "none"),

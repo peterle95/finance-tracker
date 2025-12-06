@@ -46,6 +46,7 @@ class AppState:
         bs.setdefault("daily_savings_goal", 0)
         bs.setdefault("money_lent_balance", 0)
         bs.setdefault("category_budgets", {"Expense": {}, "Income": {}})
+        bs.setdefault("loans", [])  # Each loan: {"id": str, "borrower": str, "amount": float, "description": str, "date": str}
 
         if "Expense" not in self.categories or not self.categories["Expense"]:
             self.categories["Expense"] = DEFAULT_EXPENSE_CATEGORIES.copy()
