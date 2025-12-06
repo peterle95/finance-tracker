@@ -25,6 +25,21 @@ class MainView:
     def __init__(self, root, state):
         self.root = root
         self.root.title("Personal Finance Tracker")
+        
+        # Set initial window size and position
+        self.root.geometry("1250x750")
+        
+        # Ensure window is visible and on top initially
+        self.root.lift()
+        self.root.attributes('-topmost', True)
+        self.root.after_idle(self.root.attributes, '-topmost', False)
+        
+        # Force window to normal state (not minimized)
+        self.root.state('normal')
+        
+        # Make sure window is visible
+        self.root.deiconify()
+        
         self.root.minsize(1250, 750)
         apply_styles()
 
