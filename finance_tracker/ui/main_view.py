@@ -13,7 +13,6 @@ from .shortcuts import ShortcutManager
 
 from .tabs.add_transaction_tab import AddTransactionTab
 from .tabs.view_transactions_tab import ViewTransactionsTab
-from .tabs.transfers_tab import TransfersTab
 from .tabs.reports_tab import ReportsTab
 from .tabs.settings_tab import SettingsTab
 from .tabs.budgets_tab import BudgetsTab
@@ -62,7 +61,6 @@ class MainView:
         # Tabs
         self.add_tab = AddTransactionTab(self.notebook, self.state, self.on_data_changed)
         self.view_tab = ViewTransactionsTab(self.notebook, self.state, self.on_data_changed)
-        self.transfers_tab = TransfersTab(self.notebook, self.state, self.on_data_changed)
         self.reports_tab = ReportsTab(self.notebook, self.state)
         self.settings_tab = SettingsTab(self.notebook, self.state)
         self.budgets_tab = BudgetsTab(self.notebook, self.state)
@@ -117,7 +115,6 @@ class MainView:
             ("Navigation Shortcuts\n", "section"),
             ("Ctrl+A", "shortcut"), (" - Open Add Transaction tab and focus amount field\n", "description"),
             ("Ctrl+V", "shortcut"), (" - Go to View Transactions tab\n", "description"),
-            ("Ctrl+T", "shortcut"), (" - Go to Transfers tab\n", "description"),
             ("Ctrl+R", "shortcut"), (" - Go to Charts/Reports tab\n", "description"),
             ("Ctrl+B", "shortcut"), (" - Go to Budget Report tab\n", "description"),
             ("Ctrl+L", "shortcut"), (" - Go to Budgets Limits tab\n", "description"),

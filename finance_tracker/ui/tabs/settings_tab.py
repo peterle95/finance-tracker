@@ -45,8 +45,10 @@ class SettingsTab:
         self.investment_entry = ttk.Entry(settings, width=15)
         self.investment_entry.grid(row=4, column=1, pady=5)
 
-        ttk.Label(settings, text="Money Lent Balance:").grid(row=5, column=0, sticky='w', pady=5)
-        self.money_lent_entry = ttk.Entry(settings, width=15)
+        # Money Lent: button label + readonly entry
+        self.money_lent_btn = ttk.Button(settings, text="Money Lent:", command=self._open_lending_manager)
+        self.money_lent_btn.grid(row=5, column=0, sticky='w', pady=5)
+        self.money_lent_entry = ttk.Entry(settings, width=15, state='readonly')
         self.money_lent_entry.grid(row=5, column=1, pady=5)
 
         ttk.Label(settings, text="Daily Savings Goal:").grid(row=6, column=0, sticky='w', pady=5)
@@ -122,6 +124,180 @@ class SettingsTab:
         self.refresh_balance_entries()
         self.refresh_fixed_costs_tree()
 
+    def _update_money_lent_button(self):
+        """Update the money lent entry with current balance."""
+        balance = self.state.budget_settings.get('money_lent_balance', 0)
+        self.money_lent_entry.config(state='normal')
+        self.money_lent_entry.delete(0, tk.END)
+        self.money_lent_entry.insert(0, f"{balance:.2f}")
+        self.money_lent_entry.config(state='readonly')
+
+    def _open_lending_manager(self):
+        """Open the lending manager window to manage individual loans."""
+        loan_win = tk.Toplevel()
+        loan_win.title("Lending Manager")
+        loan_win.geometry("800x600")
+        loan_win.minsize(600, 500)
+        loan_win.transient()
+        loan_win.grab_set()
+        
+        # Bind ESC to close window
+        loan_win.bind('<Escape>', lambda e: loan_win.destroy())
+
+        main_frame = ttk.Frame(loan_win, padding=10)
+        main_frame.pack(fill='both', expand=True)
+
+        # Current balance display
+        balance = self.state.budget_settings.get('money_lent_balance', 0)
+        self.loan_balance_label = ttk.Label(main_frame, text=f"Total Money Lent: €{balance:.2f}", font=('Arial', 12, 'bold'))
+        self.loan_balance_label.pack(pady=(0, 10))
+
+        # Loans treeview
+        tree_frame = ttk.Frame(main_frame)
+        tree_frame.pack(fill='both', expand=True)
+        tree_frame.columnconfigure(0, weight=1)
+        tree_frame.rowconfigure(0, weight=1)
+
+        self.loans_tree = ttk.Treeview(tree_frame, columns=('Borrower', 'Amount', 'Description', 'Date'), show='headings', height=8)
+        self.loans_tree.heading('Borrower', text='Borrower')
+        self.loans_tree.heading('Amount', text='Amount (€)')
+        self.loans_tree.heading('Description', text='Description')
+        self.loans_tree.heading('Date', text='Date')
+        self.loans_tree.column('Borrower', width=120)
+        self.loans_tree.column('Amount', width=80, anchor='e')
+        self.loans_tree.column('Description', width=150)
+        self.loans_tree.column('Date', width=90, anchor='center')
+        self.loans_tree.grid(row=0, column=0, sticky='nsew')
+        
+        loans_scroll = ttk.Scrollbar(tree_frame, orient='vertical', command=self.loans_tree.yview)
+        loans_scroll.grid(row=0, column=1, sticky='ns')
+        self.loans_tree.configure(yscrollcommand=loans_scroll.set)
+
+        # Add loan form
+        form_frame = ttk.LabelFrame(main_frame, text="Add New Loan", padding=10)
+        form_frame.pack(fill='x', pady=10)
+
+        ttk.Label(form_frame, text="Borrower:").grid(row=0, column=0, sticky='w', padx=5)
+        self.loan_borrower_entry = ttk.Entry(form_frame, width=15)
+        self.loan_borrower_entry.grid(row=0, column=1, padx=5, pady=5)
+
+        ttk.Label(form_frame, text="Amount:").grid(row=0, column=2, sticky='w', padx=5)
+        self.loan_amount_entry = ttk.Entry(form_frame, width=10)
+        self.loan_amount_entry.grid(row=0, column=3, padx=5, pady=5)
+
+        ttk.Label(form_frame, text="Description:").grid(row=0, column=4, sticky='w', padx=5)
+        self.loan_desc_entry = ttk.Entry(form_frame, width=20)
+        self.loan_desc_entry.grid(row=0, column=5, padx=5, pady=5)
+
+        ttk.Button(form_frame, text="Add Loan", command=lambda: self._add_loan(loan_win)).grid(row=0, column=6, padx=10)
+
+        # Buttons frame
+        btn_frame = ttk.Frame(main_frame)
+        btn_frame.pack(fill='x', pady=(0, 5))
+
+        ttk.Button(btn_frame, text="Mark as Returned", command=lambda: self._mark_loan_returned(loan_win)).pack(side='left', padx=5)
+        ttk.Button(btn_frame, text="Close", command=loan_win.destroy).pack(side='right', padx=5)
+
+        # Populate loans list
+        self._refresh_loans_tree()
+
+    def _refresh_loans_tree(self):
+        """Refresh the loans treeview with current data."""
+        for item in self.loans_tree.get_children():
+            self.loans_tree.delete(item)
+        
+        loans = self.state.budget_settings.get('loans', [])
+        for loan in loans:
+            self.loans_tree.insert('', 'end', iid=loan['id'], 
+                                   values=(loan['borrower'], f"{loan['amount']:.2f}", loan.get('description', ''), loan['date']))
+
+    def _add_loan(self, loan_win):
+        """Add a new loan and update the balance."""
+        borrower = self.loan_borrower_entry.get().strip()
+        amount_str = self.loan_amount_entry.get().strip()
+
+        if not borrower:
+            messagebox.showerror("Error", "Please enter a borrower name.", parent=loan_win)
+            return
+
+        try:
+            amount = float(amount_str)
+            if amount <= 0:
+                messagebox.showerror("Error", "Amount must be positive.", parent=loan_win)
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Invalid amount.", parent=loan_win)
+            return
+
+        # Create loan record
+        loan_id = f"{datetime.now().timestamp()}"
+        description = self.loan_desc_entry.get().strip()
+        loan = {
+            'id': loan_id,
+            'borrower': borrower,
+            'amount': amount,
+            'description': description,
+            'date': datetime.now().strftime("%Y-%m-%d")
+        }
+
+        # Add to loans list
+        if 'loans' not in self.state.budget_settings:
+            self.state.budget_settings['loans'] = []
+        self.state.budget_settings['loans'].append(loan)
+
+        # Update money lent balance
+        self.state.budget_settings['money_lent_balance'] = self.state.budget_settings.get('money_lent_balance', 0) + amount
+        self.state.save()
+
+        # Refresh UI
+        self._refresh_loans_tree()
+        self._update_loan_balance_label()
+        self._update_money_lent_button()
+
+        # Clear form
+        self.loan_borrower_entry.delete(0, tk.END)
+        self.loan_amount_entry.delete(0, tk.END)
+        self.loan_desc_entry.delete(0, tk.END)
+
+        messagebox.showinfo("Success", f"Loan of €{amount:.2f} to {borrower} recorded.", parent=loan_win)
+
+    def _mark_loan_returned(self, loan_win):
+        """Mark a loan as returned and update the balance."""
+        selected = self.loans_tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a loan to mark as returned.", parent=loan_win)
+            return
+
+        loan_id = selected[0]
+        loans = self.state.budget_settings.get('loans', [])
+
+        # Find and remove the loan
+        for i, loan in enumerate(loans):
+            if loan['id'] == loan_id:
+                amount = loan['amount']
+                borrower = loan['borrower']
+                del loans[i]
+                
+                # Update money lent balance
+                self.state.budget_settings['money_lent_balance'] = max(0, 
+                    self.state.budget_settings.get('money_lent_balance', 0) - amount)
+                self.state.save()
+
+                # Refresh UI
+                self._refresh_loans_tree()
+                self._update_loan_balance_label()
+                self._update_money_lent_button()
+
+                messagebox.showinfo("Success", f"Loan of €{amount:.2f} from {borrower} marked as returned.", parent=loan_win)
+                return
+
+        messagebox.showerror("Error", "Could not find the selected loan.", parent=loan_win)
+
+    def _update_loan_balance_label(self):
+        """Update the balance label in the lending manager window."""
+        balance = self.state.budget_settings.get('money_lent_balance', 0)
+        self.loan_balance_label.config(text=f"Total Money Lent: €{balance:.2f}")
+
     def refresh_balance_entries(self):
         s = self.state.budget_settings
         def set_entry(entry, key):
@@ -132,8 +308,8 @@ class SettingsTab:
         set_entry(self.wallet_entry, 'wallet_balance')
         set_entry(self.savings_entry, 'savings_balance')
         set_entry(self.investment_entry, 'investment_balance')
-        set_entry(self.money_lent_entry, 'money_lent_balance')
         set_entry(self.daily_savings_entry, 'daily_savings_goal')
+        self._update_money_lent_button()
 
     def save_settings(self):
         try:
@@ -143,7 +319,6 @@ class SettingsTab:
             s['wallet_balance'] = float(self.wallet_entry.get() or 0)
             s['savings_balance'] = float(self.savings_entry.get() or 0)
             s['investment_balance'] = float(self.investment_entry.get() or 0)
-            s['money_lent_balance'] = float(self.money_lent_entry.get() or 0)
             s['daily_savings_goal'] = float(self.daily_savings_entry.get() or 0)
             self.state.save()
             messagebox.showinfo("Success", "Settings saved!")
