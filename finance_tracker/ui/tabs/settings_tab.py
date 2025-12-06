@@ -136,8 +136,8 @@ class SettingsTab:
         """Open the lending manager window to manage individual loans."""
         loan_win = tk.Toplevel()
         loan_win.title("Lending Manager")
-        loan_win.geometry("500x400")
-        loan_win.minsize(400, 300)
+        loan_win.geometry("800x600")
+        loan_win.minsize(600, 500)
         loan_win.transient()
         loan_win.grab_set()
         
