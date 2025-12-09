@@ -44,6 +44,11 @@ class ShortcutManager:
         self.root.bind('<Control-H>', lambda e: show_help(self.root))
         self.root.bind('<F1>', lambda e: show_help(self.root))
         
+        # Shortcuts Reference
+        self.root.bind('<Control-k>', lambda e: self.mv._show_shortcuts_reference())
+        self.root.bind('<Control-K>', lambda e: self.mv._show_shortcuts_reference())
+        self.root.bind('<F2>', lambda e: self.mv._show_shortcuts_reference())
+        
         # Alt+Left/Right: Navigate between tabs
         self.root.bind('<Alt-Left>', self._shortcut_previous_tab)
         self.root.bind('<Alt-Right>', self._shortcut_next_tab)
@@ -84,6 +89,10 @@ class ShortcutManager:
         self.root.bind('<Command-S>', self._shortcut_save)
         self.root.bind('<Command-n>', self._shortcut_new_transaction)
         self.root.bind('<Command-N>', self._shortcut_new_transaction)
+        self.root.bind('<Command-h>', lambda e: show_help(self.root))
+        self.root.bind('<Command-H>', lambda e: show_help(self.root))
+        self.root.bind('<Command-k>', lambda e: self.mv._show_shortcuts_reference())
+        self.root.bind('<Command-K>', lambda e: self.mv._show_shortcuts_reference())
 
         # Enable Enter key on buttons globally
         self._setup_button_enter_key()
