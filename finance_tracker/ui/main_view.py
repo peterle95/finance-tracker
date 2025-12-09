@@ -47,6 +47,16 @@ class MainView:
         main_frame = ttk.Frame(root)
         main_frame.pack(fill='both', expand=True, padx=10, pady=10)
 
+        # Help Buttons - pack at bottom first
+        help_button_frame = ttk.Frame(main_frame)
+        help_button_frame.pack(side='bottom', fill='x', pady=(5, 0))
+        
+        ttk.Button(help_button_frame, text="⌨", width=3,
+                   command=self._show_shortcuts_reference).pack(side='right', padx=(5, 0))
+        ttk.Button(help_button_frame, text="?", width=3,
+                   command=lambda: show_help(self.root)).pack(side='right')
+
+        # Notebook - pack after help buttons
         self.notebook = ttk.Notebook(main_frame)
         self.notebook.pack(fill='both', expand=True)
 
@@ -67,14 +77,6 @@ class MainView:
         self.goals_tab = GoalsTab(self.notebook, self.state)
         self.net_worth_tab = NetWorthTab(self.notebook, self.state)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
-
-        # Help Buttons
-        help_button_frame = ttk.Frame(main_frame)
-        help_button_frame.pack(fill='x', pady=(5, 0))
-        ttk.Button(help_button_frame, text="⌨", style="Help.TButton",
-                   width=3, command=self._show_shortcuts_reference).pack(side='right', padx=(5, 0))
-        ttk.Button(help_button_frame, text="?", style="Help.TButton",
-                   width=3, command=lambda: show_help(self.root)).pack(side='right')
         
         # Setup keyboard shortcuts
         self.shortcut_manager = ShortcutManager(self)
