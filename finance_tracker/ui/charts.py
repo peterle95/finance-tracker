@@ -162,6 +162,41 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
         ax.set_ylabel("Total Amount (€)")
         ax.legend()
 
+    elif breakdown_mode == "flexible":
+        # Show grouped bars for flexible income vs costs
+        if not category_data:
+            return None
+        
+        x = np.arange(len(labels))
+        width = 0.35
+        
+        income_values = category_data.get("Flexible Income", [0] * len(labels))
+        cost_values = category_data.get("Flexible Costs", [0] * len(labels))
+        
+        if display_mode == "percentage":
+            # Convert to percentages (income as 100%, costs as % of income)
+            percentage_values = []
+            for inc, cost in zip(income_values, cost_values):
+                if inc > 0:
+                    percentage_values.append((cost / inc) * 100)
+                else:
+                    percentage_values.append(0 if cost == 0 else 100)
+            
+            bars = ax.bar(labels, percentage_values, color='#e74c3c', label='Costs as % of Income')
+            ax.axhline(y=100, color='#2ecc71', linestyle='--', linewidth=2, label='100% (Income)')
+            ax.set_title(f"Flexible Costs as % of Flexible Income")
+            ax.set_ylabel("Percentage (%)")
+        else:
+            # Grouped bars showing income and costs side by side
+            bars_income = ax.bar(x - width/2, income_values, width, label='Flexible Income', color='#2ecc71')
+            bars_costs = ax.bar(x + width/2, cost_values, width, label='Flexible Costs', color='#e74c3c')
+            ax.set_xticks(x)
+            ax.set_xticklabels(labels)
+            ax.set_title(f"Flexible Income vs Flexible Costs")
+            ax.set_ylabel("Amount (€)")
+        
+        ax.legend()
+
     else:
         # Show stacked bars by category
         if not category_data:
