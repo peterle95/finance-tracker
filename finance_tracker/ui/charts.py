@@ -195,11 +195,8 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
                 # Position text above the bar
                 y_pos = height + 2
                 
-                # Create descriptive text showing costs/income and savings/overspent
-                if saving >= 0:
-                    desc_text = f"€{cost:.0f}/€{inc:.0f}\nSaved: €{saving:.0f}"
-                else:
-                    desc_text = f"€{cost:.0f}/€{inc:.0f}\nOver: €{abs(saving):.0f}"
+                # Create descriptive text showing costs/income
+                desc_text = f"€{cost:.0f}/€{inc:.0f}"
                 
                 ax.annotate(desc_text,
                            xy=(bar.get_x() + bar.get_width() / 2, y_pos),
@@ -221,8 +218,7 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
             ax.set_xticklabels(labels)
             ax.set_title(f"Flexible Income vs Flexible Costs")
             ax.set_ylabel("Amount (€)")
-        
-        ax.legend()
+            ax.legend()
 
     else:
         # Show stacked bars by category
