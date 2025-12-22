@@ -176,14 +176,41 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
         if display_mode == "percentage":
             # Convert to percentages (income as 100%, costs as % of income)
             percentage_values = []
+            savings_values = []
             for inc, cost in zip(income_values, cost_values):
                 if inc > 0:
                     percentage_values.append((cost / inc) * 100)
+                    savings_values.append(inc - cost)
                 else:
                     percentage_values.append(0 if cost == 0 else 100)
+                    savings_values.append(-cost if cost > 0 else 0)
             
-            bars = ax.bar(labels, percentage_values, color='#e74c3c', label='Costs as % of Income')
-            ax.axhline(y=100, color='#2ecc71', linestyle='--', linewidth=2, label='100% (Income)')
+            # Color bars based on percentage (green if under 100%, red if over)
+            bar_colors = ['#2ecc71' if pct <= 100 else '#e74c3c' for pct in percentage_values]
+            bars = ax.bar(labels, percentage_values, color=bar_colors)
+            
+            # Add descriptive annotations to each bar
+            for i, (bar, pct, inc, cost, saving) in enumerate(zip(bars, percentage_values, income_values, cost_values, savings_values)):
+                height = bar.get_height()
+                # Position text above the bar
+                y_pos = height + 2
+                
+                # Create descriptive text showing costs/income and savings/overspent
+                if saving >= 0:
+                    desc_text = f"€{cost:.0f}/€{inc:.0f}\nSaved: €{saving:.0f}"
+                else:
+                    desc_text = f"€{cost:.0f}/€{inc:.0f}\nOver: €{abs(saving):.0f}"
+                
+                ax.annotate(desc_text,
+                           xy=(bar.get_x() + bar.get_width() / 2, y_pos),
+                           ha='center', va='bottom',
+                           fontsize=8,
+                           color='#333333')
+            
+            # Adjust y-axis to make room for annotations
+            max_pct = max(percentage_values) if percentage_values else 100
+            ax.set_ylim(0, max(max_pct + 25, 125))
+            
             ax.set_title(f"Flexible Costs as % of Flexible Income")
             ax.set_ylabel("Percentage (%)")
         else:
