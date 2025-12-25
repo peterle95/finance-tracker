@@ -254,8 +254,12 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
                 # Position text above the bar
                 y_pos = height + 2
                 
-                # Create descriptive text showing expenses/income
-                desc_text = f"€{exp:.0f}/€{inc:.0f}"
+                # Calculate result
+                res = inc - exp
+                sign = "+" if res >= 0 else ""
+                
+                # Create descriptive text showing income - expenses = result
+                desc_text = f"€{inc:.0f} - €{exp:.0f} = {sign}€{res:.0f}"
                 
                 ax.annotate(desc_text,
                            xy=(bar.get_x() + bar.get_width() / 2, y_pos),
@@ -267,8 +271,8 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
             max_pct = max(percentage_values) if percentage_values else 100
             ax.set_ylim(0, max(max_pct + 25, 125))
             
-            ax.set_title(f"Total Expenses as % of Total Income")
-            ax.set_ylabel("Percentage (%)")
+            ax.set_title(f"Difference btw Total Expenses & Total Income")
+            ax.set_ylabel("Amount (€)")
         else:
             # Grouped bars showing income and expenses side by side
             bars_income = ax.bar(x - width/2, income_values, width, label='Total Income', color='#2ecc71')
