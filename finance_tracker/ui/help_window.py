@@ -35,45 +35,45 @@ def show_help(root):
 
     content = [
         ("Core Concepts", "h1"),
-        ("To use this tracker effectively, it's important to understand these key ideas:", "italic"),
+        ("\nTo use this tracker effectively, it's important to understand these key ideas:", "italic"),
 
         ("\n• Assets (Your Accounts):", "bold"),
-        (" The main ones are 'Bank', 'Wallet', 'Savings', 'Investments', and 'Money Lent'. Balances are in 'Budget & Settings'.", "none"),
+        ("\n The main ones are 'Bank', 'Wallet', 'Savings', 'Investments', and 'Money Lent'. Balances are in 'Budget Report'.", "none"),
 
         ("\n• Transactions (Income/Expense):", "bold"),
-        (" Money entering/leaving your finances.", "none"),
+        ("\n Money entering/leaving your finances.", "none"),
 
         ("\n• Savings Goals:", "bold"),
-        (" Allocate your existing savings across different objectives. The Savings Balance (set in Budget Report) is the source - you distribute it to goals.", "none"),
+        ("\n Allocate your existing savings across different objectives. The Savings Balance (set in Budget Report) is the source - you distribute it to goals.\n", "none"),
 
         ("\nHow To Use Each Tab", "h1"),
 
         ("\nAdd Transaction Tab", "h2"),
-        ("Log income or expense with date, amount, category, description.", "none"),
+        ("\nLog income or expense with date, amount, category, description.", "none"),
 
         ("\nView Transactions Tab", "h2"),
-        ("Filter by month, modify/delete, see monthly summary.", "none"),
+        ("\nFilter by month, modify/delete, see monthly summary.", "none"),
 
         ("\nCharts Tab", "h2"),
-        ("Pie chart or historical bar chart. Optional fixed/base income, budget overlays. Click bar chart to toggle views.", "none"),
+        ("\nPie chart or historical bar chart. Optional fixed/base income, budget overlays. Click bar chart to toggle views.", "none"),
 
         ("\nBudget Report Tab", "h2"),
-        ("Balances, fixed costs, daily budget report. UPDATE YOUR SAVINGS BALANCE HERE.", "none"),
+        ("\nBalances, fixed costs, daily budget report. UPDATE YOUR SAVINGS BALANCE HERE.", "none"),
 
         ("\nBudgets Limits Tab", "h2"),
-        ("Manage category budget limits as % of monthly flexible budget. Auto-Assign from expenses; Normalize.", "none"),
+        ("\nManage category budget limits as % of monthly flexible budget. Auto-Assign from expenses; Normalize.", "none"),
 
         ("\nSavings Goals Tab", "h2"),
-        ("Create savings goals and allocate your existing savings to them. The tab shows your total Savings Balance and lets you distribute it across goals (emergency fund, vacation, laptop, etc.). Use 'Allocate Savings' to assign amounts to each goal. The 'Auto-Distribute' button will intelligently distribute unallocated savings based on priorities.", "none"),
+        ("\nCreate savings goals and allocate your existing savings to them. The tab shows your total Savings Balance and lets you distribute it across goals (emergency fund, vacation, laptop, etc.). Use 'Allocate Savings' to assign amounts to each goal. The 'Auto-Distribute' button will intelligently distribute unallocated savings based on priorities.", "none"),
 
         ("\nNet Worth Tab", "h2"),
-        ("Track your total financial wealth over time. Record snapshots of your asset balances to visualize growth. View net worth trends, asset allocation pie charts, and asset breakdown over time. Use Ctrl+Shift+N to quickly record a snapshot. This helps you see the big picture of your financial progress.", "none"),
+        ("\nTrack your total financial wealth over time. Record snapshots of your asset balances to visualize growth. View net worth trends, asset allocation pie charts, and asset breakdown over time. Use Ctrl+Shift+N to quickly record a snapshot. This helps you see the big picture of your financial progress.", "none"),
 
         ("\nProjection Tab", "h2"),
-        ("Project future total assets based on daily savings goal.", "none"),
+        ("\nProject future total assets based on daily savings goal.", "none"),
         
         ("\n\nKeyboard Shortcuts", "h1"),
-        ("Press the ⌨ button or press Escape to close this window. See the keyboard shortcuts reference for all available shortcuts.", "italic"),
+        ("\nPress the ⌨ button or press Escape to close this window. See the keyboard shortcuts reference for all available shortcuts.", "italic"),
     ]
     for text, tag in content:
         if tag == "none":
