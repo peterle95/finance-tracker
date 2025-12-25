@@ -16,7 +16,7 @@ class ReportsTab:
     def __init__(self, notebook, state):
         self.state = state
         self.canvas = None
-        self.bar_breakdown_mode = "total"  # "total", "categories", or "flexible"
+        self.bar_breakdown_mode = "total"  # "total", "categories", "flexible", or "over_under"
         self.bar_display_mode = "value"  # "value" or "percentage"
 
         main = ttk.Frame(notebook, padding="10")
@@ -117,8 +117,8 @@ class ReportsTab:
             self.paned.pane(self.info_frame, weight=1)
         else:
             self.bar_controls.pack(side='left', padx=(0, 15))
-            self._update_info_panel(["Click on chart to toggle: Total → Categories → Flexible view", 
-                                   "Right-click to toggle: Value/Percentage display (in Categories/Flexible)"])
+            self._update_info_panel(["Click on chart to toggle: Total → Categories → Flexible → Over/Under view", 
+                                   "Right-click to toggle: Value/Percentage display"], title="Instructions")
             self.paned.pane(self.chart_frame, weight=90)
             self.paned.pane(self.info_frame, weight=1)
 
@@ -205,6 +205,12 @@ class ReportsTab:
                 messagebox.showinfo("No Data", "No flexible data available.")
                 self.bar_breakdown_mode = "total"
                 category_data = None
+        elif self.bar_breakdown_mode == "over_under":
+            category_data = self._get_over_under_data(labels)
+            if not category_data:
+                messagebox.showinfo("No Data", "No data available for Over/Under view.")
+                self.bar_breakdown_mode = "total"
+                category_data = None
 
         fig = create_bar_figure(labels, values, title, 
                               breakdown_mode=self.bar_breakdown_mode,
@@ -281,6 +287,42 @@ class ReportsTab:
             "Flexible Costs": flexible_costs
         }
 
+    def _get_over_under_data(self, months):
+        """Get total income vs total expenses for each month"""
+        total_income = [0.0] * len(months)
+        total_expenses = [0.0] * len(months)
+
+        # 1. Total Income = Base Income + All Incomes
+        base_income = self.state.budget_settings.get('monthly_income', 0)
+        
+        for month_idx, month in enumerate(months):
+            # Add base income
+            total_income[month_idx] += base_income
+            
+            # Add variable incomes
+            for item in self.state.incomes:
+                if item['date'].startswith(month):
+                    total_income[month_idx] += item['amount']
+                    
+            # 2. Total Expenses = Fixed Costs + All Expenses
+            # Add fixed costs
+            fixed_costs_total = sum(fc['amount'] for fc in self.state.budget_settings.get('fixed_costs', []))
+            total_expenses[month_idx] += fixed_costs_total
+            
+            # Add variable expenses
+            for item in self.state.expenses:
+                if item['date'].startswith(month):
+                    total_expenses[month_idx] += item['amount']
+                    
+        # Only return if there's some data
+        if sum(total_income) == 0 and sum(total_expenses) == 0:
+            return None
+            
+        return {
+            "Total Income": total_income,
+            "Total Expenses": total_expenses
+        }
+
     def _on_bar_click(self, event):
         """Handle click events on the bar chart"""
         if event.inaxes is None:
@@ -292,13 +334,15 @@ class ReportsTab:
                 self.bar_breakdown_mode = "categories"
             elif self.bar_breakdown_mode == "categories":
                 self.bar_breakdown_mode = "flexible"
+            elif self.bar_breakdown_mode == "flexible":
+                self.bar_breakdown_mode = "over_under"
             else:
                 self.bar_breakdown_mode = "total"
             self._render_bar_chart()
         
         # Right click: toggle display mode (in category or flexible view)
         elif event.button == 3:
-            if self.bar_breakdown_mode in ("categories", "flexible"):
+            if self.bar_breakdown_mode in ("categories", "flexible", "over_under"):
                 if self.bar_display_mode == "value":
                     self.bar_display_mode = "percentage"
                 else:
