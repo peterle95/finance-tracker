@@ -30,7 +30,7 @@ def create_budget_depletion_figure(state, month_str: str):
         year, month = map(int, month_str.split("-"))
     except ValueError:
         # Return empty figure for invalid month
-        fig = Figure(figsize=(8, 4), dpi=100)
+        fig = Figure(figsize=(8, 2.5), dpi=100)
         ax = fig.add_subplot(111)
         ax.text(0.5, 0.5, "Invalid month format", ha='center', va='center', transform=ax.transAxes)
         return fig
@@ -85,7 +85,7 @@ def create_budget_depletion_figure(state, month_str: str):
         remaining_budget.append(cumulative_balance)
     
     # Create figure
-    fig = Figure(figsize=(8, 4), dpi=100)
+    fig = Figure(figsize=(8, 2.5), dpi=100)
     ax = fig.add_subplot(111)
     
     if not dates:
