@@ -233,46 +233,46 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
         expense_values = category_data.get("Total Expenses", [0] * len(labels))
         
         if display_mode == "percentage":
-            # Convert to percentages (income as 100%, expenses as % of income)
-            percentage_values = []
-            savings_values = []
+            # Show Net Difference (Income - Expenses)
+            diff_values = []
             for inc, exp in zip(income_values, expense_values):
-                if inc > 0:
-                    percentage_values.append((exp / inc) * 100)
-                    savings_values.append(inc - exp)
-                else:
-                    percentage_values.append(0 if exp == 0 else 100)
-                    savings_values.append(-exp if exp > 0 else 0)
+                diff_values.append(inc - exp)
             
-            # Color bars based on percentage (green if under 100%, red if over)
-            bar_colors = ['#2ecc71' if pct <= 100 else '#e74c3c' for pct in percentage_values]
-            bars = ax.bar(labels, percentage_values, color=bar_colors)
+            # Color bars based on difference (green if positive, red if negative)
+            bar_colors = ['#2ecc71' if d >= 0 else '#e74c3c' for d in diff_values]
+            bars = ax.bar(labels, diff_values, color=bar_colors)
+            
+            # Add horizontal line at 0
+            ax.axhline(0, color='black', linewidth=0.8)
             
             # Add descriptive annotations to each bar
-            for i, (bar, pct, inc, exp) in enumerate(zip(bars, percentage_values, income_values, expense_values)):
+            for bar, diff, inc, exp in zip(bars, diff_values, income_values, expense_values):
                 height = bar.get_height()
-                # Position text above the bar
-                y_pos = height + 2
+                # Position text above positive bars, below negative bars
+                y_pos = height + (max(diff_values) * 0.05 if diff >= 0 else -max(abs(min(diff_values)), 100) * 0.15)
                 
-                # Calculate result
-                res = inc - exp
-                sign = "+" if res >= 0 else ""
+                # Format: €{inc} - €{exp} = €{diff}
+                sign = "+" if diff >= 0 else ""
+                desc_text = f"€{inc:.0f} - €{exp:.0f} = {sign}€{diff:.0f}"
                 
-                # Create descriptive text showing income - expenses = result
-                desc_text = f"€{inc:.0f} - €{exp:.0f} = {sign}€{res:.0f}"
+                va = 'bottom' if diff >= 0 else 'top'
                 
                 ax.annotate(desc_text,
-                           xy=(bar.get_x() + bar.get_width() / 2, y_pos),
-                           ha='center', va='bottom',
+                           xy=(bar.get_x() + bar.get_width() / 2, height),
+                           xytext=(0, 5 if diff >= 0 else -5),
+                           textcoords="offset points",
+                           ha='center', va=va,
                            fontsize=8,
                            color='#333333')
             
-            # Adjust y-axis to make room for annotations
-            max_pct = max(percentage_values) if percentage_values else 100
-            ax.set_ylim(0, max(max_pct + 25, 125))
+            # Adjust y-axis to allow room for annotations
+            y_max = max(max(diff_values, default=100), 100)
+            y_min = min(min(diff_values, default=0), 0)
+            range_val = y_max - y_min
+            ax.set_ylim(y_min - range_val * 0.2, y_max + range_val * 0.2)
             
-            ax.set_title(f"Difference btw Total Expenses & Total Income")
-            ax.set_ylabel("Amount (€)")
+            ax.set_title("Net Result (Total Income - Total Expenses)")
+            ax.set_ylabel("Net Amount (€)")
         else:
             # Grouped bars showing income and expenses side by side
             bars_income = ax.bar(x - width/2, income_values, width, label='Total Income', color='#2ecc71')
