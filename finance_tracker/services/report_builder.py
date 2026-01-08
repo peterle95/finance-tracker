@@ -6,7 +6,7 @@ Service for preparing data for various financial reports and charts.
 
 from datetime import date
 from dateutil.relativedelta import relativedelta
-from .budget_calculator import get_active_fixed_costs
+from .budget_calculator import get_active_fixed_costs, get_active_monthly_income
 
 def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, include_base_income: bool):
     if chart_type == "Expense":
@@ -22,7 +22,7 @@ def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, includ
         title = f"Incomes for {month_str}"
         category_totals = {}
         if include_base_income:
-            base_income = state.budget_settings.get('monthly_income', 0)
+            base_income = get_active_monthly_income(state, month_str)
             if base_income > 0:
                 category_totals["Base Income"] = base_income
 
@@ -44,7 +44,7 @@ def history_data(state, num_months: int, chart_type: str, include_fixed: bool, i
         data = state.expenses
         title = f"Historical Expenses for the Last {num_months} Months"
     else:
-        fixed_value = state.budget_settings.get('monthly_income', 0) if include_base_income else 0
+        # fixed_value = state.budget_settings.get('monthly_income', 0) if include_base_income else 0 # REMOVED
         data = state.incomes
         title = f"Historical Incomes for the Last {num_months} Months"
 
@@ -56,7 +56,7 @@ def history_data(state, num_months: int, chart_type: str, include_fixed: bool, i
             month_fixed = sum(fc['amount'] for fc in get_active_fixed_costs(state, key))
             monthly_totals[key] = month_fixed
         elif chart_type == "Income" and include_base_income:
-            monthly_totals[key] = fixed_value
+            monthly_totals[key] = get_active_monthly_income(state, key)
         else:
             monthly_totals[key] = 0
 

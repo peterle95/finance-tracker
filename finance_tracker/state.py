@@ -38,7 +38,28 @@ class AppState:
         # Ensure defaults
         bs = self.budget_settings
         bs.setdefault("fixed_costs", [])
-        bs.setdefault("monthly_income", 0)
+        bs.setdefault("fixed_costs", [])
+        
+        # KEY CHANGE: "monthly_income" might be a float (old) or a list (new)
+        # We want to normalize it to a list of dicts: 
+        # [{"amount": float, "description": str, "start_date": str, "end_date": str|None}]
+        current_income = bs.get("monthly_income")
+        if current_income is None:
+            # Default to empty list if not present
+            bs["monthly_income"] = []
+        elif isinstance(current_income, (int, float)):
+            # MIgrate old single value to list
+            if current_income > 0:
+                bs["monthly_income"] = [{
+                    "amount": float(current_income),
+                    "description": "Base Income",
+                    "start_date": "2025-01-01",
+                    "end_date": None
+                }]
+            else:
+                bs["monthly_income"] = []
+        # else: it's already a list (hopefully), or we assume it is correct
+            
         bs.setdefault("bank_account_balance", 0)
         bs.setdefault("savings_balance", 0)
         bs.setdefault("investment_balance", 0)

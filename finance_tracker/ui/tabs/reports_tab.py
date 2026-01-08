@@ -9,7 +9,7 @@ from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from ...services.report_builder import pie_data, history_data
-from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs
+from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
 from ..charts import create_bar_figure, create_pie_figure
 
 class ReportsTab:
@@ -259,9 +259,12 @@ class ReportsTab:
             if sum(fixed_costs_by_month) > 0:
                 category_data["Fixed Costs"] = fixed_costs_by_month
         elif chart_type == "Income" and self.include_base_var.get():
-            base_income = self.state.budget_settings.get('monthly_income', 0)
-            if base_income > 0:
-                category_data["Base Income"] = [base_income] * len(months)
+            base_incomes = []
+            for month in months:
+                base_incomes.append(get_active_monthly_income(self.state, month))
+            
+            if sum(base_incomes) > 0:
+                category_data["Base Income"] = base_incomes
         
         return category_data
 
@@ -297,11 +300,11 @@ class ReportsTab:
         total_expenses = [0.0] * len(months)
 
         # 1. Total Income = Base Income + All Incomes
-        base_income = self.state.budget_settings.get('monthly_income', 0)
+        # base_income = self.state.budget_settings.get('monthly_income', 0) # REMOVED
         
         for month_idx, month in enumerate(months):
             # Add base income
-            total_income[month_idx] += base_income
+            total_income[month_idx] += get_active_monthly_income(self.state, month)
             
             # Add variable incomes
             for item in self.state.incomes:
