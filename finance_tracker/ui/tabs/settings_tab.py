@@ -7,7 +7,9 @@ Tab for configuring budget settings, fixed costs, and viewing daily reports.
 import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
+from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from ...services.budget_calculator import generate_daily_budget_report
+from ..charts import create_budget_depletion_figure
 
 class SettingsTab:
     def __init__(self, notebook, state):
@@ -33,96 +35,54 @@ class SettingsTab:
         self.income_entry_display = ttk.Entry(settings, width=15, state='readonly')
         self.income_entry_display.grid(row=0, column=1, pady=5)
         
-        ttk.Label(settings, text="Bank Account Balance:").grid(row=1, column=0, sticky='w', pady=5)
+        # Base Monthly Costs Button + Readonly Display
+        self.costs_btn = ttk.Button(settings, text="Base Monthly Costs:", command=self._open_fixed_costs_manager)
+        self.costs_btn.grid(row=1, column=0, sticky='w', pady=5)
+        self.costs_entry_display = ttk.Entry(settings, width=15, state='readonly')
+        self.costs_entry_display.grid(row=1, column=1, pady=5)
+        
+        ttk.Label(settings, text="Bank Account Balance:").grid(row=2, column=0, sticky='w', pady=5)
         self.bank_entry = ttk.Entry(settings, width=15)
-        self.bank_entry.grid(row=1, column=1, pady=5)
+        self.bank_entry.grid(row=2, column=1, pady=5)
 
-        ttk.Label(settings, text="Wallet Balance:").grid(row=2, column=0, sticky='w', pady=5)
+        ttk.Label(settings, text="Wallet Balance:").grid(row=3, column=0, sticky='w', pady=5)
         self.wallet_entry = ttk.Entry(settings, width=15)
-        self.wallet_entry.grid(row=2, column=1, pady=5)
+        self.wallet_entry.grid(row=3, column=1, pady=5)
 
-        ttk.Label(settings, text="Current Savings:").grid(row=3, column=0, sticky='w', pady=5)
+        ttk.Label(settings, text="Current Savings:").grid(row=4, column=0, sticky='w', pady=5)
         self.savings_entry = ttk.Entry(settings, width=15)
-        self.savings_entry.grid(row=3, column=1, pady=5)
+        self.savings_entry.grid(row=4, column=1, pady=5)
 
-        ttk.Label(settings, text="Current Investments:").grid(row=4, column=0, sticky='w', pady=5)
+        ttk.Label(settings, text="Current Investments:").grid(row=5, column=0, sticky='w', pady=5)
         self.investment_entry = ttk.Entry(settings, width=15)
-        self.investment_entry.grid(row=4, column=1, pady=5)
+        self.investment_entry.grid(row=5, column=1, pady=5)
 
         # Money Lent: button label + readonly entry
         self.money_lent_btn = ttk.Button(settings, text="Money Lent:", command=self._open_lending_manager)
-        self.money_lent_btn.grid(row=5, column=0, sticky='w', pady=5)
+        self.money_lent_btn.grid(row=6, column=0, sticky='w', pady=5)
         self.money_lent_entry = ttk.Entry(settings, width=15, state='readonly')
-        self.money_lent_entry.grid(row=5, column=1, pady=5)
+        self.money_lent_entry.grid(row=6, column=1, pady=5)
 
-        ttk.Label(settings, text="Daily Savings Goal:").grid(row=6, column=0, sticky='w', pady=5)
+        ttk.Label(settings, text="Daily Savings Goal:").grid(row=7, column=0, sticky='w', pady=5)
         self.daily_savings_entry = ttk.Entry(settings, width=15)
-        self.daily_savings_entry.grid(row=6, column=1, pady=5)
+        self.daily_savings_entry.grid(row=7, column=1, pady=5)
 
-        ttk.Button(settings, text="Save Settings", command=self.save_settings).grid(row=7, column=1, pady=10, sticky='e')
+        ttk.Button(settings, text="Save Settings", command=self.save_settings).grid(row=8, column=1, pady=10, sticky='e')
 
+        # === Budget Depletion Graph ===
         manage = ttk.Frame(top)
         manage.grid(row=0, column=1, sticky='nsew')
         manage.columnconfigure(0, weight=1)
         manage.rowconfigure(0, weight=1)
 
-        # === Manage Fixed Monthly Costs ===
-        fc_group = ttk.LabelFrame(manage, text="Manage Fixed Monthly Costs", padding="10")
-        fc_group.grid(row=0, column=0, sticky='nsew')
-        fc_group.rowconfigure(0, weight=1)
-        fc_group.columnconfigure(0, weight=1)
-
-
-
-        fc_tree_frame = ttk.Frame(fc_group)
-        fc_tree_frame.grid(row=0, column=0, columnspan=2, sticky='nsew')
-        fc_tree_frame.columnconfigure(0, weight=1)
-        fc_tree_frame.rowconfigure(0, weight=1)
-
-        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount', 'Start Date', 'End Date'), show='headings', height=5)
-        self.fixed_costs_tree.heading('Description', text='Description')
-        self.fixed_costs_tree.heading('Amount', text='Amount (€)')
-        self.fixed_costs_tree.heading('Start Date', text='Start Date')
-        self.fixed_costs_tree.heading('End Date', text='End Date')
-        self.fixed_costs_tree.column('Description', width=150)
-        self.fixed_costs_tree.column('Amount', width=100, anchor='e')
-        self.fixed_costs_tree.column('Start Date', width=100, anchor='center')
-        self.fixed_costs_tree.column('End Date', width=100, anchor='center')
-        self.fixed_costs_tree.grid(row=0, column=0, sticky='nsew')
-        fc_scroll = ttk.Scrollbar(fc_tree_frame, orient='vertical', command=self.fixed_costs_tree.yview)
-        fc_scroll.grid(row=0, column=1, sticky='ns')
-        self.fixed_costs_tree.configure(yscrollcommand=fc_scroll.set)
-
-        fc_form = ttk.Frame(fc_group)
-        fc_form.grid(row=1, column=0, columnspan=2, sticky='ew', pady=10)
+        graph_frame = ttk.LabelFrame(manage, text="Budget Depletion", padding="5")
+        graph_frame.grid(row=0, column=0, sticky='nsew')
+        graph_frame.rowconfigure(0, weight=1)
+        graph_frame.columnconfigure(0, weight=1)
         
-        # Row 1: Description and Amount
-        fc_form_row1 = ttk.Frame(fc_form)
-        fc_form_row1.pack(fill='x', pady=(0, 5))
-        ttk.Label(fc_form_row1, text="Desc:").pack(side='left', padx=(0, 5))
-        self.fc_desc_entry = ttk.Entry(fc_form_row1, width=20)
-        self.fc_desc_entry.pack(side='left', expand=True, fill='x')
-        ttk.Label(fc_form_row1, text="Amount:").pack(side='left', padx=(10, 5))
-        self.fc_amount_entry = ttk.Entry(fc_form_row1, width=10)
-        self.fc_amount_entry.pack(side='left')
-        
-        # Row 2: Start Date and End Date
-        fc_form_row2 = ttk.Frame(fc_form)
-        fc_form_row2.pack(fill='x')
-        ttk.Label(fc_form_row2, text="Start Date (YYYY-MM-DD):").pack(side='left', padx=(0, 5))
-        self.fc_start_date_entry = ttk.Entry(fc_form_row2, width=12)
-        self.fc_start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
-        self.fc_start_date_entry.pack(side='left')
-        ttk.Label(fc_form_row2, text="End Date (optional):").pack(side='left', padx=(10, 5))
-        self.fc_end_date_entry = ttk.Entry(fc_form_row2, width=12)
-        self.fc_end_date_entry.pack(side='left')
-        ttk.Label(fc_form_row2, text="(leave empty if still active)", font=('Arial', 8, 'italic'), foreground='gray').pack(side='left', padx=(5, 0))
-
-        fc_btns = ttk.Frame(fc_group)
-        fc_btns.grid(row=2, column=0, columnspan=2, sticky='ew')
-        ttk.Button(fc_btns, text="Add", command=self.add_fixed_cost).pack(side='left', padx=5)
-        ttk.Button(fc_btns, text="Update", command=self.update_fixed_cost).pack(side='left', padx=5)
-        ttk.Button(fc_btns, text="Delete", command=self.delete_fixed_cost).pack(side='left', padx=5)
+        # Canvas placeholder for matplotlib figure
+        self.budget_graph_frame = graph_frame
+        self.budget_canvas = None
 
         report = ttk.LabelFrame(main, text="Daily Budget Report", padding="10")
         report.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
@@ -150,7 +110,8 @@ class SettingsTab:
 
         self.refresh_balance_entries()
         # self.refresh_income_tree() # Moved to manager window
-        self.refresh_fixed_costs_tree()
+        self._update_costs_display()
+        self._refresh_budget_graph()
 
     def _update_income_display(self):
         """Update the readonly income display with CURRENT month's active income."""
@@ -161,6 +122,32 @@ class SettingsTab:
         self.income_entry_display.delete(0, tk.END)
         self.income_entry_display.insert(0, f"{active_income:.2f}")
         self.income_entry_display.config(state='readonly')
+
+    def _update_costs_display(self):
+        """Update the readonly costs display with CURRENT month's active fixed costs."""
+        from ...services.budget_calculator import get_active_fixed_costs
+        current_month = datetime.now().strftime("%Y-%m")
+        active_costs = get_active_fixed_costs(self.state, current_month)
+        total_costs = sum(fc['amount'] for fc in active_costs)
+        self.costs_entry_display.config(state='normal')
+        self.costs_entry_display.delete(0, tk.END)
+        self.costs_entry_display.insert(0, f"{total_costs:.2f}")
+        self.costs_entry_display.config(state='readonly')
+
+    def _refresh_budget_graph(self):
+        """Render the budget depletion graph in the main UI."""
+        # Use current month or the one selected in report if they match? 
+        # Usually dashboard should show CURRENT month.
+        current_month = datetime.now().strftime("%Y-%m")
+        fig = create_budget_depletion_figure(self.state, current_month)
+        
+        # Clear previous canvas if exists
+        if self.budget_canvas:
+            self.budget_canvas.get_tk_widget().destroy()
+            
+        self.budget_canvas = FigureCanvasTkAgg(fig, master=self.budget_graph_frame)
+        self.budget_canvas.draw()
+        self.budget_canvas.get_tk_widget().pack(fill='both', expand=True)
 
     def _open_income_manager(self):
         win = tk.Toplevel()
@@ -229,6 +216,77 @@ class SettingsTab:
         ttk.Button(btns, text="Close", command=win.destroy).pack(side='right', padx=5)
 
         self.refresh_income_tree()
+
+    def _open_fixed_costs_manager(self):
+        win = tk.Toplevel()
+        win.title("Base Monthly Costs Manager")
+        win.geometry("800x600")
+        win.transient()
+        win.grab_set()
+
+        # Bind ESC to close window
+        win.bind('<Escape>', lambda e: win.destroy())
+
+        main = ttk.Frame(win, padding=10)
+        main.pack(fill='both', expand=True)
+        
+        ttk.Label(main, text="Manage recurring fixed monthly costs here.\n(Historical changes will be preserved)", 
+                 font=('Arial', 10, 'italic'), foreground='gray').pack(pady=(0, 10))
+
+        # ID wrapper for refresh
+        self.fc_win = win
+
+        # Treeview
+        tree_frame = ttk.Frame(main)
+        tree_frame.pack(fill='both', expand=True)
+
+        self.fixed_costs_tree = ttk.Treeview(tree_frame, columns=('Description', 'Amount', 'Start Date', 'End Date'), show='headings', height=10)
+        self.fixed_costs_tree.heading('Description', text='Description')
+        self.fixed_costs_tree.heading('Amount', text='Amount (€)')
+        self.fixed_costs_tree.heading('Start Date', text='Start Date')
+        self.fixed_costs_tree.heading('End Date', text='End Date')
+        self.fixed_costs_tree.column('Description', width=200)
+        self.fixed_costs_tree.column('Amount', width=100, anchor='e')
+        self.fixed_costs_tree.column('Start Date', width=120, anchor='center')
+        self.fixed_costs_tree.column('End Date', width=120, anchor='center')
+        self.fixed_costs_tree.pack(side='left', fill='both', expand=True)
+        
+        fc_scroll = ttk.Scrollbar(tree_frame, orient='vertical', command=self.fixed_costs_tree.yview)
+        fc_scroll.pack(side='right', fill='y')
+        self.fixed_costs_tree.configure(yscrollcommand=fc_scroll.set)
+
+        # Form
+        form = ttk.LabelFrame(main, text="Add/Edit Fixed Cost Source", padding=10)
+        form.pack(fill='x', pady=10)
+        
+        r1 = ttk.Frame(form)
+        r1.pack(fill='x', pady=2)
+        ttk.Label(r1, text="Description:").pack(side='left', padx=5)
+        self.fc_desc_entry = ttk.Entry(r1)
+        self.fc_desc_entry.pack(side='left', expand=True, fill='x', padx=5)
+        ttk.Label(r1, text="Amount:").pack(side='left', padx=5)
+        self.fc_amount_entry = ttk.Entry(r1, width=15)
+        self.fc_amount_entry.pack(side='left', padx=5)
+
+        r2 = ttk.Frame(form)
+        r2.pack(fill='x', pady=5)
+        ttk.Label(r2, text="Start Date:").pack(side='left', padx=5)
+        self.fc_start_date_entry = ttk.Entry(r2, width=15)
+        self.fc_start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        self.fc_start_date_entry.pack(side='left', padx=5)
+        
+        ttk.Label(r2, text="End Date (Optional):").pack(side='left', padx=5)
+        self.fc_end_date_entry = ttk.Entry(r2, width=15)
+        self.fc_end_date_entry.pack(side='left', padx=5)
+
+        btns = ttk.Frame(main)
+        btns.pack(fill='x')
+        ttk.Button(btns, text="Add New Cost", command=self.add_fixed_cost).pack(side='left', padx=5)
+        ttk.Button(btns, text="Update Selected", command=self.update_fixed_cost).pack(side='left', padx=5)
+        ttk.Button(btns, text="Delete Selected", command=self.delete_fixed_cost).pack(side='left', padx=5)
+        ttk.Button(btns, text="Close", command=win.destroy).pack(side='right', padx=5)
+
+        self.refresh_fixed_costs_tree()
 
     def _update_money_lent_button(self):
         """Update the money lent entry with current balance."""
@@ -412,6 +470,7 @@ class SettingsTab:
             entry.insert(0, str(s.get(key, 0)))
         
         self._update_income_display() # New display update logic
+        self._update_costs_display()
         
         set_entry(self.bank_entry, 'bank_account_balance')
         set_entry(self.wallet_entry, 'wallet_balance')
@@ -485,13 +544,16 @@ class SettingsTab:
             })
             self.state.save()
             self.refresh_fixed_costs_tree()
+            self._update_costs_display()
+            self._refresh_budget_graph()
+            
             self.fc_desc_entry.delete(0, tk.END)
             self.fc_amount_entry.delete(0, tk.END)
             self.fc_start_date_entry.delete(0, tk.END)
             self.fc_start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.fc_end_date_entry.delete(0, tk.END)
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount for fixed cost.")
+            messagebox.showerror("Error", "Invalid amount for fixed cost.", parent=getattr(self, 'fc_win', None))
 
     def update_fixed_cost(self):
         selected = self.fixed_costs_tree.selection()
@@ -539,8 +601,10 @@ class SettingsTab:
                     break
             self.state.save()
             self.refresh_fixed_costs_tree()
+            self._update_costs_display()
+            self._refresh_budget_graph()
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount for fixed cost.")
+            messagebox.showerror("Error", "Invalid amount for fixed cost.", parent=getattr(self, 'fc_win', None))
 
         except ValueError:
             messagebox.showerror("Error", "Invalid amount for fixed cost.")
@@ -620,6 +684,7 @@ class SettingsTab:
         self.state.save()
         self.refresh_income_tree()
         self._update_income_display()
+        self._refresh_budget_graph()
         
         self.inc_desc_entry.delete(0, tk.END)
         self.inc_amount_entry.delete(0, tk.END)
@@ -652,6 +717,7 @@ class SettingsTab:
         self.state.save()
         self.refresh_income_tree()
         self._update_income_display()
+        self._refresh_budget_graph()
 
     def delete_income(self):
         selected = self.income_tree.selection()
@@ -684,12 +750,14 @@ class SettingsTab:
                         self.state.save()
                         self.refresh_income_tree()
                         self._update_income_display()
+                        self._refresh_budget_graph()
                         return
                 
                 del incomes[i]
                 self.state.save()
                 self.refresh_income_tree()
                 self._update_income_display()
+                self._refresh_budget_graph()
                 return
 
     def delete_fixed_cost(self):
@@ -729,15 +797,25 @@ class SettingsTab:
                 del self.state.budget_settings['fixed_costs'][i]
                 self.state.save()
                 self.refresh_fixed_costs_tree()
+                self._update_costs_display()
+                self._refresh_budget_graph()
                 return
         
-        messagebox.showerror("Error", "Could not find the selected fixed cost item.")
+        messagebox.showerror("Error", "Could not find the selected fixed cost item.", parent=getattr(self, 'fc_win', None))
 
     def generate_report(self):
         month = self.budget_month_entry.get()
         text = generate_daily_budget_report(self.state, month)
         self.report_text.delete("1.0", tk.END)
         self.report_text.insert("1.0", text)
+        
+        # Also refresh graph for the selected month
+        fig = create_budget_depletion_figure(self.state, month)
+        if self.budget_canvas:
+            self.budget_canvas.get_tk_widget().destroy()
+        self.budget_canvas = FigureCanvasTkAgg(fig, master=self.budget_graph_frame)
+        self.budget_canvas.draw()
+        self.budget_canvas.get_tk_widget().pack(fill='both', expand=True)
 
     def export_report(self):
         content = self.report_text.get("1.0", tk.END).strip()
