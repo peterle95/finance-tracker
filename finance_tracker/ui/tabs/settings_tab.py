@@ -72,11 +72,15 @@ class SettingsTab:
         fc_tree_frame.columnconfigure(0, weight=1)
         fc_tree_frame.rowconfigure(0, weight=1)
 
-        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount'), show='headings', height=5)
+        self.fixed_costs_tree = ttk.Treeview(fc_tree_frame, columns=('Description', 'Amount', 'Start Date', 'End Date'), show='headings', height=5)
         self.fixed_costs_tree.heading('Description', text='Description')
         self.fixed_costs_tree.heading('Amount', text='Amount (€)')
-        self.fixed_costs_tree.column('Description', width=200)
+        self.fixed_costs_tree.heading('Start Date', text='Start Date')
+        self.fixed_costs_tree.heading('End Date', text='End Date')
+        self.fixed_costs_tree.column('Description', width=150)
         self.fixed_costs_tree.column('Amount', width=100, anchor='e')
+        self.fixed_costs_tree.column('Start Date', width=100, anchor='center')
+        self.fixed_costs_tree.column('End Date', width=100, anchor='center')
         self.fixed_costs_tree.grid(row=0, column=0, sticky='nsew')
         fc_scroll = ttk.Scrollbar(fc_tree_frame, orient='vertical', command=self.fixed_costs_tree.yview)
         fc_scroll.grid(row=0, column=1, sticky='ns')
@@ -84,12 +88,28 @@ class SettingsTab:
 
         fc_form = ttk.Frame(fc_group)
         fc_form.grid(row=1, column=0, columnspan=2, sticky='ew', pady=10)
-        ttk.Label(fc_form, text="Desc:").pack(side='left', padx=(0, 5))
-        self.fc_desc_entry = ttk.Entry(fc_form, width=20)
+        
+        # Row 1: Description and Amount
+        fc_form_row1 = ttk.Frame(fc_form)
+        fc_form_row1.pack(fill='x', pady=(0, 5))
+        ttk.Label(fc_form_row1, text="Desc:").pack(side='left', padx=(0, 5))
+        self.fc_desc_entry = ttk.Entry(fc_form_row1, width=20)
         self.fc_desc_entry.pack(side='left', expand=True, fill='x')
-        ttk.Label(fc_form, text="Amount:").pack(side='left', padx=(10, 5))
-        self.fc_amount_entry = ttk.Entry(fc_form, width=10)
+        ttk.Label(fc_form_row1, text="Amount:").pack(side='left', padx=(10, 5))
+        self.fc_amount_entry = ttk.Entry(fc_form_row1, width=10)
         self.fc_amount_entry.pack(side='left')
+        
+        # Row 2: Start Date and End Date
+        fc_form_row2 = ttk.Frame(fc_form)
+        fc_form_row2.pack(fill='x')
+        ttk.Label(fc_form_row2, text="Start Date (YYYY-MM-DD):").pack(side='left', padx=(0, 5))
+        self.fc_start_date_entry = ttk.Entry(fc_form_row2, width=12)
+        self.fc_start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+        self.fc_start_date_entry.pack(side='left')
+        ttk.Label(fc_form_row2, text="End Date (optional):").pack(side='left', padx=(10, 5))
+        self.fc_end_date_entry = ttk.Entry(fc_form_row2, width=12)
+        self.fc_end_date_entry.pack(side='left')
+        ttk.Label(fc_form_row2, text="(leave empty if still active)", font=('Arial', 8, 'italic'), foreground='gray').pack(side='left', padx=(5, 0))
 
         fc_btns = ttk.Frame(fc_group)
         fc_btns.grid(row=2, column=0, columnspan=2, sticky='ew')
@@ -329,20 +349,58 @@ class SettingsTab:
         for i in self.fixed_costs_tree.get_children():
             self.fixed_costs_tree.delete(i)
         for cost in self.state.budget_settings.get('fixed_costs', []):
-            self.fixed_costs_tree.insert('', 'end', values=(cost['desc'], f"{cost['amount']:.2f}"))
+            end_date_display = cost.get('end_date', 'Active') or 'Active'
+            self.fixed_costs_tree.insert('', 'end', values=(
+                cost['desc'], 
+                f"{cost['amount']:.2f}",
+                cost.get('start_date', '2000-01-01'),
+                end_date_display
+            ))
 
     def add_fixed_cost(self):
         try:
             desc = self.fc_desc_entry.get().strip()
             amount = float(self.fc_amount_entry.get())
+            start_date = self.fc_start_date_entry.get().strip()
+            end_date = self.fc_end_date_entry.get().strip()
+            
             if not desc:
                 messagebox.showerror("Error", "Description cannot be empty.")
                 return
-            self.state.budget_settings['fixed_costs'].append({'desc': desc, 'amount': amount})
+            
+            # Validate start date
+            if not start_date:
+                messagebox.showerror("Error", "Start date is required.")
+                return
+            try:
+                datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid start date format. Use YYYY-MM-DD.")
+                return
+            
+            # Validate end date if provided
+            if end_date:
+                try:
+                    datetime.strptime(end_date, "%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid end date format. Use YYYY-MM-DD.")
+                    return
+            else:
+                end_date = None
+            
+            self.state.budget_settings['fixed_costs'].append({
+                'desc': desc, 
+                'amount': amount,
+                'start_date': start_date,
+                'end_date': end_date
+            })
             self.state.save()
             self.refresh_fixed_costs_tree()
             self.fc_desc_entry.delete(0, tk.END)
             self.fc_amount_entry.delete(0, tk.END)
+            self.fc_start_date_entry.delete(0, tk.END)
+            self.fc_start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
+            self.fc_end_date_entry.delete(0, tk.END)
         except ValueError:
             messagebox.showerror("Error", "Invalid amount for fixed cost.")
 
@@ -354,13 +412,41 @@ class SettingsTab:
         try:
             desc = self.fc_desc_entry.get().strip()
             amount = float(self.fc_amount_entry.get())
+            start_date = self.fc_start_date_entry.get().strip()
+            end_date = self.fc_end_date_entry.get().strip()
+            
             if not desc:
                 messagebox.showerror("Error", "Description cannot be empty.")
                 return
+            
+            # Validate dates
+            if not start_date:
+                messagebox.showerror("Error", "Start date is required.")
+                return
+            try:
+                datetime.strptime(start_date, "%Y-%m-%d")
+            except ValueError:
+                messagebox.showerror("Error", "Invalid start date format. Use YYYY-MM-DD.")
+                return
+            
+            if end_date:
+                try:
+                    datetime.strptime(end_date, "%Y-%m-%d")
+                except ValueError:
+                    messagebox.showerror("Error", "Invalid end date format. Use YYYY-MM-DD.")
+                    return
+            else:
+                end_date = None
+            
             original_values = self.fixed_costs_tree.item(selected[0])['values']
             for i, cost in enumerate(self.state.budget_settings['fixed_costs']):
                 if cost['desc'] == original_values[0] and f"{cost['amount']:.2f}" == original_values[1]:
-                    self.state.budget_settings['fixed_costs'][i] = {'desc': desc, 'amount': amount}
+                    self.state.budget_settings['fixed_costs'][i] = {
+                        'desc': desc, 
+                        'amount': amount,
+                        'start_date': start_date,
+                        'end_date': end_date
+                    }
                     break
             self.state.save()
             self.refresh_fixed_costs_tree()
@@ -372,14 +458,41 @@ class SettingsTab:
         if not selected:
             messagebox.showwarning("Warning", "Please select a fixed cost to delete.")
             return
+        
         values = self.fixed_costs_tree.item(selected[0])['values']
-        target_cost = {'desc': values[0], 'amount': float(values[1])}
-        try:
-            self.state.budget_settings['fixed_costs'].remove(target_cost)
-            self.state.save()
-            self.refresh_fixed_costs_tree()
-        except ValueError:
-            messagebox.showerror("Error", "Could not delete the selected fixed cost item.")
+        desc_to_delete = values[0]
+        amount_to_delete = float(values[1])
+        
+        # Find and remove the matching cost
+        for i, cost in enumerate(self.state.budget_settings['fixed_costs']):
+            if cost['desc'] == desc_to_delete and cost['amount'] == amount_to_delete:
+                # Instead of deleting, ask if user wants to set end date
+                if cost.get('end_date') is None:
+                    response = messagebox.askyesnocancel(
+                        "Delete or Archive?",
+                        f"Do you want to:\n\n"
+                        f"YES - Set an end date (archives the cost)\n"
+                        f"NO - Permanently delete this cost\n"
+                        f"CANCEL - Keep the cost as-is"
+                    )
+                    if response is None:  # Cancel
+                        return
+                    elif response:  # Yes - set end date
+                        end_date = datetime.now().strftime("%Y-%m-%d")
+                        cost['end_date'] = end_date
+                        self.state.save()
+                        self.refresh_fixed_costs_tree()
+                        messagebox.showinfo("Success", f"Cost archived with end date: {end_date}")
+                        return
+                    # else: fall through to delete
+                
+                # Permanently delete
+                del self.state.budget_settings['fixed_costs'][i]
+                self.state.save()
+                self.refresh_fixed_costs_tree()
+                return
+        
+        messagebox.showerror("Error", "Could not find the selected fixed cost item.")
 
     def generate_report(self):
         month = self.budget_month_entry.get()

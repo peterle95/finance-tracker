@@ -7,6 +7,7 @@ Tab for viewing, filtering, modifying, and deleting transactions.
 import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
+from ...services.budget_calculator import get_active_fixed_costs
 
 class ViewTransactionsTab:
     def __init__(self, notebook, state, on_data_changed):
@@ -88,7 +89,8 @@ class ViewTransactionsTab:
         total_income = base_income + total_flex_income
 
         total_flex_expenses = sum(e['amount'] for e in self.state.expenses if e['date'].startswith(fm))
-        total_fixed_costs = sum(fc['amount'] for fc in self.state.budget_settings.get('fixed_costs', []))
+        # Get fixed costs active in this specific month
+        total_fixed_costs = sum(fc['amount'] for fc in get_active_fixed_costs(self.state, fm))
         total_expenses = total_flex_expenses + total_fixed_costs
         net = total_income - total_expenses
 

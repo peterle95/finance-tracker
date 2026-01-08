@@ -7,6 +7,43 @@ Service for calculating budget limits and available spending.
 from datetime import datetime
 import calendar
 
+def get_active_fixed_costs(state, month_str: str) -> list:
+    """
+    Returns only the fixed costs that were active during the specified month.
+    A fixed cost is active if:
+    - Its start_date is <= month_str
+    - Its end_date is None OR >= month_str
+    """
+    try:
+        target_date = datetime.strptime(month_str + "-01", "%Y-%m-%d").date()
+    except ValueError:
+        # If invalid month format, return all costs as fallback
+        return state.budget_settings.get("fixed_costs", [])
+    
+    active_costs = []
+    for fc in state.budget_settings.get("fixed_costs", []):
+        # Parse start_date
+        try:
+            start = datetime.strptime(fc.get('start_date', '2000-01-01'), "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            start = datetime(2000, 1, 1).date()
+        
+        # Parse end_date (None means still active)
+        end_date_str = fc.get('end_date')
+        if end_date_str is None:
+            end = None
+        else:
+            try:
+                end = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                end = None
+        
+        # Check if cost was active during target month
+        if start <= target_date and (end is None or end >= target_date):
+            active_costs.append(fc)
+    
+    return active_costs
+
 def days_in_month_str(month_str: str) -> int:
     try:
         year, month = map(int, month_str.split("-"))
@@ -24,7 +61,7 @@ def compute_net_available_for_spending(state, month_str: str) -> float:
     daily_savings_goal = state.budget_settings.get("daily_savings_goal", 0)
     flex_income_month = sum(i["amount"] for i in state.incomes if i["date"].startswith(month_str))
     total_income = base_income + flex_income_month
-    fixed_costs = sum(fc["amount"] for fc in state.budget_settings.get("fixed_costs", []))
+    fixed_costs = sum(fc["amount"] for fc in get_active_fixed_costs(state, month_str))
 
     dim = days_in_month_str(month_str)
     monthly_savings_goal = daily_savings_goal * dim
@@ -41,7 +78,7 @@ def generate_daily_budget_report(state, month_str: str) -> str:
     daily_savings_goal = state.budget_settings.get("daily_savings_goal", 0)
     flex_income_month = sum(i['amount'] for i in state.incomes if i['date'].startswith(month_str))
     total_income = base_income + flex_income_month
-    fixed_costs = sum(fc['amount'] for fc in state.budget_settings.get('fixed_costs', []))
+    fixed_costs = sum(fc["amount"] for fc in get_active_fixed_costs(state, month_str))
 
     days_in_month = calendar.monthrange(year, month)[1]
     monthly_savings_goal = daily_savings_goal * days_in_month

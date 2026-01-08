@@ -48,6 +48,13 @@ class AppState:
         bs.setdefault("category_budgets", {"Expense": {}, "Income": {}})
         bs.setdefault("loans", [])  # Each loan: {"id": str, "borrower": str, "amount": float, "description": str, "date": str}
 
+        # Migrate fixed costs to include start_date and end_date
+        for fc in bs.get("fixed_costs", []):
+            if 'start_date' not in fc:
+                fc['start_date'] = '2000-01-01'  # Default to a very early date for existing costs
+            if 'end_date' not in fc:
+                fc['end_date'] = None  # None means still active
+        
         if "Expense" not in self.categories or not self.categories["Expense"]:
             self.categories["Expense"] = DEFAULT_EXPENSE_CATEGORIES.copy()
         if "Income" not in self.categories or not self.categories["Income"]:
