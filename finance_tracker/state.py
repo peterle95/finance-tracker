@@ -38,7 +38,27 @@ class AppState:
         # Ensure defaults
         bs = self.budget_settings
         bs.setdefault("fixed_costs", [])
-        bs.setdefault("monthly_income", 0)
+        
+        # KEY CHANGE: "monthly_income" might be a float (old) or a list (new)
+        # We want to normalize it to a list of dicts: 
+        # [{"amount": float, "description": str, "start_date": str, "end_date": str|None}]
+        current_income = bs.get("monthly_income")
+        if current_income is None:
+            # Default to empty list if not present
+            bs["monthly_income"] = []
+        elif isinstance(current_income, (int, float)):
+            # MIgrate old single value to list
+            if current_income > 0:
+                bs["monthly_income"] = [{
+                    "amount": float(current_income),
+                    "description": "Base Income",
+                    "start_date": "2025-01-01",
+                    "end_date": None
+                }]
+            else:
+                bs["monthly_income"] = []
+        # else: it's already a list (hopefully), or we assume it is correct
+            
         bs.setdefault("bank_account_balance", 0)
         bs.setdefault("savings_balance", 0)
         bs.setdefault("investment_balance", 0)
@@ -48,6 +68,13 @@ class AppState:
         bs.setdefault("category_budgets", {"Expense": {}, "Income": {}})
         bs.setdefault("loans", [])  # Each loan: {"id": str, "borrower": str, "amount": float, "description": str, "date": str}
 
+        # Migrate fixed costs to include start_date and end_date
+        for fc in bs.get("fixed_costs", []):
+            if 'start_date' not in fc:
+                fc['start_date'] = '2000-01-01'  # Default to a very early date for existing costs
+            if 'end_date' not in fc:
+                fc['end_date'] = None  # None means still active
+        
         if "Expense" not in self.categories or not self.categories["Expense"]:
             self.categories["Expense"] = DEFAULT_EXPENSE_CATEGORIES.copy()
         if "Income" not in self.categories or not self.categories["Income"]:

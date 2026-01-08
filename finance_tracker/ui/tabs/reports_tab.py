@@ -9,7 +9,7 @@ from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
 from ...services.report_builder import pie_data, history_data
-from ...services.budget_calculator import compute_net_available_for_spending
+from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
 from ..charts import create_bar_figure, create_pie_figure
 
 class ReportsTab:
@@ -251,13 +251,20 @@ class ReportsTab:
         
         # Add fixed costs or base income if needed
         if chart_type == "Expense" and self.include_fixed_var.get():
-            fixed_total = sum(fc['amount'] for fc in self.state.budget_settings.get('fixed_costs', []))
-            if fixed_total > 0:
-                category_data["Fixed Costs"] = [fixed_total] * len(months)
+            # Calculate fixed costs for each month individually
+            fixed_costs_by_month = []
+            for month in months:
+                month_fixed = sum(fc['amount'] for fc in get_active_fixed_costs(self.state, month))
+                fixed_costs_by_month.append(month_fixed)
+            if sum(fixed_costs_by_month) > 0:
+                category_data["Fixed Costs"] = fixed_costs_by_month
         elif chart_type == "Income" and self.include_base_var.get():
-            base_income = self.state.budget_settings.get('monthly_income', 0)
-            if base_income > 0:
-                category_data["Base Income"] = [base_income] * len(months)
+            base_incomes = []
+            for month in months:
+                base_incomes.append(get_active_monthly_income(self.state, month))
+            
+            if sum(base_incomes) > 0:
+                category_data["Base Income"] = base_incomes
         
         return category_data
 
@@ -293,11 +300,11 @@ class ReportsTab:
         total_expenses = [0.0] * len(months)
 
         # 1. Total Income = Base Income + All Incomes
-        base_income = self.state.budget_settings.get('monthly_income', 0)
+        # base_income = self.state.budget_settings.get('monthly_income', 0) # REMOVED
         
         for month_idx, month in enumerate(months):
             # Add base income
-            total_income[month_idx] += base_income
+            total_income[month_idx] += get_active_monthly_income(self.state, month)
             
             # Add variable incomes
             for item in self.state.incomes:
@@ -305,9 +312,9 @@ class ReportsTab:
                     total_income[month_idx] += item['amount']
                     
             # 2. Total Expenses = Fixed Costs + All Expenses
-            # Add fixed costs
-            fixed_costs_total = sum(fc['amount'] for fc in self.state.budget_settings.get('fixed_costs', []))
-            total_expenses[month_idx] += fixed_costs_total
+            # Add fixed costs (only those active in this specific month)
+            month_fixed_costs = sum(fc['amount'] for fc in get_active_fixed_costs(self.state, month))
+            total_expenses[month_idx] += month_fixed_costs
             
             # Add variable expenses
             for item in self.state.expenses:

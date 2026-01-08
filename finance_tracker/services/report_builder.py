@@ -6,6 +6,7 @@ Service for preparing data for various financial reports and charts.
 
 from datetime import date
 from dateutil.relativedelta import relativedelta
+from .budget_calculator import get_active_fixed_costs, get_active_monthly_income
 
 def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, include_base_income: bool):
     if chart_type == "Expense":
@@ -13,7 +14,7 @@ def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, includ
         title = f"Expenses for {month_str}"
         category_totals = {}
         if include_fixed:
-            total_fc = sum(fc['amount'] for fc in state.budget_settings.get('fixed_costs', []))
+            total_fc = sum(fc['amount'] for fc in get_active_fixed_costs(state, month_str))
             if total_fc > 0:
                 category_totals["Fixed Costs"] = total_fc
     else:
@@ -21,7 +22,7 @@ def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, includ
         title = f"Incomes for {month_str}"
         category_totals = {}
         if include_base_income:
-            base_income = state.budget_settings.get('monthly_income', 0)
+            base_income = get_active_monthly_income(state, month_str)
             if base_income > 0:
                 category_totals["Base Income"] = base_income
 
@@ -35,18 +36,29 @@ def history_data(state, num_months: int, chart_type: str, include_fixed: bool, i
     today = date.today()
     monthly_totals = {}
     if chart_type == "Expense":
-        fixed_value = sum(fc['amount'] for fc in state.budget_settings.get('fixed_costs', [])) if include_fixed else 0
+        fixed_value = 0
+        if include_fixed:
+            # For historical data, we need to get active costs for each specific month
+            # We'll handle this in the loop below
+            pass
         data = state.expenses
         title = f"Historical Expenses for the Last {num_months} Months"
     else:
-        fixed_value = state.budget_settings.get('monthly_income', 0) if include_base_income else 0
+        # fixed_value = state.budget_settings.get('monthly_income', 0) if include_base_income else 0 # REMOVED
         data = state.incomes
         title = f"Historical Incomes for the Last {num_months} Months"
 
     for i in range(num_months - 1, -1, -1):
         month_date = today - relativedelta(months=i)
         key = month_date.strftime("%Y-%m")
-        monthly_totals[key] = fixed_value
+        # Get fixed costs active in this specific month
+        if chart_type == "Expense" and include_fixed:
+            month_fixed = sum(fc['amount'] for fc in get_active_fixed_costs(state, key))
+            monthly_totals[key] = month_fixed
+        elif chart_type == "Income" and include_base_income:
+            monthly_totals[key] = get_active_monthly_income(state, key)
+        else:
+            monthly_totals[key] = 0
 
     for item in data:
         month = item['date'][:7]

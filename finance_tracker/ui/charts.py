@@ -12,6 +12,125 @@ import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
 from datetime import datetime
+import calendar
+
+def create_budget_depletion_figure(state, month_str: str):
+    """
+    Generate a budget depletion graph showing:
+    - Remaining flexible budget over the month (starts high, decreases with spending)
+    - Daily available budget target (recalculated each day)
+    """
+    from ..services.budget_calculator import (
+        get_active_monthly_income, 
+        get_active_fixed_costs,
+        days_in_month_str
+    )
+    
+    try:
+        year, month = map(int, month_str.split("-"))
+    except ValueError:
+        # Return empty figure for invalid month
+        fig = Figure(figsize=(8, 4), dpi=100)
+        ax = fig.add_subplot(111)
+        ax.text(0.5, 0.5, "Invalid month format", ha='center', va='center', transform=ax.transAxes)
+        return fig
+    
+    # Calculate budget parameters
+    base_income = get_active_monthly_income(state, month_str)
+    daily_savings_goal = state.budget_settings.get("daily_savings_goal", 0)
+    flex_income_month = sum(i['amount'] for i in state.incomes if i['date'].startswith(month_str))
+    total_income = base_income + flex_income_month
+    fixed_costs = sum(fc["amount"] for fc in get_active_fixed_costs(state, month_str))
+    
+    days_in_month = calendar.monthrange(year, month)[1]
+    monthly_savings_goal = daily_savings_goal * days_in_month
+    monthly_flexible_budget = total_income - fixed_costs - monthly_savings_goal
+    
+    # Get daily expenses
+    flex_expenses_month = [e for e in state.expenses if e['date'].startswith(month_str)]
+    daily_expenses = {}
+    for e in flex_expenses_month:
+        daily_expenses.setdefault(e['date'], 0)
+        daily_expenses[e['date']] += e['amount']
+    
+    # Calculate daily data
+    today = datetime.now().date()
+    dates = []
+    remaining_budget = []
+    daily_target = []
+    
+    cumulative_balance = monthly_flexible_budget
+    
+    for day in range(1, days_in_month + 1):
+        date_str = f"{year}-{month:02d}-{day:02d}"
+        date_obj = datetime.strptime(date_str, "%Y-%m-%d").date()
+        
+        if date_obj > today:
+            break
+        
+        dates.append(date_obj)
+        
+        # Calculate daily target for this day
+        remaining_days = days_in_month - day + 1
+        if cumulative_balance <= 0:
+            target = 0
+        else:
+            target = cumulative_balance / remaining_days if remaining_days > 0 else 0
+        
+        daily_target.append(target)
+        
+        # Subtract today's spending
+        day_spent = daily_expenses.get(date_str, 0)
+        cumulative_balance -= day_spent
+        remaining_budget.append(cumulative_balance)
+    
+    # Create figure
+    fig = Figure(figsize=(8, 4), dpi=100)
+    ax = fig.add_subplot(111)
+    
+    if not dates:
+        ax.text(0.5, 0.5, "No data for this month yet", ha='center', va='center', transform=ax.transAxes)
+        return fig
+    
+    # Plot remaining budget line
+    ax.plot(dates, remaining_budget, marker='o', linewidth=2, markersize=4, 
+            color='steelblue', label='Remaining Budget')
+    
+    # Fill area under remaining budget
+    ax.fill_between(dates, remaining_budget, 0, 
+                    where=[rb >= 0 for rb in remaining_budget],
+                    alpha=0.2, color='green', interpolate=True)
+    ax.fill_between(dates, remaining_budget, 0,
+                    where=[rb < 0 for rb in remaining_budget],
+                    alpha=0.2, color='red', interpolate=True)
+    
+    # Plot daily target line
+    ax.plot(dates, daily_target, marker='s', linewidth=2, markersize=4,
+            color='orange', linestyle='--', label='Daily Target')
+    
+    # Add horizontal line at 0
+    ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
+    
+    # Initial budget reference line
+    ax.axhline(y=monthly_flexible_budget, color='green', linestyle=':', 
+               linewidth=1, alpha=0.5, label=f'Initial Budget: €{monthly_flexible_budget:.0f}')
+    
+    ax.set_title(f'Budget Depletion - {calendar.month_name[month]} {year}', fontsize=12, fontweight='bold')
+    ax.set_xlabel('Date')
+    ax.set_ylabel('Amount (€)')
+    
+    # Format y-axis
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+    
+    # Format x-axis
+    ax.xaxis.set_major_formatter(mdates.DateFormatter('%d'))
+    ax.xaxis.set_major_locator(mdates.DayLocator(interval=max(1, len(dates) // 10)))
+    
+    ax.legend(loc='upper right', fontsize=8)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    
+    return fig
 
 def create_net_worth_figure(snapshots):
     """Generate net worth over time line chart"""
