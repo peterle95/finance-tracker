@@ -122,10 +122,6 @@ def create_budget_depletion_figure(state, month_str: str):
     # Add horizontal line at 0
     ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
     
-    # Initial budget reference line
-    ax.axhline(y=monthly_flexible_budget, color='green', linestyle=':', 
-               linewidth=1, alpha=0.5, label=f'Initial Budget: €{monthly_flexible_budget:.0f}')
-    
     ax.set_title(f'Budget Depletion - {calendar.month_name[month]} {year}', fontsize=12, fontweight='bold')
     ax.set_xlabel('Date')
     ax.set_ylabel('Amount (€)')
