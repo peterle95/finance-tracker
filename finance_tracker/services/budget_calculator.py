@@ -123,8 +123,16 @@ def generate_daily_budget_report(state, month_str: str) -> str:
 
     days_in_month = calendar.monthrange(year, month)[1]
     monthly_savings_goal = daily_savings_goal * days_in_month
-    monthly_flexible_spending_budget = total_income - fixed_costs - monthly_savings_goal
+    # Start balance EXCLUDING flexible income (it is now added day-by-day)
+    monthly_flexible_spending_budget = base_income - fixed_costs - monthly_savings_goal
     initial_daily_spending_target = monthly_flexible_spending_budget / days_in_month if days_in_month else 0
+
+    # Prepare daily flexible income lookup (moved from sum to daily map)
+    flex_incomes_month = [i for i in state.incomes if i['date'].startswith(month_str)]
+    daily_incomes = {}
+    for i in flex_incomes_month:
+        daily_incomes.setdefault(i['date'], 0)
+        daily_incomes[i['date']] += i['amount']
 
     flex_expenses_month = [e for e in state.expenses if e['date'].startswith(month_str)]
     daily_expenses = {}
@@ -157,6 +165,10 @@ def generate_daily_budget_report(state, month_str: str) -> str:
         date_obj = dt.strptime(date_str, "%Y-%m-%d").date()
         if date_obj > today:
             break
+        
+        # Add flexible income for this specific day (day-by-day, matching graph behavior)
+        day_income = daily_incomes.get(date_str, 0)
+        cumulative_flexible_balance += day_income
         
         # Calculate flexible target for THIS day based on remaining days INCLUDING today
         # If budget is depleted (≤0), target becomes 0

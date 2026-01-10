@@ -38,13 +38,20 @@ def create_budget_depletion_figure(state, month_str: str):
     # Calculate budget parameters
     base_income = get_active_monthly_income(state, month_str)
     daily_savings_goal = state.budget_settings.get("daily_savings_goal", 0)
-    flex_income_month = sum(i['amount'] for i in state.incomes if i['date'].startswith(month_str))
-    total_income = base_income + flex_income_month
+
+    # Prepare daily flexible income lookup (moved from sum to daily map)
+    flex_incomes_month = [i for i in state.incomes if i['date'].startswith(month_str)]
+    daily_incomes = {}
+    for i in flex_incomes_month:
+        daily_incomes.setdefault(i['date'], 0)
+        daily_incomes[i['date']] += i['amount']
+    
     fixed_costs = sum(fc["amount"] for fc in get_active_fixed_costs(state, month_str))
     
     days_in_month = calendar.monthrange(year, month)[1]
     monthly_savings_goal = daily_savings_goal * days_in_month
-    monthly_flexible_budget = total_income - fixed_costs - monthly_savings_goal
+    # Start balance EXCLUDING flexible income (it is now added day-by-day)
+    monthly_flexible_budget = base_income - fixed_costs - monthly_savings_goal
     
     # Get daily expenses
     flex_expenses_month = [e for e in state.expenses if e['date'].startswith(month_str)]
@@ -67,6 +74,10 @@ def create_budget_depletion_figure(state, month_str: str):
         
         if date_obj > today:
             break
+        
+        # Add flexible income for this specific day (creates the "spike")
+        day_income = daily_incomes.get(date_str, 0)
+        cumulative_balance += day_income
         
         dates.append(date_obj)
         
@@ -110,10 +121,6 @@ def create_budget_depletion_figure(state, month_str: str):
     
     # Add horizontal line at 0
     ax.axhline(y=0, color='black', linestyle='-', linewidth=0.8, alpha=0.5)
-    
-    # Initial budget reference line
-    ax.axhline(y=monthly_flexible_budget, color='green', linestyle=':', 
-               linewidth=1, alpha=0.5, label=f'Initial Budget: €{monthly_flexible_budget:.0f}')
     
     ax.set_title(f'Budget Depletion - {calendar.month_name[month]} {year}', fontsize=12, fontweight='bold')
     ax.set_xlabel('Date')
