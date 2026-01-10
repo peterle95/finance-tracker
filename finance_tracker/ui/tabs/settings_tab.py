@@ -494,6 +494,9 @@ class SettingsTab:
             messagebox.showerror("Error", "Invalid amount in one of the fields.")
 
     def refresh_fixed_costs_tree(self):
+        # Only refresh if the manager window is open (tree exists)
+        if not hasattr(self, 'fixed_costs_tree'):
+            return
         for i in self.fixed_costs_tree.get_children():
             self.fixed_costs_tree.delete(i)
         for cost in self.state.budget_settings.get('fixed_costs', []):
