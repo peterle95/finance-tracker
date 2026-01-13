@@ -21,11 +21,27 @@ class ViewTransactionsTab:
         filter_frame = ttk.Frame(frame)
         filter_frame.pack(fill='x', pady=10)
 
-        ttk.Label(filter_frame, text="Filter by month:").pack(side='left', padx=5)
-        self.month_filter = ttk.Entry(filter_frame, width=15)
-        self.month_filter.insert(0, datetime.now().strftime("%Y-%m"))
+        # First row of filters
+        filter_row1 = ttk.Frame(filter_frame)
+        filter_row1.pack(fill='x', pady=5)
+        
+        ttk.Label(filter_row1, text="Month:").pack(side='left', padx=5)
+        self.month_filter = ttk.Combobox(filter_row1, width=15, state='readonly')
         self.month_filter.pack(side='left', padx=5)
-        ttk.Button(filter_frame, text="Refresh", command=self.refresh).pack(side='left', padx=10)
+        
+        ttk.Label(filter_row1, text="Category:").pack(side='left', padx=(15, 5))
+        self.category_filter = ttk.Combobox(filter_row1, width=20, state='readonly')
+        self.category_filter.pack(side='left', padx=5)
+        
+        ttk.Label(filter_row1, text="Date:").pack(side='left', padx=(15, 5))
+        self.date_filter = ttk.Combobox(filter_row1, width=15, state='readonly')
+        self.date_filter.pack(side='left', padx=5)
+        
+        ttk.Button(filter_row1, text="Search", command=self.refresh).pack(side='left', padx=(15, 5))
+        ttk.Button(filter_row1, text="Clear", command=self.clear_filters).pack(side='left', padx=5)
+        
+        # Initialize filter options
+        self.update_filter_options()
 
         tree_frame = ttk.Frame(frame)
         tree_frame.pack(fill='both', expand=True, pady=10)
@@ -61,17 +77,105 @@ class ViewTransactionsTab:
 
         self.refresh()
 
+    def update_filter_options(self):
+        """Update the available options in filter dropdowns based on current transactions"""
+        # Get all unique months from transactions
+        months = set()
+        dates = set()
+        categories = set()
+        
+        # Always include current month as an option
+        current_month = datetime.now().strftime("%Y-%m")
+        months.add(current_month)
+        
+        for e in self.state.expenses:
+            if e.get('date'):
+                date_str = e['date']
+                if len(date_str) >= 7:
+                    months.add(date_str[:7])  # YYYY-MM
+                dates.add(date_str)
+                if e.get('category'):
+                    categories.add(e['category'])
+        
+        for i in self.state.incomes:
+            if i.get('date'):
+                date_str = i['date']
+                if len(date_str) >= 7:
+                    months.add(date_str[:7])  # YYYY-MM
+                dates.add(date_str)
+                if i.get('category'):
+                    categories.add(i['category'])
+        
+        # Sort and add empty/all option at the beginning
+        month_list = ['All'] + sorted(months, reverse=True)
+        date_list = [''] + sorted(dates, reverse=True)
+        category_list = [''] + sorted(categories)
+        
+        # Update combobox values
+        self.month_filter['values'] = month_list
+        self.date_filter['values'] = date_list
+        self.category_filter['values'] = category_list
+        
+        # Set default month to current month if available.
+        # Keep user's selection only if it's non-empty and still valid.
+        current_selection = self.month_filter.get()
+        if current_selection and current_selection in month_list:
+            self.month_filter.set(current_selection)
+        elif current_month in month_list:
+            self.month_filter.set(current_month)
+        elif month_list:
+            self.month_filter.set(month_list[0])
+
+    def clear_filters(self):
+        """Clear all filter fields and refresh"""
+        current_month = datetime.now().strftime("%Y-%m")
+        if current_month in self.month_filter['values']:
+            self.month_filter.set(current_month)
+        else:
+            self.month_filter.set('All')
+        self.category_filter.set('')
+        self.date_filter.set('')
+        self.refresh()
+
     def refresh(self):
+        # Update filter options before refreshing to ensure they're current
+        self.update_filter_options()
+        
         for item in self.transaction_tree.get_children():
             self.transaction_tree.delete(item)
-        filter_month = self.month_filter.get()
+        
+        filter_month = self.month_filter.get().strip()
+        filter_category = self.category_filter.get().strip().lower()
+        filter_date = self.date_filter.get().strip()
+        
         all_transactions = []
+        
+        # Collect expenses
         for e in self.state.expenses:
-            if e['date'].startswith(filter_month):
-                all_transactions.append({**e, 'type': 'Expense'})
+            # Filter by date if specified (date filter takes precedence over month)
+            if filter_date:
+                if e['date'] != filter_date:
+                    continue
+            elif filter_month and filter_month != 'All' and not e['date'].startswith(filter_month):
+                continue
+            # Filter by category if specified (case-insensitive, partial match)
+            if filter_category and filter_category not in e.get('category', '').lower():
+                continue
+            all_transactions.append({**e, 'type': 'Expense'})
+        
+        # Collect incomes
         for i in self.state.incomes:
-            if i['date'].startswith(filter_month):
-                all_transactions.append({**i, 'type': 'Income'})
+            # Filter by date if specified (date filter takes precedence over month)
+            if filter_date:
+                if i['date'] != filter_date:
+                    continue
+            elif filter_month and filter_month != 'All' and not i['date'].startswith(filter_month):
+                continue
+            # Filter by category if specified (case-insensitive, partial match)
+            if filter_category and filter_category not in i.get('category', '').lower():
+                continue
+            all_transactions.append({**i, 'type': 'Income'})
+        
         all_transactions.sort(key=lambda x: x['date'])
 
         for trans in all_transactions:

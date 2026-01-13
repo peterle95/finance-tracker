@@ -273,7 +273,7 @@ class ShortcutManager:
         
         if current_index == 1:  # View Transactions
             self.mv.view_tab.month_filter.focus_set()
-            self.mv.view_tab.month_filter.select_range(0, tk.END)
+            # For Combobox, focusing will open the dropdown
         elif current_index == 2:  # Charts
             self.mv.reports_tab.month_entry.focus_set()
             self.mv.reports_tab.month_entry.select_range(0, tk.END)
