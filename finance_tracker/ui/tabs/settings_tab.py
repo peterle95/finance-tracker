@@ -314,7 +314,10 @@ class SettingsTab:
         # Current balance display
         balance = self.state.budget_settings.get('money_lent_balance', 0)
         self.loan_balance_label = ttk.Label(main_frame, text=f"Total Money Lent: €{balance:.2f}", font=('Arial', 12, 'bold'))
-        self.loan_balance_label.pack(pady=(0, 10))
+        self.loan_balance_label.pack(pady=(0, 2))
+        
+        ttk.Label(main_frame, text="(Positive = Lent to others, Negative = Borrowed from others)", 
+                 font=('Arial', 9, 'italic'), foreground='gray').pack(pady=(0, 10))
 
         # Loans treeview
         tree_frame = ttk.Frame(main_frame)
@@ -386,8 +389,8 @@ class SettingsTab:
 
         try:
             amount = float(amount_str)
-            if amount <= 0:
-                messagebox.showerror("Error", "Amount must be positive.", parent=loan_win)
+            if amount == 0:
+                messagebox.showerror("Error", "Amount cannot be zero.", parent=loan_win)
                 return
         except ValueError:
             messagebox.showerror("Error", "Invalid amount.", parent=loan_win)
@@ -441,10 +444,8 @@ class SettingsTab:
                 amount = loan['amount']
                 borrower = loan['borrower']
                 del loans[i]
-                
                 # Update money lent balance
-                self.state.budget_settings['money_lent_balance'] = max(0, 
-                    self.state.budget_settings.get('money_lent_balance', 0) - amount)
+                self.state.budget_settings['money_lent_balance'] = self.state.budget_settings.get('money_lent_balance', 0) - amount
                 self.state.save()
 
                 # Refresh UI
