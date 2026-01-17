@@ -38,6 +38,10 @@ class ViewTransactionsTab:
         ttk.Label(filter_row1, text="Date:").pack(side='left', padx=(15, 5))
         self.date_filter = ttk.Combobox(filter_row1, width=15, state='readonly')
         self.date_filter.pack(side='left', padx=5)
+
+        ttk.Label(filter_row1, text="Description:").pack(side='left', padx=(15, 5))
+        self.description_filter = ttk.Combobox(filter_row1, width=28, state='readonly')
+        self.description_filter.pack(side='left', padx=5)
         
         #ttk.Button(filter_row1, text="Search", command=self.refresh).pack(side='left', padx=(15, 5))
         ttk.Button(filter_row1, text="Clear", command=self.clear_filters).pack(side='left', padx=5)
@@ -45,6 +49,7 @@ class ViewTransactionsTab:
         self.month_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
         self.category_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
         self.date_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
+        self.description_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
         
         # Initialize filter options
         self.update_filter_options()
@@ -98,10 +103,15 @@ class ViewTransactionsTab:
         months = set()
         dates = set()
         categories = set()
+        descriptions = set()
         
         # Always include current month as an option
         current_month = datetime.now().strftime("%Y-%m")
         months.add(current_month)
+
+        filter_month = self.month_filter.get().strip()
+        filter_category = self.category_filter.get().strip().lower()
+        filter_date = self.date_filter.get().strip()
         
         for e in self.state.expenses:
             if e.get('date'):
@@ -111,6 +121,16 @@ class ViewTransactionsTab:
                 dates.add(date_str)
                 if e.get('category'):
                     categories.add(e['category'])
+
+                if filter_date:
+                    if date_str != filter_date:
+                        continue
+                elif filter_month and filter_month != 'All' and not date_str.startswith(filter_month):
+                    continue
+                if filter_category and filter_category not in e.get('category', '').lower():
+                    continue
+                if e.get('description'):
+                    descriptions.add(e['description'])
         
         for i in self.state.incomes:
             if i.get('date'):
@@ -120,16 +140,28 @@ class ViewTransactionsTab:
                 dates.add(date_str)
                 if i.get('category'):
                     categories.add(i['category'])
+
+                if filter_date:
+                    if date_str != filter_date:
+                        continue
+                elif filter_month and filter_month != 'All' and not date_str.startswith(filter_month):
+                    continue
+                if filter_category and filter_category not in i.get('category', '').lower():
+                    continue
+                if i.get('description'):
+                    descriptions.add(i['description'])
         
         # Sort and add empty/all option at the beginning
         month_list = ['All'] + sorted(months, reverse=True)
         date_list = [''] + sorted(dates, reverse=True)
         category_list = [''] + sorted(categories)
+        description_list = [''] + sorted(descriptions)
         
         # Update combobox values
         self.month_filter['values'] = month_list
         self.date_filter['values'] = date_list
         self.category_filter['values'] = category_list
+        self.description_filter['values'] = description_list
         
         # Set default month to current month if available.
         # Keep user's selection only if it's non-empty and still valid.
@@ -141,6 +173,12 @@ class ViewTransactionsTab:
         elif month_list:
             self.month_filter.set(month_list[0])
 
+        current_desc = self.description_filter.get()
+        if current_desc and current_desc in description_list:
+            self.description_filter.set(current_desc)
+        else:
+            self.description_filter.set('')
+
     def clear_filters(self):
         """Clear all filter fields and refresh"""
         current_month = datetime.now().strftime("%Y-%m")
@@ -150,6 +188,7 @@ class ViewTransactionsTab:
             self.month_filter.set('All')
         self.category_filter.set('')
         self.date_filter.set('')
+        self.description_filter.set('')
         self.refresh()
 
     def refresh(self):
@@ -162,6 +201,7 @@ class ViewTransactionsTab:
         filter_month = self.month_filter.get().strip()
         filter_category = self.category_filter.get().strip().lower()
         filter_date = self.date_filter.get().strip()
+        filter_description = self.description_filter.get().strip().lower()
         
         all_transactions = []
         
@@ -176,6 +216,9 @@ class ViewTransactionsTab:
             # Filter by category if specified (case-insensitive, partial match)
             if filter_category and filter_category not in e.get('category', '').lower():
                 continue
+            # Filter by description if specified (case-insensitive, partial match)
+            if filter_description and filter_description not in e.get('description', '').lower():
+                continue
             all_transactions.append({**e, 'type': 'Expense'})
         
         # Collect incomes
@@ -188,6 +231,9 @@ class ViewTransactionsTab:
                 continue
             # Filter by category if specified (case-insensitive, partial match)
             if filter_category and filter_category not in i.get('category', '').lower():
+                continue
+            # Filter by description if specified (case-insensitive, partial match)
+            if filter_description and filter_description not in i.get('description', '').lower():
                 continue
             all_transactions.append({**i, 'type': 'Income'})
         
@@ -205,7 +251,8 @@ class ViewTransactionsTab:
     def update_summary(self):
         filter_category = self.category_filter.get().strip()
         filter_date = self.date_filter.get().strip()
-        filters_active = bool(filter_category) or bool(filter_date)
+        filter_description = self.description_filter.get().strip()
+        filters_active = bool(filter_category) or bool(filter_date) or bool(filter_description)
 
         if filters_active:
             matching_count = len(self._current_transactions)
