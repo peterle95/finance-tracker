@@ -13,6 +13,8 @@ class ViewTransactionsTab:
     def __init__(self, notebook, state, on_data_changed):
         self.state = state
         self.on_data_changed = on_data_changed
+        self._current_transactions = []
+        self._refresh_job = None
 
         frame = ttk.Frame(notebook, padding="20")
         notebook.add(frame, text="View Transactions")
@@ -37,8 +39,12 @@ class ViewTransactionsTab:
         self.date_filter = ttk.Combobox(filter_row1, width=15, state='readonly')
         self.date_filter.pack(side='left', padx=5)
         
-        ttk.Button(filter_row1, text="Search", command=self.refresh).pack(side='left', padx=(15, 5))
+        #ttk.Button(filter_row1, text="Search", command=self.refresh).pack(side='left', padx=(15, 5))
         ttk.Button(filter_row1, text="Clear", command=self.clear_filters).pack(side='left', padx=5)
+
+        self.month_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
+        self.category_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
+        self.date_filter.bind('<<ComboboxSelected>>', self._schedule_refresh)
         
         # Initialize filter options
         self.update_filter_options()
@@ -75,6 +81,15 @@ class ViewTransactionsTab:
         self.summary_label = ttk.Label(frame, text="", font=('Arial', 10, 'bold'))
         self.summary_label.pack(pady=10, fill='x')
 
+        self.refresh()
+
+    def _schedule_refresh(self, _event=None):
+        if self._refresh_job is not None:
+            self.frame.after_cancel(self._refresh_job)
+        self._refresh_job = self.frame.after(50, self._run_scheduled_refresh)
+
+    def _run_scheduled_refresh(self):
+        self._refresh_job = None
         self.refresh()
 
     def update_filter_options(self):
@@ -177,6 +192,7 @@ class ViewTransactionsTab:
             all_transactions.append({**i, 'type': 'Income'})
         
         all_transactions.sort(key=lambda x: x['date'])
+        self._current_transactions = all_transactions
 
         for trans in all_transactions:
             tag = 'expense' if trans['type'] == 'Expense' else 'income'
@@ -187,6 +203,17 @@ class ViewTransactionsTab:
         self.update_summary()
 
     def update_summary(self):
+        filter_category = self.category_filter.get().strip()
+        filter_date = self.date_filter.get().strip()
+        filters_active = bool(filter_category) or bool(filter_date)
+
+        if filters_active:
+            matching_count = len(self._current_transactions)
+            total_amount = sum(t.get('amount', 0.0) for t in self._current_transactions)
+            self.summary_label.config(text=(f"Matching Entries: {matching_count}  |  "
+                                            f"Total Amount: €{total_amount:.2f}"))
+            return
+
         fm = self.month_filter.get()
         base_income = get_active_monthly_income(self.state, fm)
         total_flex_income = sum(i['amount'] for i in self.state.incomes if i['date'].startswith(fm))
