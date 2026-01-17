@@ -341,7 +341,7 @@ class SettingsTab:
         self.loans_tree.configure(yscrollcommand=loans_scroll.set)
 
         # Add loan form
-        form_frame = ttk.LabelFrame(main_frame, text="Add New Loan", padding=10)
+        form_frame = ttk.LabelFrame(main_frame, text="Add/Edit Loan", padding=10)
         form_frame.pack(fill='x', pady=10)
 
         ttk.Label(form_frame, text="Borrower:").grid(row=0, column=0, sticky='w', padx=5)
@@ -358,12 +358,22 @@ class SettingsTab:
 
         ttk.Button(form_frame, text="Add Loan", command=lambda: self._add_loan(loan_win)).grid(row=0, column=6, padx=10)
 
+        # Bind selection to populate form
+        self.loans_tree.bind('<<TreeviewSelect>>', lambda e: self._populate_loan_form(loan_win))
+
         # Buttons frame
         btn_frame = ttk.Frame(main_frame)
         btn_frame.pack(fill='x', pady=(0, 5))
 
+        ttk.Button(btn_frame, text="Update Selected", command=lambda: self._update_loan(loan_win)).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Mark as Returned", command=lambda: self._mark_loan_returned(loan_win)).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Close", command=loan_win.destroy).pack(side='right', padx=5)
+
+        # Store reference to loan window for use in other methods
+        self.loan_win_ref = loan_win
+        
+        # Track currently editing loan ID (None when adding new)
+        self.editing_loan_id = None
 
         # Populate loans list
         self._refresh_loans_tree()
@@ -377,6 +387,31 @@ class SettingsTab:
         for loan in loans:
             self.loans_tree.insert('', 'end', iid=loan['id'], 
                                    values=(loan['borrower'], f"{loan['amount']:.2f}", loan.get('description', ''), loan['date']))
+
+    def _populate_loan_form(self, loan_win):
+        """Populate the form fields when a loan is selected in the tree."""
+        selected = self.loans_tree.selection()
+        if not selected:
+            return
+        
+        loan_id = selected[0]
+        loans = self.state.budget_settings.get('loans', [])
+        
+        for loan in loans:
+            if loan['id'] == loan_id:
+                # Store the loan ID being edited
+                self.editing_loan_id = loan_id
+                
+                # Populate form fields
+                self.loan_borrower_entry.delete(0, tk.END)
+                self.loan_borrower_entry.insert(0, loan['borrower'])
+                
+                self.loan_amount_entry.delete(0, tk.END)
+                self.loan_amount_entry.insert(0, str(loan['amount']))
+                
+                self.loan_desc_entry.delete(0, tk.END)
+                self.loan_desc_entry.insert(0, loan.get('description', ''))
+                break
 
     def _add_loan(self, loan_win):
         """Add a new loan and update the balance."""
@@ -421,12 +456,73 @@ class SettingsTab:
         self._update_loan_balance_label()
         self._update_money_lent_button()
 
-        # Clear form
+        # Clear form and reset edit mode
+        self._clear_loan_form()
+
+        messagebox.showinfo("Success", f"Loan of €{amount:.2f} to {borrower} recorded.", parent=loan_win)
+
+    def _clear_loan_form(self):
+        """Clear the loan form fields and reset edit mode."""
         self.loan_borrower_entry.delete(0, tk.END)
         self.loan_amount_entry.delete(0, tk.END)
         self.loan_desc_entry.delete(0, tk.END)
+        self.editing_loan_id = None
 
-        messagebox.showinfo("Success", f"Loan of €{amount:.2f} to {borrower} recorded.", parent=loan_win)
+    def _update_loan(self, loan_win):
+        """Update an existing loan with new values."""
+        selected = self.loans_tree.selection()
+        if not selected:
+            messagebox.showwarning("Warning", "Please select a loan to update.", parent=loan_win)
+            return
+
+        loan_id = selected[0]
+        borrower = self.loan_borrower_entry.get().strip()
+        amount_str = self.loan_amount_entry.get().strip()
+
+        if not borrower:
+            messagebox.showerror("Error", "Please enter a borrower name.", parent=loan_win)
+            return
+
+        try:
+            new_amount = float(amount_str)
+            if new_amount == 0:
+                messagebox.showerror("Error", "Amount cannot be zero.", parent=loan_win)
+                return
+        except ValueError:
+            messagebox.showerror("Error", "Invalid amount.", parent=loan_win)
+            return
+
+        loans = self.state.budget_settings.get('loans', [])
+        
+        # Find the loan and update it
+        for i, loan in enumerate(loans):
+            if loan['id'] == loan_id:
+                old_amount = loan['amount']
+                description = self.loan_desc_entry.get().strip()
+                
+                # Update loan fields
+                loans[i]['borrower'] = borrower
+                loans[i]['amount'] = new_amount
+                loans[i]['description'] = description
+                # Keep the original date unless you want to allow changing it
+                
+                # Update money lent balance (adjust for amount difference)
+                amount_diff = new_amount - old_amount
+                self.state.budget_settings['money_lent_balance'] = self.state.budget_settings.get('money_lent_balance', 0) + amount_diff
+                self.state.save()
+
+                # Refresh UI
+                self._refresh_loans_tree()
+                self._update_loan_balance_label()
+                self._update_money_lent_button()
+
+                # Clear form and reset edit mode
+                self._clear_loan_form()
+
+                messagebox.showinfo("Success", f"Loan updated: €{new_amount:.2f} to {borrower}.", parent=loan_win)
+                return
+
+        messagebox.showerror("Error", "Could not find the selected loan.", parent=loan_win)
 
     def _mark_loan_returned(self, loan_win):
         """Mark a loan as returned and update the balance."""
