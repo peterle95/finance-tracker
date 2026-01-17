@@ -208,6 +208,9 @@ class SettingsTab:
         self.inc_end_date_entry = ttk.Entry(r2, width=15)
         self.inc_end_date_entry.pack(side='left', padx=5)
 
+        # Bind selection to populate form
+        self.income_tree.bind('<<TreeviewSelect>>', lambda e: self._populate_income_form(win))
+
         btns = ttk.Frame(main)
         btns.pack(fill='x')
         ttk.Button(btns, text="Add New Income", command=self.add_income).pack(side='left', padx=5)
@@ -278,6 +281,9 @@ class SettingsTab:
         ttk.Label(r2, text="End Date (Optional):").pack(side='left', padx=5)
         self.fc_end_date_entry = ttk.Entry(r2, width=15)
         self.fc_end_date_entry.pack(side='left', padx=5)
+
+        # Bind selection to populate form
+        self.fixed_costs_tree.bind('<<TreeviewSelect>>', lambda e: self._populate_fixed_cost_form(win))
 
         btns = ttk.Frame(main)
         btns.pack(fill='x')
@@ -590,6 +596,41 @@ class SettingsTab:
         except ValueError:
             messagebox.showerror("Error", "Invalid amount in one of the fields.")
 
+    def _populate_fixed_cost_form(self, win):
+        """Populate the fixed cost form fields when an entry is selected in the tree."""
+        selected = self.fixed_costs_tree.selection()
+        if not selected:
+            return
+        
+        # Get the values from the selected tree item
+        values = self.fixed_costs_tree.item(selected[0])['values']
+        if not values:
+            return
+        
+        # Find matching fixed cost entry in the data
+        fixed_costs = self.state.budget_settings.get('fixed_costs', [])
+        for cost in fixed_costs:
+            cost_desc = cost['desc']
+            cost_amt = f"{cost['amount']:.2f}"
+            
+            # Match by description and amount
+            if cost_desc == values[0] and cost_amt == values[1]:
+                # Populate form fields
+                self.fc_desc_entry.delete(0, tk.END)
+                self.fc_desc_entry.insert(0, cost_desc)
+                
+                self.fc_amount_entry.delete(0, tk.END)
+                self.fc_amount_entry.insert(0, cost_amt)
+                
+                self.fc_start_date_entry.delete(0, tk.END)
+                self.fc_start_date_entry.insert(0, cost.get('start_date', '2000-01-01'))
+                
+                self.fc_end_date_entry.delete(0, tk.END)
+                end_date = cost.get('end_date')
+                if end_date:
+                    self.fc_end_date_entry.insert(0, end_date)
+                break
+
     def refresh_fixed_costs_tree(self):
         # Only refresh if the manager window is open (tree exists)
         if not hasattr(self, 'fixed_costs_tree'):
@@ -708,6 +749,44 @@ class SettingsTab:
 
         except ValueError:
             messagebox.showerror("Error", "Invalid amount for fixed cost.")
+
+    def _populate_income_form(self, win):
+        """Populate the income form fields when an entry is selected in the tree."""
+        selected = self.income_tree.selection()
+        if not selected:
+            return
+        
+        # Get the values from the selected tree item
+        values = self.income_tree.item(selected[0])['values']
+        if not values:
+            return
+        
+        # Find matching income entry in the data
+        income_data = self.state.budget_settings.get('monthly_income', [])
+        if isinstance(income_data, (int, float)):
+            income_data = []
+        
+        for inc in income_data:
+            inc_desc = inc.get('description', 'Base Income')
+            inc_amt = f"{inc.get('amount', 0):.2f}"
+            
+            # Match by description and amount
+            if inc_desc == values[0] and inc_amt == values[1]:
+                # Populate form fields
+                self.inc_desc_entry.delete(0, tk.END)
+                self.inc_desc_entry.insert(0, inc_desc)
+                
+                self.inc_amount_entry.delete(0, tk.END)
+                self.inc_amount_entry.insert(0, inc_amt)
+                
+                self.inc_start_date_entry.delete(0, tk.END)
+                self.inc_start_date_entry.insert(0, inc.get('start_date', '2000-01-01'))
+                
+                self.inc_end_date_entry.delete(0, tk.END)
+                end_date = inc.get('end_date')
+                if end_date:
+                    self.inc_end_date_entry.insert(0, end_date)
+                break
 
     def refresh_income_tree(self):
         for i in self.income_tree.get_children():
