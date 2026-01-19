@@ -15,6 +15,8 @@ class ViewTransactionsTab:
         self.on_data_changed = on_data_changed
         self._current_transactions = []
         self._refresh_job = None
+        self._sort_state = {}  # Track sort state for each column
+        self._current_sort = None  # Track current sort column and direction
 
         frame = ttk.Frame(notebook, padding="20")
         notebook.add(frame, text="View Transactions")
@@ -59,8 +61,10 @@ class ViewTransactionsTab:
 
         columns = ('ID', 'Date', 'Type', 'Amount', 'Category', 'Description')
         self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
+        
+        # Create column headers with click bindings
         for col in columns:
-            self.transaction_tree.heading(col, text=col)
+            self.transaction_tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c))
             width = 120
             if col == 'Amount': width = 100
             if col == 'Description': width = 250
@@ -87,6 +91,71 @@ class ViewTransactionsTab:
         self.summary_label.pack(pady=10, fill='x')
 
         self.refresh()
+
+    def sort_by_column(self, column):
+        """Sort transactions by the specified column"""
+        if not self._current_transactions:
+            return
+            
+        # Get current sort state for this column
+        current_state = self._sort_state.get(column, 'none')
+        
+        # Determine new sort direction
+        if column == 'Amount':
+            # For Amount: first click = descending, second click = ascending
+            if current_state == 'none' or current_state == 'ascending':
+                new_direction = 'descending'
+            else:
+                new_direction = 'ascending'
+        else:
+            # For other columns: first click = ascending, second click = descending
+            if current_state == 'none' or current_state == 'descending':
+                new_direction = 'ascending'
+            else:
+                new_direction = 'descending'
+        
+        # Update sort state
+        self._sort_state[column] = new_direction
+        self._current_sort = (column, new_direction)
+        
+        # Sort the transactions
+        reverse = (new_direction == 'descending')
+        
+        if column == 'Amount':
+            # Sort by amount (convert to float for proper numeric sorting)
+            self._current_transactions.sort(key=lambda x: float(x.get('amount', 0)), reverse=reverse)
+        elif column == 'Date':
+            # Sort by date (string comparison works for YYYY-MM-DD format)
+            self._current_transactions.sort(key=lambda x: x.get('date', ''), reverse=reverse)
+        elif column == 'Type':
+            # Sort by transaction type
+            self._current_transactions.sort(key=lambda x: x.get('type', ''), reverse=reverse)
+        elif column == 'Category':
+            # Sort by category
+            self._current_transactions.sort(key=lambda x: x.get('category', ''), reverse=reverse)
+        elif column == 'Description':
+            # Sort by description
+            self._current_transactions.sort(key=lambda x: x.get('description', ''), reverse=reverse)
+        elif column == 'ID':
+            # Sort by ID
+            self._current_transactions.sort(key=lambda x: x.get('id', ''), reverse=reverse)
+        
+        # Rebuild the tree view with sorted data
+        self._rebuild_tree()
+
+    def _rebuild_tree(self):
+        """Rebuild the tree view with current sorted transactions"""
+        # Clear existing items
+        for item in self.transaction_tree.get_children():
+            self.transaction_tree.delete(item)
+        
+        # Add sorted transactions
+        for trans in self._current_transactions:
+            tag = 'expense' if trans['type'] == 'Expense' else 'income'
+            trans_id = trans.get('id', '')
+            self.transaction_tree.insert('', 'end', values=(
+                trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
+                trans['category'], trans['description']), tags=(tag,))
 
     def _schedule_refresh(self, _event=None):
         if self._refresh_job is not None:
@@ -240,7 +309,25 @@ class ViewTransactionsTab:
         all_transactions.sort(key=lambda x: x['date'])
         self._current_transactions = all_transactions
 
-        for trans in all_transactions:
+        # Re-apply current sort if one exists
+        if self._current_sort:
+            column, direction = self._current_sort
+            reverse = (direction == 'descending')
+            
+            if column == 'Amount':
+                self._current_transactions.sort(key=lambda x: float(x.get('amount', 0)), reverse=reverse)
+            elif column == 'Date':
+                self._current_transactions.sort(key=lambda x: x.get('date', ''), reverse=reverse)
+            elif column == 'Type':
+                self._current_transactions.sort(key=lambda x: x.get('type', ''), reverse=reverse)
+            elif column == 'Category':
+                self._current_transactions.sort(key=lambda x: x.get('category', ''), reverse=reverse)
+            elif column == 'Description':
+                self._current_transactions.sort(key=lambda x: x.get('description', ''), reverse=reverse)
+            elif column == 'ID':
+                self._current_transactions.sort(key=lambda x: x.get('id', ''), reverse=reverse)
+
+        for trans in self._current_transactions:
             tag = 'expense' if trans['type'] == 'Expense' else 'income'
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(

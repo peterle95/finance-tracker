@@ -14,6 +14,10 @@ from ..charts import create_budget_depletion_figure
 class SettingsTab:
     def __init__(self, notebook, state):
         self.state = state
+        self._income_sort_state = {}
+        self._income_current_sort = None
+        self._fixed_costs_sort_state = {}
+        self._fixed_costs_current_sort = None
 
         main = ttk.Frame(notebook, padding="10")
         notebook.add(main, text="Budget Report")
@@ -156,6 +160,9 @@ class SettingsTab:
         win.transient()
         win.grab_set()
 
+        # Bind ESC to close window
+        win.bind('<Escape>', lambda e: win.destroy())
+
         main = ttk.Frame(win, padding=10)
         main.pack(fill='both', expand=True)
         
@@ -170,10 +177,10 @@ class SettingsTab:
         tree_frame.pack(fill='both', expand=True)
 
         self.income_tree = ttk.Treeview(tree_frame, columns=('Description', 'Amount', 'Start Date', 'End Date'), show='headings', height=8)
-        self.income_tree.heading('Description', text='Description')
-        self.income_tree.heading('Amount', text='Amount (€)')
-        self.income_tree.heading('Start Date', text='Start Date')
-        self.income_tree.heading('End Date', text='End Date')
+        self.income_tree.heading('Description', text='Description', command=lambda: self.sort_income_by_column('Description'))
+        self.income_tree.heading('Amount', text='Amount (€)', command=lambda: self.sort_income_by_column('Amount'))
+        self.income_tree.heading('Start Date', text='Start Date', command=lambda: self.sort_income_by_column('Start Date'))
+        self.income_tree.heading('End Date', text='End Date', command=lambda: self.sort_income_by_column('End Date'))
         self.income_tree.column('Description', width=150)
         self.income_tree.column('Amount', width=100, anchor='e')
         self.income_tree.column('Start Date', width=100, anchor='center')
@@ -244,10 +251,10 @@ class SettingsTab:
         tree_frame.pack(fill='both', expand=True)
 
         self.fixed_costs_tree = ttk.Treeview(tree_frame, columns=('Description', 'Amount', 'Start Date', 'End Date'), show='headings', height=10)
-        self.fixed_costs_tree.heading('Description', text='Description')
-        self.fixed_costs_tree.heading('Amount', text='Amount (€)')
-        self.fixed_costs_tree.heading('Start Date', text='Start Date')
-        self.fixed_costs_tree.heading('End Date', text='End Date')
+        self.fixed_costs_tree.heading('Description', text='Description', command=lambda: self.sort_fixed_costs_by_column('Description'))
+        self.fixed_costs_tree.heading('Amount', text='Amount (€)', command=lambda: self.sort_fixed_costs_by_column('Amount'))
+        self.fixed_costs_tree.heading('Start Date', text='Start Date', command=lambda: self.sort_fixed_costs_by_column('Start Date'))
+        self.fixed_costs_tree.heading('End Date', text='End Date', command=lambda: self.sort_fixed_costs_by_column('End Date'))
         self.fixed_costs_tree.column('Description', width=200)
         self.fixed_costs_tree.column('Amount', width=100, anchor='e')
         self.fixed_costs_tree.column('Start Date', width=120, anchor='center')
@@ -637,10 +644,25 @@ class SettingsTab:
             return
         for i in self.fixed_costs_tree.get_children():
             self.fixed_costs_tree.delete(i)
-        for cost in self.state.budget_settings.get('fixed_costs', []):
+
+        costs = list(self.state.budget_settings.get('fixed_costs', []))
+        if self._fixed_costs_current_sort:
+            column, direction = self._fixed_costs_current_sort
+            reverse = (direction == 'descending')
+            if column == 'Amount':
+                costs.sort(key=lambda x: float(x.get('amount', 0.0)), reverse=reverse)
+            elif column == 'Description':
+                costs.sort(key=lambda x: (x.get('desc') or '').lower(), reverse=reverse)
+            elif column == 'Start Date':
+                costs.sort(key=lambda x: x.get('start_date') or '2000-01-01', reverse=reverse)
+            elif column == 'End Date':
+                # Treat Active/None as far future so they group together consistently
+                costs.sort(key=lambda x: x.get('end_date') or '9999-12-31', reverse=reverse)
+
+        for cost in costs:
             end_date_display = cost.get('end_date', 'Active') or 'Active'
             self.fixed_costs_tree.insert('', 'end', values=(
-                cost['desc'], 
+                cost['desc'],
                 f"{cost['amount']:.2f}",
                 cost.get('start_date', '2000-01-01'),
                 end_date_display
@@ -797,15 +819,63 @@ class SettingsTab:
         if isinstance(income_data, (int, float)):
              income_data = [] # Should have been migrated by state load, but be safe
         
-        for inc in income_data:
+
+        income_rows = list(income_data)
+        if self._income_current_sort:
+            column, direction = self._income_current_sort
+            reverse = (direction == 'descending')
+            if column == 'Amount':
+                income_rows.sort(key=lambda x: float(x.get('amount', 0.0)), reverse=reverse)
+            elif column == 'Description':
+                income_rows.sort(key=lambda x: (x.get('description') or 'Base Income').lower(), reverse=reverse)
+            elif column == 'Start Date':
+                income_rows.sort(key=lambda x: x.get('start_date') or '2000-01-01', reverse=reverse)
+            elif column == 'End Date':
+                income_rows.sort(key=lambda x: x.get('end_date') or '9999-12-31', reverse=reverse)
+
+        for inc in income_rows:
             end_date_display = inc.get('end_date') or 'Active'
             start_date_display = inc.get('start_date') or '2000-01-01'
             self.income_tree.insert('', 'end', values=(
-                inc.get('description', 'Base Income'), 
+                inc.get('description', 'Base Income'),
                 f"{inc.get('amount', 0):.2f}",
                 start_date_display,
                 end_date_display
             ))
+
+    def sort_income_by_column(self, column: str):
+        current_state = self._income_sort_state.get(column, 'none')
+        if column == 'Amount':
+            if current_state == 'none' or current_state == 'ascending':
+                new_direction = 'descending'
+            else:
+                new_direction = 'ascending'
+        else:
+            if current_state == 'none' or current_state == 'descending':
+                new_direction = 'ascending'
+            else:
+                new_direction = 'descending'
+
+        self._income_sort_state[column] = new_direction
+        self._income_current_sort = (column, new_direction)
+        self.refresh_income_tree()
+
+    def sort_fixed_costs_by_column(self, column: str):
+        current_state = self._fixed_costs_sort_state.get(column, 'none')
+        if column == 'Amount':
+            if current_state == 'none' or current_state == 'ascending':
+                new_direction = 'descending'
+            else:
+                new_direction = 'ascending'
+        else:
+            if current_state == 'none' or current_state == 'descending':
+                new_direction = 'ascending'
+            else:
+                new_direction = 'descending'
+
+        self._fixed_costs_sort_state[column] = new_direction
+        self._fixed_costs_current_sort = (column, new_direction)
+        self.refresh_fixed_costs_tree()
 
     def _validate_income_input(self):
         desc = self.inc_desc_entry.get().strip()
