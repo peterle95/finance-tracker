@@ -11,6 +11,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
+import math
 from datetime import datetime
 import calendar
 
@@ -457,22 +458,82 @@ def create_pie_figure(labels, sizes, title, value_type="Total"):
     fig = Figure(figsize=(8, 6), dpi=100)
     ax = fig.add_subplot(111)
 
-    if value_type == "Percentage":
-        autopct = '%1.1f%%'
-    else:
-        def absolute_value(val):
-            a = (val / 100.0) * sum(sizes)
-            return f'€{a:.2f}'
-        autopct = absolute_value
+    total = sum(sizes) if sizes else 0
+    wedges, _ = ax.pie(sizes, startangle=140, labels=None)
 
-    wedges, texts, autotexts = ax.pie(sizes, autopct=autopct, startangle=140, textprops=dict(color="w"))
+    # Value callouts (leader lines) with collision avoidance
+    label_items = []
+    for i, w in enumerate(wedges):
+        angle = (w.theta2 + w.theta1) / 2.0
+        x = math.cos(math.radians(angle))
+        y = math.sin(math.radians(angle))
+        side = 1 if x >= 0 else -1
+
+        if value_type == "Percentage":
+            pct = (sizes[i] / total) * 100 if total else 0
+            label = f"{pct:.1f}%"
+        else:
+            label = f"€{sizes[i]:.2f}"
+
+        label_items.append({
+            'label': label,
+            'side': side,
+            'xy': (x * 0.72, y * 0.72),
+            'y': y,
+        })
+
+    def _spread(items):
+        if not items:
+            return
+        items.sort(key=lambda it: it['y'])
+        min_sep = 0.085
+        y_min, y_max = -1.15, 1.15
+
+        # Forward pass
+        cur = max(items[0]['y'], y_min)
+        items[0]['y_adj'] = cur
+        for it in items[1:]:
+            cur = max(it['y'], cur + min_sep)
+            it['y_adj'] = cur
+
+        # If we overflow the top, shift down
+        overflow = items[-1]['y_adj'] - y_max
+        if overflow > 0:
+            for it in items:
+                it['y_adj'] -= overflow
+
+        # Backward pass (to maintain spacing after shift)
+        cur = min(items[-1]['y_adj'], y_max)
+        items[-1]['y_adj'] = cur
+        for it in reversed(items[:-1]):
+            cur = min(it['y_adj'], cur - min_sep)
+            it['y_adj'] = max(cur, y_min)
+
+    left = [it for it in label_items if it['side'] == -1]
+    right = [it for it in label_items if it['side'] == 1]
+    _spread(left)
+    _spread(right)
+
+    x_text = 1.35
+    for it in left + right:
+        xt = x_text * it['side']
+        yt = it.get('y_adj', it['y'])
+        ax.annotate(
+            it['label'],
+            xy=it['xy'],
+            xytext=(xt, yt),
+            ha='left' if it['side'] == 1 else 'right',
+            va='center',
+            arrowprops=dict(arrowstyle='-', connectionstyle='angle3', color='black', lw=0.8),
+            fontsize=8,
+            bbox=dict(boxstyle='round,pad=0.15', facecolor='white', edgecolor='none', alpha=0.9),
+        )
+
     ax.axis('equal')
     ax.set_title(title)
     
     # Improved legend placement
     ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
-
-    plt.setp(autotexts, size=8, weight="bold")
 
     fig.tight_layout()
     return fig
