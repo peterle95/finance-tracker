@@ -4,9 +4,21 @@ finance_tracker/services/report_builder.py
 Service for preparing data for various financial reports and charts.
 """
 
-from datetime import date
+from datetime import date, datetime
 from dateutil.relativedelta import relativedelta
 from .budget_calculator import get_active_fixed_costs, get_active_monthly_income
+
+def _month_range(start_month: str, end_month: str) -> list[str]:
+    start = datetime.strptime(start_month + "-01", "%Y-%m-%d").date()
+    end = datetime.strptime(end_month + "-01", "%Y-%m-%d").date()
+    if start > end:
+        start, end = end, start
+    months = []
+    cur = start
+    while cur <= end:
+        months.append(cur.strftime("%Y-%m"))
+        cur = cur + relativedelta(months=1)
+    return months
 
 def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, include_base_income: bool):
     if chart_type == "Expense":
@@ -28,6 +40,40 @@ def pie_data(state, month_str: str, chart_type: str, include_fixed: bool, includ
 
     for item in data:
         if item['date'].startswith(month_str):
+            category_totals[item['category']] = category_totals.get(item['category'], 0) + item['amount']
+
+    return title, category_totals
+
+def pie_data_range(state, start_month_str: str, end_month_str: str, chart_type: str, include_fixed: bool, include_base_income: bool):
+    months = _month_range(start_month_str, end_month_str)
+    if not months:
+        return "", {}
+
+    if chart_type == "Expense":
+        data = state.expenses
+        title = f"Expenses for {months[0]} to {months[-1]}"
+        category_totals = {}
+        if include_fixed:
+            total_fc = 0.0
+            for m in months:
+                total_fc += sum(fc['amount'] for fc in get_active_fixed_costs(state, m))
+            if total_fc > 0:
+                category_totals["Fixed Costs"] = total_fc
+    else:
+        data = state.incomes
+        title = f"Incomes for {months[0]} to {months[-1]}"
+        category_totals = {}
+        if include_base_income:
+            total_base_income = 0.0
+            for m in months:
+                total_base_income += get_active_monthly_income(state, m)
+            if total_base_income > 0:
+                category_totals["Base Income"] = total_base_income
+
+    month_set = set(months)
+    for item in data:
+        month = item['date'][:7]
+        if month in month_set:
             category_totals[item['category']] = category_totals.get(item['category'], 0) + item['amount']
 
     return title, category_totals
