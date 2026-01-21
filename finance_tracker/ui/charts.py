@@ -459,7 +459,14 @@ def create_pie_figure(labels, sizes, title, value_type="Total"):
     ax = fig.add_subplot(111)
 
     total = sum(sizes) if sizes else 0
-    wedges, _ = ax.pie(sizes, startangle=140, labels=None)
+    n = len(sizes)
+    if n <= 20:
+        cmap = plt.cm.get_cmap('tab20', n)
+    else:
+        cmap = plt.cm.get_cmap('hsv', n)
+    colors = [cmap(i) for i in range(n)]
+
+    wedges, _ = ax.pie(sizes, startangle=140, labels=None, colors=colors)
 
     # Value callouts (leader lines) with collision avoidance
     label_items = []
