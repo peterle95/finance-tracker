@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from ...services.report_builder import pie_data, history_data
+from ...services.report_builder import pie_data, pie_data_range, history_data
 from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
 from ..charts import create_bar_figure, create_pie_figure
 
@@ -53,11 +53,28 @@ class ReportsTab:
         # Pie controls
         self.pie_controls = ttk.Frame(top)
         self.pie_controls.pack(side='left', padx=(0, 15))
+        self.pie_period_var = tk.StringVar(value="Month")
+        ttk.Radiobutton(self.pie_controls, text="Month", variable=self.pie_period_var, value="Month",
+                        command=self._toggle_pie_period_controls).pack(side='left')
+        ttk.Radiobutton(self.pie_controls, text="Range", variable=self.pie_period_var, value="Range",
+                        command=self._toggle_pie_period_controls).pack(side='left', padx=(5, 10))
+
         ttk.Label(self.pie_controls, text="Select Month:").pack(side='left')
-        self.month_entry = ttk.Entry(self.pie_controls, width=15)
+        self.month_entry = ttk.Entry(self.pie_controls, width=10)
         from datetime import datetime
         self.month_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.month_entry.pack(side='left', padx=5)
+
+        ttk.Label(self.pie_controls, text="From:").pack(side='left', padx=(10, 0))
+        self.range_start_entry = ttk.Entry(self.pie_controls, width=10)
+        self.range_start_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.range_start_entry.pack(side='left', padx=5)
+
+        ttk.Label(self.pie_controls, text="To:").pack(side='left')
+        self.range_end_entry = ttk.Entry(self.pie_controls, width=10)
+        self.range_end_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.range_end_entry.pack(side='left', padx=5)
+
         ttk.Label(self.pie_controls, text="Display As:").pack(side='left', padx=(10, 0))
         self.value_type_var = tk.StringVar(value="Total")
         ttk.Radiobutton(self.pie_controls, text="%", variable=self.value_type_var, value="Percentage").pack(side='left')
@@ -103,6 +120,7 @@ class ReportsTab:
         self.info_text.pack(fill='both', expand=True)
 
         self._toggle_controls()
+        self._toggle_pie_period_controls()
 
     def _toggle_controls(self):
         s = self.style_var.get()
@@ -129,6 +147,12 @@ class ReportsTab:
             self.fixed_check.pack()
         else:
             self.base_check.pack()
+
+    def _toggle_pie_period_controls(self):
+        is_range = self.pie_period_var.get() == "Range"
+        self.month_entry.configure(state='disabled' if is_range else 'normal')
+        self.range_start_entry.configure(state='normal' if is_range else 'disabled')
+        self.range_end_entry.configure(state='normal' if is_range else 'disabled')
 
     def generate(self):
         if self.canvas:
@@ -357,21 +381,34 @@ class ReportsTab:
                 self._render_bar_chart()
 
     def _make_pie(self):
-        month = self.month_entry.get()
-        title, totals = pie_data(
-            self.state, month, self.chart_type_var.get(),
-            include_fixed=self.include_fixed_var.get(),
-            include_base_income=self.include_base_var.get()
-        )
+        is_range = self.pie_period_var.get() == "Range"
+        if is_range:
+            start_month = self.range_start_entry.get()
+            end_month = self.range_end_entry.get()
+            title, totals = pie_data_range(
+                self.state, start_month, end_month, self.chart_type_var.get(),
+                include_fixed=self.include_fixed_var.get(),
+                include_base_income=self.include_base_var.get()
+            )
+        else:
+            month = self.month_entry.get()
+            title, totals = pie_data(
+                self.state, month, self.chart_type_var.get(),
+                include_fixed=self.include_fixed_var.get(),
+                include_base_income=self.include_base_var.get()
+            )
         if not totals:
             from tkinter import messagebox
-            messagebox.showinfo("No Data", f"No data to display for {month}.")
+            if is_range:
+                messagebox.showinfo("No Data", "No data to display for the selected range.")
+            else:
+                messagebox.showinfo("No Data", f"No data to display for {month}.")
             return
         labels = list(totals.keys())
         sizes = list(totals.values())
 
         budget_info = []
-        if self.show_budget_lines_var.get() and self.chart_type_var.get() == "Expense":
+        if (not is_range) and self.show_budget_lines_var.get() and self.chart_type_var.get() == "Expense":
             expense_budgets = self.state.budget_settings.get('category_budgets', {}).get('Expense', {})
             nav = compute_net_available_for_spending(self.state, month)
             for cat in labels:
