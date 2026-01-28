@@ -106,12 +106,26 @@ class NetWorthTab:
         # Right - Snapshots list
         right_frame = ttk.LabelFrame(content, text="Snapshot History", padding="10")
         right_frame.grid(row=0, column=1, sticky='nsew', padx=(5, 0))
-        right_frame.rowconfigure(0, weight=1)
+        right_frame.rowconfigure(1, weight=1)
         right_frame.columnconfigure(0, weight=1)
+        
+        # Difference calculation options
+        diff_frame = ttk.Frame(right_frame)
+        diff_frame.grid(row=0, column=0, sticky='ew', pady=(0, 5))
+        
+        ttk.Label(diff_frame, text="Show change:").pack(side='left', padx=(0, 5))
+        
+        self.diff_calc_var = tk.StringVar(value="month_by_month")
+        ttk.Radiobutton(diff_frame, text="Month by month", 
+                       variable=self.diff_calc_var, value="month_by_month",
+                       command=self.refresh_snapshots_tree).pack(side='left', padx=2)
+        ttk.Radiobutton(diff_frame, text="From beginning", 
+                       variable=self.diff_calc_var, value="from_beginning",
+                       command=self.refresh_snapshots_tree).pack(side='left', padx=2)
         
         # Snapshots tree
         tree_frame = ttk.Frame(right_frame)
-        tree_frame.grid(row=0, column=0, sticky='nsew')
+        tree_frame.grid(row=1, column=0, sticky='nsew')
         tree_frame.rowconfigure(0, weight=1)
         tree_frame.columnconfigure(0, weight=1)
         
@@ -133,7 +147,7 @@ class NetWorthTab:
         
         # Buttons
         button_frame = ttk.Frame(right_frame)
-        button_frame.grid(row=1, column=0, sticky='ew', pady=(10, 0))
+        button_frame.grid(row=2, column=0, sticky='ew', pady=(10, 0))
         
         ttk.Button(button_frame, text="Delete Selected", 
                   command=self.delete_selected_snapshot).pack(side='left', padx=5)
@@ -178,18 +192,31 @@ class NetWorthTab:
             self.snapshots_tree.delete(item)
         
         snapshots = get_asset_snapshots(self.state)
+        diff_method = self.diff_calc_var.get()
         
         for i, snapshot in enumerate(snapshots):
             net_worth = snapshot['net_worth']
             
-            # Calculate change from previous
-            if i > 0:
-                prev_net_worth = snapshots[i-1]['net_worth']
-                change = net_worth - prev_net_worth
-                sign = "+" if change >= 0 else ""
-                change_str = f"{sign}€{change:,.2f}"
-            else:
-                change_str = "—"
+            # Calculate change based on selected method
+            if diff_method == "month_by_month":
+                # Change from previous month
+                if i > 0:
+                    prev_net_worth = snapshots[i-1]['net_worth']
+                    change = net_worth - prev_net_worth
+                    sign = "+" if change >= 0 else ""
+                    change_str = f"{sign}€{change:,.2f}"
+                else:
+                    change_str = "—"
+                    
+            elif diff_method == "from_beginning":
+                # Change from the first snapshot
+                if i > 0:
+                    first_net_worth = snapshots[0]['net_worth']
+                    change = net_worth - first_net_worth
+                    sign = "+" if change >= 0 else ""
+                    change_str = f"{sign}€{change:,.2f}"
+                else:
+                    change_str = "—"
             
             self.snapshots_tree.insert('', 'end', values=(
                 snapshot['date'],
