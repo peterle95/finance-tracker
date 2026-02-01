@@ -24,8 +24,8 @@ class ShortcutManager:
         self.root.bind('<Control-A>', self._shortcut_add_transaction)
         
         # Navigation Shortcuts - Tabs
-        self.root.bind('<Control-v>', lambda e: self._switch_to_tab(1))
-        self.root.bind('<Control-V>', lambda e: self._switch_to_tab(1))
+        self.root.bind('<Control-t>', lambda e: self._switch_to_tab(1))
+        self.root.bind('<Control-T>', lambda e: self._switch_to_tab(1))
         self.root.bind('<Control-r>', lambda e: self._switch_to_tab(2))
         self.root.bind('<Control-R>', lambda e: self._switch_to_tab(2))
         self.root.bind('<Control-b>', lambda e: self._switch_to_tab(3))

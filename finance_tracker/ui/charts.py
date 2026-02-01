@@ -127,6 +127,11 @@ def create_budget_depletion_figure(state, month_str: str):
     ax.set_xlabel('Date')
     ax.set_ylabel('Amount (€)')
     
+    # Explicitly set x-axis limits to the full month to prevent auto-scaling issues on the 1st
+    month_start = datetime(year, month, 1).date()
+    month_end = datetime(year, month, days_in_month).date()
+    ax.set_xlim(month_start, month_end)
+    
     # Format y-axis
     ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
     
