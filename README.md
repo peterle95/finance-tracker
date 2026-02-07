@@ -10,6 +10,7 @@ A simple command-line finance tracker application built with Python.
 - **Categorize Transactions:** Assign categories to your transactions for better organization.
 - **Filter Transactions:** View transactions by type (income/expense) or category.
 - **Data Persistence:** All transactions are saved to a CSV file, so your data is not lost when the application closes.
+- **AI Insights (Optional):** Connect an AI API to generate insights and advice based on your recorded data.
 
 ## Installation
 
