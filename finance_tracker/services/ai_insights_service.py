@@ -94,22 +94,55 @@ def build_insights_prompt(state, month_str: str, months_back: int) -> list[dict[
     ]
 
 
+def build_chat_messages(
+    state,
+    month_str: str,
+    months_back: int,
+    chat_history: list[dict[str, str]],
+    user_message: str,
+) -> list[dict[str, str]]:
+    months = _month_list(month_str, months_back)
+    summary = _aggregate_transactions(state, months)
+
+    system_prompt = (
+        "You are a financial coach. Use the provided summary to answer questions with clear, "
+        "actionable advice grounded in the user's data."
+    )
+    summary_prompt = (
+        "Context summary JSON (use this as the source of truth for the user's finances):\n"
+        f"{json.dumps(summary, indent=2)}"
+    )
+
+    messages = [
+        {"role": "system", "content": system_prompt},
+        {"role": "user", "content": summary_prompt},
+    ]
+    messages.extend(chat_history)
+    messages.append({"role": "user", "content": user_message})
+    return messages
+
+
 def request_ai_insights(config: AIConfig, messages: list[dict[str, str]]) -> str:
     if config.provider == "google":
         system_text = " ".join(
             message.get("content", "") for message in messages if message.get("role") == "system"
         ).strip()
-        user_text = "\n\n".join(
-            message.get("content", "") for message in messages if message.get("role") == "user"
-        ).strip()
+        contents = []
+        for message in messages:
+            role = message.get("role")
+            if role == "system":
+                continue
+            if role == "assistant":
+                role = "model"
+            contents.append(
+                {
+                    "role": role,
+                    "parts": [{"text": message.get("content", "")}],
+                }
+            )
 
         payload = {
-            "contents": [
-                {
-                    "role": "user",
-                    "parts": [{"text": user_text}],
-                }
-            ],
+            "contents": contents,
             "generationConfig": {"temperature": 0.3},
         }
         if system_text:
