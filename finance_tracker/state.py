@@ -67,6 +67,7 @@ class AppState:
         bs.setdefault("money_lent_balance", 0)
         bs.setdefault("category_budgets", {"Expense": {}, "Income": {}})
         bs.setdefault("loans", [])  # Each loan: {"id": str, "borrower": str, "amount": float, "description": str, "date": str}
+        bs.setdefault("ai_settings", {"api_key": ""})
 
         # Migrate fixed costs to include start_date and end_date
         for fc in bs.get("fixed_costs", []):

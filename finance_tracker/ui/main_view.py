@@ -19,6 +19,7 @@ from .tabs.budgets_tab import BudgetsTab
 from .tabs.projection_tab import ProjectionTab
 from .tabs.goals_tab import GoalsTab
 from .tabs.net_worth_tab import NetWorthTab
+from .tabs.ai_insights_tab import AIInsightsTab
 
 class MainView:
     def __init__(self, root, state):
@@ -77,6 +78,7 @@ class MainView:
         self.goals_tab = GoalsTab(self.notebook, self.state)
         self.net_worth_tab = NetWorthTab(self.notebook, self.state)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
+        self.ai_insights_tab = AIInsightsTab(self.notebook, self.state)
         
         # Setup keyboard shortcuts
         self.shortcut_manager = ShortcutManager(self)
