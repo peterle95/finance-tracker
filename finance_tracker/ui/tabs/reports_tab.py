@@ -8,9 +8,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from ...services.report_builder import pie_data, pie_data_range, history_data
+from ...services.report_builder import pie_data, pie_data_range, history_data, line_expense_category_range
 from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
-from ..charts import create_bar_figure, create_pie_figure
+from ..charts import create_bar_figure, create_pie_figure, create_line_figure
 
 class ReportsTab:
     def __init__(self, notebook, state):
@@ -35,10 +35,14 @@ class ReportsTab:
         style_frame.pack(side='left', padx=(0, 20))
         ttk.Label(style_frame, text="Chart Style:").pack(side='left')
         self.style_var = tk.StringVar(value="Pie Chart")
-        ttk.Radiobutton(style_frame, text="Pie Chart", variable=self.style_var, value="Pie Chart",
-                        command=self._toggle_controls).pack(anchor='w')
-        ttk.Radiobutton(style_frame, text="Historical Bar Chart", variable=self.style_var, value="Bar Chart",
-                        command=self._toggle_controls).pack(anchor='w')
+        self.style_menu = ttk.Combobox(
+            style_frame,
+            textvariable=self.style_var,
+            state="readonly",
+            values=("Pie Chart", "Historical Bar Chart", "Line Chart")
+        )
+        self.style_menu.pack(side='left', padx=5)
+        self.style_menu.bind("<<ComboboxSelected>>", lambda _event: self._toggle_controls())
 
         # Data type
         type_frame = ttk.Frame(top)
@@ -62,17 +66,22 @@ class ReportsTab:
         ttk.Label(self.pie_controls, text="Select Month:").pack(side='left')
         self.month_entry = ttk.Entry(self.pie_controls, width=10)
         from datetime import datetime
-        self.month_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        from dateutil.relativedelta import relativedelta
+        now = datetime.now()
+        three_months_ago = (now - relativedelta(months=3)).strftime("%Y-%m")
+        current_month = now.strftime("%Y-%m")
+        
+        self.month_entry.insert(0, current_month)
         self.month_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="From:").pack(side='left', padx=(10, 0))
         self.range_start_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_start_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.range_start_entry.insert(0, three_months_ago)
         self.range_start_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="To:").pack(side='left')
         self.range_end_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_end_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.range_end_entry.insert(0, current_month)
         self.range_end_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="Display As:").pack(side='left', padx=(10, 0))
@@ -80,12 +89,37 @@ class ReportsTab:
         ttk.Radiobutton(self.pie_controls, text="%", variable=self.value_type_var, value="Percentage").pack(side='left')
         ttk.Radiobutton(self.pie_controls, text="€", variable=self.value_type_var, value="Total").pack(side='left', padx=5)
 
+        self.sort_pie_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.pie_controls, text="Sort by Value", variable=self.sort_pie_var).pack(side='left', padx=(10, 0))
+
         # Bar controls
         self.bar_controls = ttk.Frame(top)
         ttk.Label(self.bar_controls, text="Number of Months:").pack(side='left')
         self.months_entry = ttk.Entry(self.bar_controls, width=10)
         self.months_entry.insert(0, "6")
         self.months_entry.pack(side='left', padx=5)
+        self.show_bar_labels_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.bar_controls, text="Show Bar Labels", variable=self.show_bar_labels_var).pack(side='left', padx=(10, 0))
+
+        # Line controls
+        self.line_controls = ttk.Frame(top)
+        ttk.Label(self.line_controls, text="Range:").pack(side='left')
+        self.line_start_entry = ttk.Entry(self.line_controls, width=10)
+        self.line_start_entry.insert(0, three_months_ago)
+        self.line_start_entry.pack(side='left', padx=5)
+        ttk.Label(self.line_controls, text="to").pack(side='left')
+        self.line_end_entry = ttk.Entry(self.line_controls, width=10)
+        self.line_end_entry.insert(0, current_month)
+        self.line_end_entry.pack(side='left', padx=5)
+        
+        # Category selector button and selected categories set
+        self.selected_categories = set()
+        self.category_button = ttk.Button(
+            self.line_controls,
+            text="Categories (0)",
+            command=self._open_category_selector
+        )
+        self.category_button.pack(side='left', padx=(10, 5))
 
         bottom = ttk.Frame(controls)
         bottom.pack(fill='x', expand=True)
@@ -126,6 +160,7 @@ class ReportsTab:
         s = self.style_var.get()
         self.pie_controls.pack_forget()
         self.bar_controls.pack_forget()
+        self.line_controls.pack_forget()
         self.budget_lines_check.pack_forget()
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
@@ -133,11 +168,16 @@ class ReportsTab:
             self._update_info_panel([])
             self.paned.pane(self.chart_frame, weight=110)
             self.paned.pane(self.info_frame, weight=1)
-        else:
+        elif s == "Historical Bar Chart":
             self.bar_controls.pack(side='left', padx=(0, 15))
             self._update_info_panel(["Click on chart to toggle: Total → Categories → Flexible → Over/Under view", 
                                    "Right-click to toggle: Value/Percentage display"], title="Instructions")
             self.paned.pane(self.chart_frame, weight=90)
+            self.paned.pane(self.info_frame, weight=1)
+        else:
+            self.line_controls.pack(side='left', padx=(0, 15))
+            self._update_info_panel(["Click 'Categories' to select which expense categories to display."], title="Line Chart")
+            self.paned.pane(self.chart_frame, weight=95)
             self.paned.pane(self.info_frame, weight=1)
 
     def _toggle_fixed_controls(self):
@@ -154,6 +194,88 @@ class ReportsTab:
         self.range_start_entry.configure(state='normal' if is_range else 'disabled')
         self.range_end_entry.configure(state='normal' if is_range else 'disabled')
 
+    def _open_category_selector(self):
+        """Open a modal dialog to select categories for the line chart."""
+        categories = self.state.categories.get("Expense", [])
+        
+        # Create modal dialog
+        dialog = tk.Toplevel(self.line_controls.winfo_toplevel())
+        dialog.title("Select Categories")
+        dialog.transient(self.line_controls.winfo_toplevel())
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.geometry("500x500")
+        dialog.minsize(400, 350)
+        dialog.resizable(True, True)
+        
+        # Main frame with padding
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill='both', expand=True)
+        
+        # Instructions label at the top
+        ttk.Label(main_frame, text="Select categories to display:").pack(anchor='w', side='top', pady=(0, 10))
+        
+        # Button frame at the bottom (packed FIRST with side='bottom' to reserve space)
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', side='bottom', pady=(10, 0))
+        
+        # Scrollable area in the middle
+        container = ttk.Frame(main_frame)
+        container.pack(fill='both', expand=True)
+        
+        canvas = tk.Canvas(container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Create checkbox variables
+        checkbox_vars = {}
+        for cat in categories:
+            var = tk.BooleanVar(value=(cat in self.selected_categories))
+            checkbox_vars[cat] = var
+            cb = ttk.Checkbutton(scrollable_frame, text=cat, variable=var)
+            cb.pack(anchor='w', pady=2, padx=5)
+        
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        def select_all():
+            for var in checkbox_vars.values():
+                var.set(True)
+        
+        def deselect_all():
+            for var in checkbox_vars.values():
+                var.set(False)
+        
+        def on_ok():
+            self.selected_categories = {cat for cat, var in checkbox_vars.items() if var.get()}
+            self._update_category_button_text()
+            dialog.destroy()
+        
+        def on_cancel():
+            dialog.destroy()
+        
+        ttk.Button(button_frame, text="Select All", command=select_all).pack(side='left', padx=(0, 5))
+        ttk.Button(button_frame, text="Deselect All", command=deselect_all).pack(side='left')
+        ttk.Button(button_frame, text="Cancel", command=on_cancel).pack(side='right', padx=(5, 0))
+        ttk.Button(button_frame, text="OK", command=on_ok).pack(side='right')
+        
+        # Wait for dialog to close
+        dialog.wait_window()
+    
+    def _update_category_button_text(self):
+        """Update the category button text to show selection count."""
+        count = len(self.selected_categories)
+        self.category_button.config(text=f"Categories ({count})")
+
     def generate(self):
         if self.canvas:
             self.canvas.get_tk_widget().destroy()
@@ -161,11 +283,13 @@ class ReportsTab:
         style = self.style_var.get()
         if style == "Pie Chart":
             self._make_pie()
-        else:
+        elif style == "Historical Bar Chart":
             # Reset to defaults when generating new chart
             self.bar_breakdown_mode = "total"
             self.bar_display_mode = "value"
             self._make_bar()
+        else:
+            self._make_line()
 
     def _update_info_panel(self, lines, title="Details"):
         self.info_frame.config(text=title)
@@ -239,7 +363,8 @@ class ReportsTab:
         fig = create_bar_figure(labels, values, title, 
                               breakdown_mode=self.bar_breakdown_mode,
                               display_mode=self.bar_display_mode,
-                              category_data=category_data)
+                              category_data=category_data,
+                              show_bar_labels=self.show_bar_labels_var.get())
         
         if not fig:
             return
@@ -406,6 +531,14 @@ class ReportsTab:
             return
         labels = list(totals.keys())
         sizes = list(totals.values())
+        if self.sort_pie_var.get():
+            sorted_items = sorted(zip(labels, sizes), key=lambda item: item[1], reverse=True)
+            if sorted_items:
+                labels, sizes = zip(*sorted_items)
+                labels = list(labels)
+                sizes = list(sizes)
+            else:
+                labels, sizes = [], []
 
         budget_info = []
         if (not is_range) and self.show_budget_lines_var.get() and self.chart_type_var.get() == "Expense":
@@ -428,6 +561,31 @@ class ReportsTab:
         fig = create_pie_figure(labels, sizes, title, 
                               value_type=self.value_type_var.get())
         
+        self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+
+    def _make_line(self):
+        if self.chart_type_var.get() != "Expense":
+            self.chart_type_var.set("Expense")
+            self._toggle_fixed_controls()
+
+        start_month = self.line_start_entry.get()
+        end_month = self.line_end_entry.get()
+        selected_categories = list(self.selected_categories)
+        try:
+            title, labels, category_series = line_expense_category_range(
+                self.state, start_month, end_month, selected_categories
+            )
+        except ValueError:
+            messagebox.showerror("Error", "Invalid month format. Use YYYY-MM.")
+            return
+
+        if not category_series:
+            fig = create_line_figure([], {}, "Select one or more categories to display.")
+        else:
+            fig = create_line_figure(labels, category_series, title)
+
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True)
