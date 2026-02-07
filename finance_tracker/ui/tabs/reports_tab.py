@@ -35,10 +35,14 @@ class ReportsTab:
         style_frame.pack(side='left', padx=(0, 20))
         ttk.Label(style_frame, text="Chart Style:").pack(side='left')
         self.style_var = tk.StringVar(value="Pie Chart")
-        ttk.Radiobutton(style_frame, text="Pie Chart", variable=self.style_var, value="Pie Chart",
-                        command=self._toggle_controls).pack(anchor='w')
-        ttk.Radiobutton(style_frame, text="Historical Bar Chart", variable=self.style_var, value="Bar Chart",
-                        command=self._toggle_controls).pack(anchor='w')
+        self.style_menu = ttk.Combobox(
+            style_frame,
+            textvariable=self.style_var,
+            state="readonly",
+            values=("Pie Chart", "Historical Bar Chart")
+        )
+        self.style_menu.pack(side='left', padx=5)
+        self.style_menu.bind("<<ComboboxSelected>>", lambda _event: self._toggle_controls())
 
         # Data type
         type_frame = ttk.Frame(top)
@@ -80,12 +84,17 @@ class ReportsTab:
         ttk.Radiobutton(self.pie_controls, text="%", variable=self.value_type_var, value="Percentage").pack(side='left')
         ttk.Radiobutton(self.pie_controls, text="€", variable=self.value_type_var, value="Total").pack(side='left', padx=5)
 
+        self.sort_pie_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.pie_controls, text="Sort by Value", variable=self.sort_pie_var).pack(side='left', padx=(10, 0))
+
         # Bar controls
         self.bar_controls = ttk.Frame(top)
         ttk.Label(self.bar_controls, text="Number of Months:").pack(side='left')
         self.months_entry = ttk.Entry(self.bar_controls, width=10)
         self.months_entry.insert(0, "6")
         self.months_entry.pack(side='left', padx=5)
+        self.show_bar_labels_var = tk.BooleanVar(value=False)
+        ttk.Checkbutton(self.bar_controls, text="Show Bar Labels", variable=self.show_bar_labels_var).pack(side='left', padx=(10, 0))
 
         bottom = ttk.Frame(controls)
         bottom.pack(fill='x', expand=True)
@@ -239,7 +248,8 @@ class ReportsTab:
         fig = create_bar_figure(labels, values, title, 
                               breakdown_mode=self.bar_breakdown_mode,
                               display_mode=self.bar_display_mode,
-                              category_data=category_data)
+                              category_data=category_data,
+                              show_bar_labels=self.show_bar_labels_var.get())
         
         if not fig:
             return
@@ -406,6 +416,14 @@ class ReportsTab:
             return
         labels = list(totals.keys())
         sizes = list(totals.values())
+        if self.sort_pie_var.get():
+            sorted_items = sorted(zip(labels, sizes), key=lambda item: item[1], reverse=True)
+            if sorted_items:
+                labels, sizes = zip(*sorted_items)
+                labels = list(labels)
+                sizes = list(sizes)
+            else:
+                labels, sizes = [], []
 
         budget_info = []
         if (not is_range) and self.show_budget_lines_var.get() and self.chart_type_var.get() == "Expense":

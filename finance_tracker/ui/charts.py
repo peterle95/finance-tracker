@@ -275,20 +275,33 @@ def create_breakdown_figure(snapshots):
     
     return fig
 
-def create_bar_figure(labels, values, title, breakdown_mode="total", display_mode="value", category_data=None):
+def create_bar_figure(labels, values, title, breakdown_mode="total", display_mode="value", category_data=None, show_bar_labels=False):
     """Render the bar chart based on current breakdown and display modes"""
     fig = Figure(figsize=(10, 6), dpi=100)
     ax = fig.add_subplot(111)
 
     if breakdown_mode == "total":
         # Show total bars
-        ax.bar(labels, values, label="Monthly Totals", color='steelblue')
+        bars = ax.bar(labels, values, label="Monthly Totals", color='steelblue')
 
         if len(values) > 1:
             x = np.arange(len(labels))
             slope, intercept = np.polyfit(x, values, 1)
             trend = slope * x + intercept
             ax.plot(labels, trend, color='red', linestyle='--', label='Trend Line')
+
+        if show_bar_labels:
+            for bar, value in zip(bars, values):
+                ax.annotate(
+                    f"€{value:,.0f}",
+                    xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                    xytext=(0, 4),
+                    textcoords="offset points",
+                    ha='center',
+                    va='bottom',
+                    fontsize=8,
+                    color='#333333'
+                )
 
         ax.set_title(f"{title} - Total View")
         ax.set_ylabel("Total Amount (€)")
@@ -352,6 +365,19 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
             ax.set_ylabel("Amount (€)")
             ax.set_ylabel("Amount (€)")
             ax.legend()
+            if show_bar_labels:
+                for bars, values_set in ((bars_income, income_values), (bars_costs, cost_values)):
+                    for bar, value in zip(bars, values_set):
+                        ax.annotate(
+                            f"€{value:,.0f}",
+                            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 4),
+                            textcoords="offset points",
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                            color='#333333'
+                        )
 
     elif breakdown_mode == "over_under":
         # Show grouped bars for Total Income vs Total Expenses
@@ -414,6 +440,19 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
             ax.set_title(f"Total Income vs Total Expenses")
             ax.set_ylabel("Amount (€)")
             ax.legend()
+            if show_bar_labels:
+                for bars, values_set in ((bars_income, income_values), (bars_expenses, expense_values)):
+                    for bar, value in zip(bars, values_set):
+                        ax.annotate(
+                            f"€{value:,.0f}",
+                            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 4),
+                            textcoords="offset points",
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                            color='#333333'
+                        )
 
     else:
         # Show stacked bars by category
