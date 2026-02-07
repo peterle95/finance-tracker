@@ -8,9 +8,9 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 
-from ...services.report_builder import pie_data, pie_data_range, history_data
+from ...services.report_builder import pie_data, pie_data_range, history_data, line_expense_category_range
 from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
-from ..charts import create_bar_figure, create_pie_figure
+from ..charts import create_bar_figure, create_pie_figure, create_line_figure
 
 class ReportsTab:
     def __init__(self, notebook, state):
@@ -39,7 +39,7 @@ class ReportsTab:
             style_frame,
             textvariable=self.style_var,
             state="readonly",
-            values=("Pie Chart", "Historical Bar Chart")
+            values=("Pie Chart", "Historical Bar Chart", "Line Chart")
         )
         self.style_menu.pack(side='left', padx=5)
         self.style_menu.bind("<<ComboboxSelected>>", lambda _event: self._toggle_controls())
@@ -96,6 +96,17 @@ class ReportsTab:
         self.show_bar_labels_var = tk.BooleanVar(value=False)
         ttk.Checkbutton(self.bar_controls, text="Show Bar Labels", variable=self.show_bar_labels_var).pack(side='left', padx=(10, 0))
 
+        # Line controls
+        self.line_controls = ttk.Frame(top)
+        ttk.Label(self.line_controls, text="Range:").pack(side='left')
+        self.line_start_entry = ttk.Entry(self.line_controls, width=10)
+        self.line_start_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.line_start_entry.pack(side='left', padx=5)
+        ttk.Label(self.line_controls, text="to").pack(side='left')
+        self.line_end_entry = ttk.Entry(self.line_controls, width=10)
+        self.line_end_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.line_end_entry.pack(side='left', padx=5)
+
         bottom = ttk.Frame(controls)
         bottom.pack(fill='x', expand=True)
 
@@ -135,6 +146,7 @@ class ReportsTab:
         s = self.style_var.get()
         self.pie_controls.pack_forget()
         self.bar_controls.pack_forget()
+        self.line_controls.pack_forget()
         self.budget_lines_check.pack_forget()
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
@@ -142,11 +154,16 @@ class ReportsTab:
             self._update_info_panel([])
             self.paned.pane(self.chart_frame, weight=110)
             self.paned.pane(self.info_frame, weight=1)
-        else:
+        elif s == "Historical Bar Chart":
             self.bar_controls.pack(side='left', padx=(0, 15))
             self._update_info_panel(["Click on chart to toggle: Total → Categories → Flexible → Over/Under view", 
                                    "Right-click to toggle: Value/Percentage display"], title="Instructions")
             self.paned.pane(self.chart_frame, weight=90)
+            self.paned.pane(self.info_frame, weight=1)
+        else:
+            self.line_controls.pack(side='left', padx=(0, 15))
+            self._update_info_panel(["Shows expense category totals across the selected months."], title="Line Chart")
+            self.paned.pane(self.chart_frame, weight=95)
             self.paned.pane(self.info_frame, weight=1)
 
     def _toggle_fixed_controls(self):
@@ -170,11 +187,13 @@ class ReportsTab:
         style = self.style_var.get()
         if style == "Pie Chart":
             self._make_pie()
-        else:
+        elif style == "Historical Bar Chart":
             # Reset to defaults when generating new chart
             self.bar_breakdown_mode = "total"
             self.bar_display_mode = "value"
             self._make_bar()
+        else:
+            self._make_line()
 
     def _update_info_panel(self, lines, title="Details"):
         self.info_frame.config(text=title)
@@ -446,6 +465,31 @@ class ReportsTab:
         fig = create_pie_figure(labels, sizes, title, 
                               value_type=self.value_type_var.get())
         
+        self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+
+    def _make_line(self):
+        if self.chart_type_var.get() != "Expense":
+            self.chart_type_var.set("Expense")
+            self._toggle_fixed_controls()
+
+        start_month = self.line_start_entry.get()
+        end_month = self.line_end_entry.get()
+        try:
+            title, labels, category_series = line_expense_category_range(
+                self.state, start_month, end_month
+            )
+        except ValueError:
+            messagebox.showerror("Error", "Invalid month format. Use YYYY-MM.")
+            return
+
+        if not category_series:
+            messagebox.showinfo("No Data", "No expense data to display for the selected range.")
+            return
+
+        fig = create_line_figure(labels, category_series, title)
+
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
         self.canvas.get_tk_widget().pack(fill='both', expand=True)

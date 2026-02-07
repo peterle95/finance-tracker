@@ -588,4 +588,30 @@ def create_pie_figure(labels, sizes, title, value_type="Total"):
 
     fig.tight_layout()
     return fig
+
+def create_line_figure(labels, category_series, title):
+    """Generate line chart for category trends over time."""
+    fig = Figure(figsize=(10, 6), dpi=100)
+    ax = fig.add_subplot(111)
+
+    if not labels or not category_series:
+        ax.text(0.5, 0.5, "No data available for the selected range.",
+                ha='center', va='center', transform=ax.transAxes)
+        return fig
+
+    categories = list(category_series.keys())
+    cmap = plt.get_cmap('tab20', max(len(categories), 1))
+
+    for idx, category in enumerate(categories):
+        ax.plot(labels, category_series[category], label=category, color=cmap(idx), marker='o', linewidth=2)
+
+    ax.set_title(title)
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Amount (€)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
+    fig.autofmt_xdate(rotation=45)
+    fig.tight_layout()
+    return fig
  

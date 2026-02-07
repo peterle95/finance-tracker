@@ -114,3 +114,27 @@ def history_data(state, num_months: int, chart_type: str, include_fixed: bool, i
     labels = list(monthly_totals.keys())
     values = list(monthly_totals.values())
     return title, labels, values
+
+def line_expense_category_range(state, start_month_str: str, end_month_str: str):
+    months = _month_range(start_month_str, end_month_str)
+    if not months:
+        return "", [], {}
+
+    title = f"Expense Categories from {months[0]} to {months[-1]}"
+    categories = state.categories.get("Expense", [])
+    category_series = {category: [0.0] * len(months) for category in categories}
+
+    month_index = {month: idx for idx, month in enumerate(months)}
+    for item in state.expenses:
+        month = item['date'][:7]
+        if month in month_index:
+            category = item['category']
+            if category not in category_series:
+                category_series[category] = [0.0] * len(months)
+            category_series[category][month_index[month]] += item['amount']
+
+    has_data = any(sum(values) > 0 for values in category_series.values())
+    if not has_data:
+        return title, months, {}
+
+    return title, months, category_series
