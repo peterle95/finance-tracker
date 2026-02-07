@@ -57,11 +57,11 @@ class AIInsightsTab:
             command=self._persist_api_key,
         ).grid(row=3, column=1, sticky="w", pady=(0, 5))
 
-        self._apply_preset()
-
-        ttk.Button(main, text="Generate Insights", command=self.open_insights_window).grid(
-            row=0, column=0, sticky="e", pady=(0, 10)
+        ttk.Button(settings, text="Generate Insights", command=self.open_insights_window).grid(
+            row=4, column=1, sticky="e", pady=(5, 0)
         )
+
+        self._apply_preset()
 
         chat_frame = ttk.LabelFrame(main, text="Ask the AI", padding="10")
         chat_frame.grid(row=1, column=0, sticky="nsew")
