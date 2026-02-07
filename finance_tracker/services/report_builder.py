@@ -130,9 +130,9 @@ def line_expense_category_range(state, start_month_str: str, end_month_str: str,
         month = item['date'][:7]
         if month in month_index:
             category = item['category']
-            if category not in category_series:
-                category_series[category] = [0.0] * len(months)
-            category_series[category][month_index[month]] += item['amount']
+            # Only include categories that were selected
+            if category in category_series:
+                category_series[category][month_index[month]] += item['amount']
 
     has_data = any(sum(values) > 0 for values in category_series.values())
     if not has_data:

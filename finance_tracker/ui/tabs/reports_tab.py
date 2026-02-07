@@ -66,17 +66,22 @@ class ReportsTab:
         ttk.Label(self.pie_controls, text="Select Month:").pack(side='left')
         self.month_entry = ttk.Entry(self.pie_controls, width=10)
         from datetime import datetime
-        self.month_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        from dateutil.relativedelta import relativedelta
+        now = datetime.now()
+        three_months_ago = (now - relativedelta(months=3)).strftime("%Y-%m")
+        current_month = now.strftime("%Y-%m")
+        
+        self.month_entry.insert(0, current_month)
         self.month_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="From:").pack(side='left', padx=(10, 0))
         self.range_start_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_start_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.range_start_entry.insert(0, three_months_ago)
         self.range_start_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="To:").pack(side='left')
         self.range_end_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_end_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.range_end_entry.insert(0, current_month)
         self.range_end_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="Display As:").pack(side='left', padx=(10, 0))
@@ -100,21 +105,21 @@ class ReportsTab:
         self.line_controls = ttk.Frame(top)
         ttk.Label(self.line_controls, text="Range:").pack(side='left')
         self.line_start_entry = ttk.Entry(self.line_controls, width=10)
-        self.line_start_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.line_start_entry.insert(0, three_months_ago)
         self.line_start_entry.pack(side='left', padx=5)
         ttk.Label(self.line_controls, text="to").pack(side='left')
         self.line_end_entry = ttk.Entry(self.line_controls, width=10)
-        self.line_end_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.line_end_entry.insert(0, current_month)
         self.line_end_entry.pack(side='left', padx=5)
-        ttk.Label(self.line_controls, text="Categories:").pack(side='left', padx=(10, 0))
-        self.line_category_listbox = tk.Listbox(
+        
+        # Category selector button and selected categories set
+        self.selected_categories = set()
+        self.category_button = ttk.Button(
             self.line_controls,
-            selectmode='multiple',
-            height=4,
-            exportselection=False
+            text="Categories (0)",
+            command=self._open_category_selector
         )
-        self.line_category_listbox.pack(side='left', padx=5)
-        self._populate_line_categories()
+        self.category_button.pack(side='left', padx=(10, 5))
 
         bottom = ttk.Frame(controls)
         bottom.pack(fill='x', expand=True)
@@ -171,8 +176,7 @@ class ReportsTab:
             self.paned.pane(self.info_frame, weight=1)
         else:
             self.line_controls.pack(side='left', padx=(0, 15))
-            self._populate_line_categories()
-            self._update_info_panel(["Select one or more categories to display expense trends."], title="Line Chart")
+            self._update_info_panel(["Click 'Categories' to select which expense categories to display."], title="Line Chart")
             self.paned.pane(self.chart_frame, weight=95)
             self.paned.pane(self.info_frame, weight=1)
 
@@ -190,15 +194,87 @@ class ReportsTab:
         self.range_start_entry.configure(state='normal' if is_range else 'disabled')
         self.range_end_entry.configure(state='normal' if is_range else 'disabled')
 
-    def _populate_line_categories(self):
+    def _open_category_selector(self):
+        """Open a modal dialog to select categories for the line chart."""
         categories = self.state.categories.get("Expense", [])
-        current = list(self.line_category_listbox.curselection())
-        self.line_category_listbox.delete(0, tk.END)
-        for category in categories:
-            self.line_category_listbox.insert(tk.END, category)
-        for idx in current:
-            if idx < len(categories):
-                self.line_category_listbox.select_set(idx)
+        
+        # Create modal dialog
+        dialog = tk.Toplevel(self.line_controls.winfo_toplevel())
+        dialog.title("Select Categories")
+        dialog.transient(self.line_controls.winfo_toplevel())
+        dialog.grab_set()
+        
+        # Center the dialog
+        dialog.geometry("500x500")
+        dialog.minsize(400, 350)
+        dialog.resizable(True, True)
+        
+        # Main frame with padding
+        main_frame = ttk.Frame(dialog, padding="10")
+        main_frame.pack(fill='both', expand=True)
+        
+        # Instructions label at the top
+        ttk.Label(main_frame, text="Select categories to display:").pack(anchor='w', side='top', pady=(0, 10))
+        
+        # Button frame at the bottom (packed FIRST with side='bottom' to reserve space)
+        button_frame = ttk.Frame(main_frame)
+        button_frame.pack(fill='x', side='bottom', pady=(10, 0))
+        
+        # Scrollable area in the middle
+        container = ttk.Frame(main_frame)
+        container.pack(fill='both', expand=True)
+        
+        canvas = tk.Canvas(container, highlightthickness=0)
+        scrollbar = ttk.Scrollbar(container, orient="vertical", command=canvas.yview)
+        scrollable_frame = ttk.Frame(canvas)
+        
+        scrollable_frame.bind(
+            "<Configure>",
+            lambda e: canvas.configure(scrollregion=canvas.bbox("all"))
+        )
+        
+        canvas.create_window((0, 0), window=scrollable_frame, anchor="nw")
+        canvas.configure(yscrollcommand=scrollbar.set)
+        
+        # Create checkbox variables
+        checkbox_vars = {}
+        for cat in categories:
+            var = tk.BooleanVar(value=(cat in self.selected_categories))
+            checkbox_vars[cat] = var
+            cb = ttk.Checkbutton(scrollable_frame, text=cat, variable=var)
+            cb.pack(anchor='w', pady=2, padx=5)
+        
+        canvas.pack(side='left', fill='both', expand=True)
+        scrollbar.pack(side='right', fill='y')
+        
+        def select_all():
+            for var in checkbox_vars.values():
+                var.set(True)
+        
+        def deselect_all():
+            for var in checkbox_vars.values():
+                var.set(False)
+        
+        def on_ok():
+            self.selected_categories = {cat for cat, var in checkbox_vars.items() if var.get()}
+            self._update_category_button_text()
+            dialog.destroy()
+        
+        def on_cancel():
+            dialog.destroy()
+        
+        ttk.Button(button_frame, text="Select All", command=select_all).pack(side='left', padx=(0, 5))
+        ttk.Button(button_frame, text="Deselect All", command=deselect_all).pack(side='left')
+        ttk.Button(button_frame, text="Cancel", command=on_cancel).pack(side='right', padx=(5, 0))
+        ttk.Button(button_frame, text="OK", command=on_ok).pack(side='right')
+        
+        # Wait for dialog to close
+        dialog.wait_window()
+    
+    def _update_category_button_text(self):
+        """Update the category button text to show selection count."""
+        count = len(self.selected_categories)
+        self.category_button.config(text=f"Categories ({count})")
 
     def generate(self):
         if self.canvas:
@@ -496,8 +572,7 @@ class ReportsTab:
 
         start_month = self.line_start_entry.get()
         end_month = self.line_end_entry.get()
-        selected_indices = self.line_category_listbox.curselection()
-        selected_categories = [self.line_category_listbox.get(idx) for idx in selected_indices]
+        selected_categories = list(self.selected_categories)
         try:
             title, labels, category_series = line_expense_category_range(
                 self.state, start_month, end_month, selected_categories
