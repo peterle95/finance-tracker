@@ -106,6 +106,15 @@ class ReportsTab:
         self.line_end_entry = ttk.Entry(self.line_controls, width=10)
         self.line_end_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.line_end_entry.pack(side='left', padx=5)
+        ttk.Label(self.line_controls, text="Categories:").pack(side='left', padx=(10, 0))
+        self.line_category_listbox = tk.Listbox(
+            self.line_controls,
+            selectmode='multiple',
+            height=4,
+            exportselection=False
+        )
+        self.line_category_listbox.pack(side='left', padx=5)
+        self._populate_line_categories()
 
         bottom = ttk.Frame(controls)
         bottom.pack(fill='x', expand=True)
@@ -162,7 +171,8 @@ class ReportsTab:
             self.paned.pane(self.info_frame, weight=1)
         else:
             self.line_controls.pack(side='left', padx=(0, 15))
-            self._update_info_panel(["Shows expense category totals across the selected months."], title="Line Chart")
+            self._populate_line_categories()
+            self._update_info_panel(["Select one or more categories to display expense trends."], title="Line Chart")
             self.paned.pane(self.chart_frame, weight=95)
             self.paned.pane(self.info_frame, weight=1)
 
@@ -179,6 +189,16 @@ class ReportsTab:
         self.month_entry.configure(state='disabled' if is_range else 'normal')
         self.range_start_entry.configure(state='normal' if is_range else 'disabled')
         self.range_end_entry.configure(state='normal' if is_range else 'disabled')
+
+    def _populate_line_categories(self):
+        categories = self.state.categories.get("Expense", [])
+        current = list(self.line_category_listbox.curselection())
+        self.line_category_listbox.delete(0, tk.END)
+        for category in categories:
+            self.line_category_listbox.insert(tk.END, category)
+        for idx in current:
+            if idx < len(categories):
+                self.line_category_listbox.select_set(idx)
 
     def generate(self):
         if self.canvas:
@@ -476,19 +496,20 @@ class ReportsTab:
 
         start_month = self.line_start_entry.get()
         end_month = self.line_end_entry.get()
+        selected_indices = self.line_category_listbox.curselection()
+        selected_categories = [self.line_category_listbox.get(idx) for idx in selected_indices]
         try:
             title, labels, category_series = line_expense_category_range(
-                self.state, start_month, end_month
+                self.state, start_month, end_month, selected_categories
             )
         except ValueError:
             messagebox.showerror("Error", "Invalid month format. Use YYYY-MM.")
             return
 
         if not category_series:
-            messagebox.showinfo("No Data", "No expense data to display for the selected range.")
-            return
-
-        fig = create_line_figure(labels, category_series, title)
+            fig = create_line_figure([], {}, "Select one or more categories to display.")
+        else:
+            fig = create_line_figure(labels, category_series, title)
 
         self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
         self.canvas.draw()
