@@ -8,7 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from ...services.budget_calculator import generate_daily_budget_report
+from ...services.budget_calculator import generate_daily_budget_report, get_active_fixed_costs
 from ..charts import create_budget_depletion_figure
 
 class SettingsTab:
@@ -18,6 +18,7 @@ class SettingsTab:
         self._income_current_sort = None
         self._fixed_costs_sort_state = {}
         self._fixed_costs_current_sort = None
+        self.show_inactive_fixed_costs = tk.BooleanVar(value=False)
         self.include_negative_carryover = tk.BooleanVar(value=False)
 
         main = ttk.Frame(notebook, padding="10")
@@ -249,6 +250,15 @@ class SettingsTab:
         
         ttk.Label(main, text="Manage recurring fixed monthly costs here.\n(Historical changes will be preserved)", 
                  font=('Arial', 10, 'italic'), foreground='gray').pack(pady=(0, 10))
+
+        filter_frame = ttk.Frame(main)
+        filter_frame.pack(fill='x', pady=(0, 8))
+        self.fixed_costs_filter_btn = ttk.Button(
+            filter_frame,
+            text="Show Inactive Costs",
+            command=self.toggle_fixed_costs_filter,
+        )
+        self.fixed_costs_filter_btn.pack(side='left')
 
         # ID wrapper for refresh
         self.fc_win = win
@@ -652,7 +662,15 @@ class SettingsTab:
         for i in self.fixed_costs_tree.get_children():
             self.fixed_costs_tree.delete(i)
 
-        costs = list(self.state.budget_settings.get('fixed_costs', []))
+        current_month = datetime.now().strftime("%Y-%m")
+        active_cost_ids = {id(cost) for cost in get_active_fixed_costs(self.state, current_month)}
+        all_costs = list(self.state.budget_settings.get('fixed_costs', []))
+
+        if self.show_inactive_fixed_costs.get():
+            costs = all_costs
+        else:
+            costs = [cost for cost in all_costs if id(cost) in active_cost_ids]
+
         if self._fixed_costs_current_sort:
             column, direction = self._fixed_costs_current_sort
             reverse = (direction == 'descending')
@@ -674,6 +692,13 @@ class SettingsTab:
                 cost.get('start_date', '2000-01-01'),
                 end_date_display
             ))
+
+    def toggle_fixed_costs_filter(self):
+        self.show_inactive_fixed_costs.set(not self.show_inactive_fixed_costs.get())
+        self.fixed_costs_filter_btn.config(
+            text="Hide Inactive Costs" if self.show_inactive_fixed_costs.get() else "Show Inactive Costs"
+        )
+        self.refresh_fixed_costs_tree()
 
     def add_fixed_cost(self):
         try:
