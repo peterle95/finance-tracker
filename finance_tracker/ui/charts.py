@@ -15,16 +15,16 @@ import math
 from datetime import datetime
 import calendar
 
-def create_budget_depletion_figure(state, month_str: str):
+def create_budget_depletion_figure(state, month_str: str, include_negative_carryover: bool = False):
     """
     Generate a budget depletion graph showing:
     - Remaining flexible budget over the month (starts high, decreases with spending)
     - Daily available budget target (recalculated each day)
     """
     from ..services.budget_calculator import (
-        get_active_monthly_income, 
+        get_active_monthly_income,
         get_active_fixed_costs,
-        days_in_month_str
+        get_negative_carryover_from_previous_month,
     )
     
     try:
@@ -53,6 +53,8 @@ def create_budget_depletion_figure(state, month_str: str):
     monthly_savings_goal = daily_savings_goal * days_in_month
     # Start balance EXCLUDING flexible income (it is now added day-by-day)
     monthly_flexible_budget = base_income - fixed_costs - monthly_savings_goal
+    if include_negative_carryover:
+        monthly_flexible_budget += get_negative_carryover_from_previous_month(state, month_str)
     
     # Get daily expenses
     flex_expenses_month = [e for e in state.expenses if e['date'].startswith(month_str)]

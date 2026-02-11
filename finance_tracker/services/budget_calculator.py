@@ -7,6 +7,47 @@ Service for calculating budget limits and available spending.
 from datetime import datetime
 import calendar
 
+
+def get_previous_month_str(month_str: str):
+    """Return YYYY-MM for the month before month_str, or None if invalid."""
+    try:
+        year, month = map(int, month_str.split("-"))
+        if month == 1:
+            return f"{year - 1}-12"
+        return f"{year}-{month - 1:02d}"
+    except ValueError:
+        return None
+
+
+def get_month_end_flexible_balance(state, month_str: str) -> float:
+    """Compute month-end flexible balance for the given month (full month result)."""
+    try:
+        year, month = map(int, month_str.split("-"))
+    except ValueError:
+        return 0.0
+
+    base_income = get_active_monthly_income(state, month_str)
+    daily_savings_goal = state.budget_settings.get("daily_savings_goal", 0)
+    fixed_costs = sum(fc["amount"] for fc in get_active_fixed_costs(state, month_str))
+    days_in_month = calendar.monthrange(year, month)[1]
+    monthly_savings_goal = daily_savings_goal * days_in_month
+
+    monthly_flexible_budget = base_income - fixed_costs - monthly_savings_goal
+    flex_income_month = sum(i['amount'] for i in state.incomes if i['date'].startswith(month_str))
+    flex_expense_month = sum(e['amount'] for e in state.expenses if e['date'].startswith(month_str))
+
+    return monthly_flexible_budget + flex_income_month - flex_expense_month
+
+
+def get_negative_carryover_from_previous_month(state, month_str: str) -> float:
+    """Return previous month deficit only (<= 0). Positive balances are not carried."""
+    previous_month = get_previous_month_str(month_str)
+    if not previous_month:
+        return 0.0
+
+    previous_month_result = get_month_end_flexible_balance(state, previous_month)
+    return previous_month_result if previous_month_result < 0 else 0.0
+
 def get_active_fixed_costs(state, month_str: str) -> list:
     """
     Returns only the fixed costs that were active during the specified month.
@@ -109,7 +150,7 @@ def compute_net_available_for_spending(state, month_str: str) -> float:
     flexible = total_income - fixed_costs - monthly_savings_goal
     return max(flexible, 0)
 
-def generate_daily_budget_report(state, month_str: str) -> str:
+def generate_daily_budget_report(state, month_str: str, include_negative_carryover: bool = False) -> str:
     try:
         year, month = map(int, month_str.split("-"))
     except ValueError:
@@ -125,6 +166,11 @@ def generate_daily_budget_report(state, month_str: str) -> str:
     monthly_savings_goal = daily_savings_goal * days_in_month
     # Start balance EXCLUDING flexible income (it is now added day-by-day)
     monthly_flexible_spending_budget = base_income - fixed_costs - monthly_savings_goal
+    carryover_amount = 0.0
+    if include_negative_carryover:
+        carryover_amount = get_negative_carryover_from_previous_month(state, month_str)
+        monthly_flexible_spending_budget += carryover_amount
+
     initial_daily_spending_target = monthly_flexible_spending_budget / days_in_month if days_in_month else 0
 
     # Prepare daily flexible income lookup (moved from sum to daily map)
@@ -147,6 +193,9 @@ def generate_daily_budget_report(state, month_str: str) -> str:
     report += f"Total Fixed Costs:                       -€{fixed_costs:>10.2f}\n"
     report += f"{'-'*50}\n"
     report += f"Monthly Savings Goal:                    -€{monthly_savings_goal:>10.2f}\n"
+    if include_negative_carryover:
+        previous_month_label = get_previous_month_str(month_str) or "N/A"
+        report += f"Negative Carryover ({previous_month_label}):      €{carryover_amount:>10.2f}\n"
     report += f"NET MONTHLY FLEXIBLE BUDGET:              €{monthly_flexible_spending_budget:>10.2f}\n"
     report += f"INITIAL DAILY SPENDING TARGET:            €{initial_daily_spending_target:>10.2f}\n"
     report += f"{'-'*50}\n\n"
