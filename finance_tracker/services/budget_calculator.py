@@ -195,7 +195,7 @@ def generate_daily_budget_report(state, month_str: str, include_negative_carryov
     report += f"Monthly Savings Goal:                    -€{monthly_savings_goal:>10.2f}\n"
     if include_negative_carryover:
         previous_month_label = get_previous_month_str(month_str) or "N/A"
-        report += f"Negative Carryover ({previous_month_label}):      €{carryover_amount:>10.2f}\n"
+        report += f"Negative Carryover ({previous_month_label}):             €{carryover_amount:>10.2f}\n"
     report += f"NET MONTHLY FLEXIBLE BUDGET:              €{monthly_flexible_spending_budget:>10.2f}\n"
     report += f"INITIAL DAILY SPENDING TARGET:            €{initial_daily_spending_target:>10.2f}\n"
     report += f"{'-'*50}\n\n"
