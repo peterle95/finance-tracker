@@ -194,7 +194,7 @@ def generate_daily_budget_report(state, month_str: str) -> str:
     report += f"{'-'*80}\n\n"
 
     if today.year == year and today.month == month and today.day < days_in_month:
-        remaining_days = days_in_month - today.day
+        remaining_days = days_in_month - today.day + 1
         if remaining_days > 0:
             new_daily_target = cumulative_flexible_balance / remaining_days if cumulative_flexible_balance > 0 else 0
             

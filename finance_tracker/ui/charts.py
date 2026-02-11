@@ -275,20 +275,33 @@ def create_breakdown_figure(snapshots):
     
     return fig
 
-def create_bar_figure(labels, values, title, breakdown_mode="total", display_mode="value", category_data=None):
+def create_bar_figure(labels, values, title, breakdown_mode="total", display_mode="value", category_data=None, show_bar_labels=False):
     """Render the bar chart based on current breakdown and display modes"""
     fig = Figure(figsize=(10, 6), dpi=100)
     ax = fig.add_subplot(111)
 
     if breakdown_mode == "total":
         # Show total bars
-        ax.bar(labels, values, label="Monthly Totals", color='steelblue')
+        bars = ax.bar(labels, values, label="Monthly Totals", color='steelblue')
 
         if len(values) > 1:
             x = np.arange(len(labels))
             slope, intercept = np.polyfit(x, values, 1)
             trend = slope * x + intercept
             ax.plot(labels, trend, color='red', linestyle='--', label='Trend Line')
+
+        if show_bar_labels:
+            for bar, value in zip(bars, values):
+                ax.annotate(
+                    f"€{value:,.0f}",
+                    xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                    xytext=(0, 4),
+                    textcoords="offset points",
+                    ha='center',
+                    va='bottom',
+                    fontsize=8,
+                    color='#333333'
+                )
 
         ax.set_title(f"{title} - Total View")
         ax.set_ylabel("Total Amount (€)")
@@ -352,6 +365,19 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
             ax.set_ylabel("Amount (€)")
             ax.set_ylabel("Amount (€)")
             ax.legend()
+            if show_bar_labels:
+                for bars, values_set in ((bars_income, income_values), (bars_costs, cost_values)):
+                    for bar, value in zip(bars, values_set):
+                        ax.annotate(
+                            f"€{value:,.0f}",
+                            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 4),
+                            textcoords="offset points",
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                            color='#333333'
+                        )
 
     elif breakdown_mode == "over_under":
         # Show grouped bars for Total Income vs Total Expenses
@@ -414,6 +440,19 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
             ax.set_title(f"Total Income vs Total Expenses")
             ax.set_ylabel("Amount (€)")
             ax.legend()
+            if show_bar_labels:
+                for bars, values_set in ((bars_income, income_values), (bars_expenses, expense_values)):
+                    for bar, value in zip(bars, values_set):
+                        ax.annotate(
+                            f"€{value:,.0f}",
+                            xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                            xytext=(0, 4),
+                            textcoords="offset points",
+                            ha='center',
+                            va='bottom',
+                            fontsize=8,
+                            color='#333333'
+                        )
 
     else:
         # Show stacked bars by category
@@ -547,6 +586,32 @@ def create_pie_figure(labels, sizes, title, value_type="Total"):
     # Improved legend placement
     ax.legend(wedges, labels, title="Categories", loc="center left", bbox_to_anchor=(1, 0, 0.5, 1))
 
+    fig.tight_layout()
+    return fig
+
+def create_line_figure(labels, category_series, title):
+    """Generate line chart for category trends over time."""
+    fig = Figure(figsize=(10, 6), dpi=100)
+    ax = fig.add_subplot(111)
+
+    if not labels or not category_series:
+        ax.text(0.5, 0.5, "No data available for the selected range.",
+                ha='center', va='center', transform=ax.transAxes)
+        return fig
+
+    categories = list(category_series.keys())
+    cmap = plt.get_cmap('tab20', max(len(categories), 1))
+
+    for idx, category in enumerate(categories):
+        ax.plot(labels, category_series[category], label=category, color=cmap(idx), marker='o', linewidth=2)
+
+    ax.set_title(title)
+    ax.set_xlabel("Month")
+    ax.set_ylabel("Amount (€)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, p: f'€{x:,.0f}'))
+    ax.grid(True, alpha=0.3)
+    ax.legend(bbox_to_anchor=(1.02, 1), loc='upper left')
+    fig.autofmt_xdate(rotation=45)
     fig.tight_layout()
     return fig
  

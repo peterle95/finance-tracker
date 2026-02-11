@@ -14,6 +14,7 @@ import urllib.request
 import urllib.error
 
 from dateutil.relativedelta import relativedelta
+from .budget_calculator import get_active_fixed_costs, get_active_monthly_income
 
 
 @dataclass
@@ -52,8 +53,29 @@ def _aggregate_transactions(state, months: list[str]) -> dict[str, Any]:
     expense_totals = totals_by_category(expenses)
     income_totals = totals_by_category(incomes)
 
-    total_expenses = sum(expense_totals.values())
-    total_income = sum(income_totals.values())
+    total_flex_expenses = sum(expense_totals.values())
+    total_flex_income = sum(income_totals.values())
+
+    total_fixed_costs = 0.0
+    total_base_income = 0.0
+
+    # Include fixed costs and base income for each month
+    for m in months:
+        active_fixed = get_active_fixed_costs(state, m)
+        for fc in active_fixed:
+            amount = float(fc.get("amount", 0.0))
+            total_fixed_costs += amount
+            cat = f"Fixed: {fc.get('description', 'Untitled')}"
+            expense_totals[cat] = expense_totals.get(cat, 0.0) + amount
+        
+        base_income = get_active_monthly_income(state, m)
+        if base_income > 0:
+            total_base_income += base_income
+            cat = "Base Monthly Income"
+            income_totals[cat] = income_totals.get(cat, 0.0) + base_income
+
+    total_expenses = total_flex_expenses + total_fixed_costs
+    total_income = total_flex_income + total_base_income
     net = total_income - total_expenses
 
     return {
@@ -62,12 +84,16 @@ def _aggregate_transactions(state, months: list[str]) -> dict[str, Any]:
             "income": total_income,
             "expenses": total_expenses,
             "net": net,
+            "fixed_costs": total_fixed_costs,
+            "base_income": total_base_income,
+            "flexible_expenses": total_flex_expenses,
+            "flexible_income": total_flex_income,
         },
         "expense_categories": expense_totals,
         "income_categories": income_totals,
         "transaction_counts": {
-            "expenses": len(expenses),
-            "incomes": len(incomes),
+            "flexible_expenses": len(expenses),
+            "flexible_incomes": len(incomes),
         },
     }
 
