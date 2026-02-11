@@ -18,6 +18,7 @@ class SettingsTab:
         self._income_current_sort = None
         self._fixed_costs_sort_state = {}
         self._fixed_costs_current_sort = None
+        self.include_negative_carryover = tk.BooleanVar(value=False)
 
         main = ttk.Frame(notebook, padding="10")
         notebook.add(main, text="Budget Report")
@@ -99,6 +100,12 @@ class SettingsTab:
         self.budget_month_entry = ttk.Entry(month_frame, width=15)
         self.budget_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
         self.budget_month_entry.pack(side='left', padx=5)
+        ttk.Checkbutton(
+            month_frame,
+            text="Include previous month deficit",
+            variable=self.include_negative_carryover,
+            command=self.generate_report
+        ).pack(side='left', padx=10)
         ttk.Button(month_frame, text="Generate Report", command=self.generate_report).pack(side='left', padx=10)
         ttk.Button(month_frame, text="Export Report", command=self.export_report).pack(side='left', padx=5)
 
@@ -1054,12 +1061,16 @@ class SettingsTab:
 
     def generate_report(self):
         month = self.budget_month_entry.get()
-        text = generate_daily_budget_report(self.state, month)
+        text = generate_daily_budget_report(
+            self.state, month, include_negative_carryover=self.include_negative_carryover.get()
+        )
         self.report_text.delete("1.0", tk.END)
         self.report_text.insert("1.0", text)
         
         # Also refresh graph for the selected month
-        fig = create_budget_depletion_figure(self.state, month)
+        fig = create_budget_depletion_figure(
+            self.state, month, include_negative_carryover=self.include_negative_carryover.get()
+        )
         if self.budget_canvas:
             self.budget_canvas.get_tk_widget().destroy()
         self.budget_canvas = FigureCanvasTkAgg(fig, master=self.budget_graph_frame)
