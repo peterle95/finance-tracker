@@ -86,6 +86,43 @@ def get_active_fixed_costs(state, month_str: str) -> list:
     
     return active_costs
 
+def get_active_monthly_income_sources(state, month_str: str) -> list:
+    """
+    Returns base monthly income entries active for the specified month.
+    An income source is active if its date range overlaps with the month.
+    """
+    try:
+        month_start = datetime.strptime(month_str + "-01", "%Y-%m-%d").date()
+        _, last_day = calendar.monthrange(month_start.year, month_start.month)
+        month_end = datetime(month_start.year, month_start.month, last_day).date()
+    except ValueError:
+        return []
+
+    income_data = state.budget_settings.get("monthly_income", [])
+    if isinstance(income_data, (int, float)):
+        return []
+
+    active_income_sources = []
+    for inc in income_data:
+        try:
+            start = datetime.strptime(inc.get('start_date', '2000-01-01'), "%Y-%m-%d").date()
+        except (ValueError, TypeError):
+            start = datetime(2000, 1, 1).date()
+
+        end_date_str = inc.get('end_date')
+        if end_date_str is None:
+            end = None
+        else:
+            try:
+                end = datetime.strptime(end_date_str, "%Y-%m-%d").date()
+            except (ValueError, TypeError):
+                end = None
+
+        if start <= month_end and (end is None or end >= month_start):
+            active_income_sources.append(inc)
+
+    return active_income_sources
+
 def get_active_monthly_income(state, month_str: str) -> float:
     """
     Returns the total base monthly income active for the specified month.

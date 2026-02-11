@@ -8,7 +8,11 @@ import tkinter as tk
 from tkinter import ttk, messagebox, filedialog
 from datetime import datetime
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-from ...services.budget_calculator import generate_daily_budget_report, get_active_fixed_costs
+from ...services.budget_calculator import (
+    generate_daily_budget_report,
+    get_active_fixed_costs,
+    get_active_monthly_income_sources,
+)
 from ..charts import create_budget_depletion_figure
 
 class SettingsTab:
@@ -18,6 +22,7 @@ class SettingsTab:
         self._income_current_sort = None
         self._fixed_costs_sort_state = {}
         self._fixed_costs_current_sort = None
+        self.show_inactive_income_sources = tk.BooleanVar(value=False)
         self.show_inactive_fixed_costs = tk.BooleanVar(value=False)
         self.include_negative_carryover = tk.BooleanVar(value=False)
 
@@ -176,6 +181,15 @@ class SettingsTab:
         
         ttk.Label(main, text="Manage source of base monthly income here.\n(Historical changes will be preserved)", 
                  font=('Arial', 10, 'italic'), foreground='gray').pack(pady=(0, 10))
+
+        filter_frame = ttk.Frame(main)
+        filter_frame.pack(fill='x', pady=(0, 8))
+        self.income_filter_btn = ttk.Button(
+            filter_frame,
+            text="Show Inactive Income",
+            command=self.toggle_income_filter,
+        )
+        self.income_filter_btn.pack(side='left')
 
         # ID wrapper for refresh
         self.inc_win = win
@@ -845,14 +859,20 @@ class SettingsTab:
     def refresh_income_tree(self):
         for i in self.income_tree.get_children():
             self.income_tree.delete(i)
-        
+
         income_data = self.state.budget_settings.get('monthly_income', [])
         # Handle migration case just in case
         if isinstance(income_data, (int, float)):
              income_data = [] # Should have been migrated by state load, but be safe
-        
 
-        income_rows = list(income_data)
+        current_month = datetime.now().strftime("%Y-%m")
+        active_income_ids = {id(inc) for inc in get_active_monthly_income_sources(self.state, current_month)}
+        all_income_rows = list(income_data)
+
+        if self.show_inactive_income_sources.get():
+            income_rows = all_income_rows
+        else:
+            income_rows = [inc for inc in all_income_rows if id(inc) in active_income_ids]
         if self._income_current_sort:
             column, direction = self._income_current_sort
             reverse = (direction == 'descending')
@@ -874,6 +894,13 @@ class SettingsTab:
                 start_date_display,
                 end_date_display
             ))
+
+    def toggle_income_filter(self):
+        self.show_inactive_income_sources.set(not self.show_inactive_income_sources.get())
+        self.income_filter_btn.config(
+            text="Hide Inactive Income" if self.show_inactive_income_sources.get() else "Show Inactive Income"
+        )
+        self.refresh_income_tree()
 
     def sort_income_by_column(self, column: str):
         current_state = self._income_sort_state.get(column, 'none')
