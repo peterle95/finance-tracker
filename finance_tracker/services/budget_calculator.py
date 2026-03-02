@@ -217,6 +217,14 @@ def generate_daily_budget_report(state, month_str: str, include_negative_carryov
         daily_incomes.setdefault(i['date'], 0)
         daily_incomes[i['date']] += i['amount']
 
+    pending_float_amount = sum(
+        e.get('amount', 0.0)
+        for e in state.expenses
+        if e.get('date', '').startswith(month_str)
+        and e.get('is_float')
+        and e.get('reimbursement_status', 'pending') == 'pending'
+    )
+
     flex_expenses_month = [e for e in state.expenses if e['date'].startswith(month_str)]
     daily_expenses = {}
     for e in flex_expenses_month:
@@ -237,6 +245,7 @@ def generate_daily_budget_report(state, month_str: str, include_negative_carryov
     report += f"INITIAL DAILY SPENDING TARGET:            €{initial_daily_spending_target:>10.2f}\n"
     report += f"{'-'*50}\n\n"
     report += f"Flexible Income (This Month):             €{flex_income_month:>10.2f}\n"
+    report += f"Float (Pending Reimbursement):            €{pending_float_amount:>10.2f}\n"
     report += f"TOTAL INCOME:                             €{total_income:>10.2f}\n"
     report += f"{'-'*80}\n\n"
     report += f"DAILY BREAKDOWN (Flexible daily target adjusts based on remaining budget)\n"

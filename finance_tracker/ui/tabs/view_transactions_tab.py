@@ -60,7 +60,7 @@ class ViewTransactionsTab:
         tree_frame.pack(fill='both', expand=True, pady=10)
 
         columns = ('ID', 'Date', 'Type', 'Amount', 'Category', 'Description')
-        self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
+        self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15, selectmode='browse')
         
         # Create column headers with click bindings
         for col in columns:
@@ -74,6 +74,8 @@ class ViewTransactionsTab:
         self.transaction_tree.column('ID', width=0, stretch=tk.NO)
         self.transaction_tree.tag_configure('expense', foreground='red')
         self.transaction_tree.tag_configure('income', foreground='green')
+        self.transaction_tree.tag_configure('float_pending', foreground='#5b3cc4')
+        self.transaction_tree.tag_configure('float_reimbursed', foreground='#2f6bb0')
         self.transaction_tree.pack(side='left', fill='both', expand=True)
 
         scrollbar = ttk.Scrollbar(tree_frame, orient='vertical', command=self.transaction_tree.yview)
@@ -86,6 +88,7 @@ class ViewTransactionsTab:
         spacer.pack(side='left', expand=True, fill='x')
         ttk.Button(button_frame, text="Modify Selected", command=self.open_modify_window).pack(side='left', padx=5)
         ttk.Button(button_frame, text="Delete Selected", command=self.delete_transaction).pack(side='left')
+        ttk.Button(button_frame, text="Link Reimbursement", command=self.open_link_reimbursement_window).pack(side='left', padx=5)
 
         self.summary_label = ttk.Label(frame, text="", font=('Arial', 10, 'bold'))
         self.summary_label.pack(pady=10, fill='x')
@@ -151,7 +154,10 @@ class ViewTransactionsTab:
         
         # Add sorted transactions
         for trans in self._current_transactions:
-            tag = 'expense' if trans['type'] == 'Expense' else 'income'
+            if trans['type'] == 'Expense' and trans.get('is_float'):
+                tag = 'float_reimbursed' if trans.get('reimbursement_status') == 'reimbursed' else 'float_pending'
+            else:
+                tag = 'expense' if trans['type'] == 'Expense' else 'income'
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(
                 trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
@@ -328,7 +334,10 @@ class ViewTransactionsTab:
                 self._current_transactions.sort(key=lambda x: x.get('id', ''), reverse=reverse)
 
         for trans in self._current_transactions:
-            tag = 'expense' if trans['type'] == 'Expense' else 'income'
+            if trans['type'] == 'Expense' and trans.get('is_float'):
+                tag = 'float_reimbursed' if trans.get('reimbursement_status') == 'reimbursed' else 'float_pending'
+            else:
+                tag = 'expense' if trans['type'] == 'Expense' else 'income'
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(
                 trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
@@ -359,9 +368,16 @@ class ViewTransactionsTab:
         total_expenses = total_flex_expenses + total_fixed_costs
         net = total_income - total_expenses
 
+        pending_float = sum(
+            e.get('amount', 0.0)
+            for e in self.state.expenses
+            if e.get('date', '').startswith(fm) and e.get('is_float') and e.get('reimbursement_status', 'pending') == 'pending'
+        )
+
         self.summary_label.config(text=(f"Total Income: €{total_income:.2f}  |  "
                                         f"Total Expenses: €{total_expenses:.2f}  |  "
                                         f"Flexible Costs Incurred: €{total_flex_expenses:.2f}  |  "
+                                        f"Float (Pending Reimbursement): €{pending_float:.2f}  |  "
                                         f"Net: €{net:.2f}"))
 
     def delete_transaction(self):
@@ -501,3 +517,53 @@ class ViewTransactionsTab:
                 messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).", parent=win)
 
         ttk.Button(form, text="Save Changes", command=save_changes).grid(row=5, column=1, pady=20, sticky='w')
+
+    def open_link_reimbursement_window(self):
+        pending_floats = [
+            e for e in self.state.expenses
+            if e.get('is_float') and e.get('reimbursement_status', 'pending') == 'pending'
+        ]
+        incomes = list(self.state.incomes)
+
+        if not pending_floats:
+            messagebox.showinfo("No Float Entries", "No pending Float transactions found.")
+            return
+        if not incomes:
+            messagebox.showinfo("No Income", "No income transactions available for linking.")
+            return
+
+        win = tk.Toplevel(self.frame)
+        win.title("Link Reimbursement")
+        win.transient(self.frame)
+        win.grab_set()
+
+        frm = ttk.Frame(win, padding=15)
+        frm.pack(fill='both', expand=True)
+
+        ttk.Label(frm, text="Pending Float Expense:").grid(row=0, column=0, sticky='w', pady=5)
+        float_var = tk.StringVar()
+        float_combo = ttk.Combobox(frm, textvariable=float_var, state='readonly', width=55)
+        float_values = [f"{e.get('id')} | {e.get('date')} | €{e.get('amount', 0):.2f} | {e.get('description', '')}" for e in pending_floats]
+        float_combo['values'] = float_values
+        float_combo.grid(row=0, column=1, sticky='w', pady=5)
+        float_combo.set(float_values[0])
+
+        ttk.Label(frm, text="Income Reimbursement:").grid(row=1, column=0, sticky='w', pady=5)
+        income_var = tk.StringVar()
+        income_combo = ttk.Combobox(frm, textvariable=income_var, state='readonly', width=55)
+        income_values = [f"{i.get('id')} | {i.get('date')} | €{i.get('amount', 0):.2f} | {i.get('description', '')}" for i in incomes]
+        income_combo['values'] = income_values
+        income_combo.grid(row=1, column=1, sticky='w', pady=5)
+        income_combo.set(income_values[0])
+
+        def link_now():
+            float_id = float_var.get().split(' | ')[0]
+            income_id = income_var.get().split(' | ')[0]
+            if self.state.link_reimbursement(float_id, income_id):
+                messagebox.showinfo("Linked", "Reimbursement linked successfully.", parent=win)
+                win.destroy()
+                self.on_data_changed()
+            else:
+                messagebox.showerror("Error", "Could not link selected transactions.", parent=win)
+
+        ttk.Button(frm, text="Link", command=link_now).grid(row=2, column=1, sticky='w', pady=(10, 0))

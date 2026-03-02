@@ -20,6 +20,7 @@ from .tabs.projection_tab import ProjectionTab
 from .tabs.goals_tab import GoalsTab
 from .tabs.net_worth_tab import NetWorthTab
 from .tabs.ai_insights_tab import AIInsightsTab
+from .tabs.import_reconcile_tab import ImportReconcileTab
 
 class MainView:
     def __init__(self, root, state):
@@ -77,6 +78,7 @@ class MainView:
         self.budgets_tab = BudgetsTab(self.notebook, self.state)
         self.goals_tab = GoalsTab(self.notebook, self.state)
         self.net_worth_tab = NetWorthTab(self.notebook, self.state)
+        self.import_reconcile_tab = ImportReconcileTab(self.notebook, self.state, self.on_data_changed)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
         self.ai_insights_tab = AIInsightsTab(self.notebook, self.state)
         

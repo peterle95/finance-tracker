@@ -47,7 +47,15 @@ class AddTransactionTab:
         self.description_entry = ttk.Entry(form, width=30)
         self.description_entry.grid(row=4, column=1, pady=5, sticky='w')
 
-        ttk.Button(form, text="Add Transaction", command=self.add_transaction).grid(row=5, column=1, pady=20, sticky='w')
+        self.is_float_var = tk.BooleanVar(value=False)
+        self.float_check = ttk.Checkbutton(form, text="Mark as Float (Paid for Others)", variable=self.is_float_var)
+        self.float_check.grid(row=5, column=1, pady=5, sticky='w')
+
+        ttk.Label(form, text="Expected From (optional):").grid(row=6, column=0, sticky='w', pady=5)
+        self.expected_from_entry = ttk.Entry(form, width=30)
+        self.expected_from_entry.grid(row=6, column=1, pady=5, sticky='w')
+
+        ttk.Button(form, text="Add Transaction", command=self.add_transaction).grid(row=7, column=1, pady=20, sticky='w')
 
         self.update_categories()
 
@@ -70,9 +78,21 @@ class AddTransactionTab:
                 messagebox.showerror("Error", "Please select a category.")
                 return
 
-            self.state.add_transaction(trans_type, date_str, amount, category, description)
+            metadata = {}
+            if trans_type == "Expense" and self.is_float_var.get():
+                category = "Float"
+                metadata = {
+                    "is_float": True,
+                    "expected_from": self.expected_from_entry.get().strip() or None,
+                    "reimbursement_status": "pending",
+                    "linked_transaction_id": None,
+                }
+
+            self.state.add_transaction(trans_type, date_str, amount, category, description, **metadata)
             self.amount_entry.delete(0, tk.END)
             self.description_entry.delete(0, tk.END)
+            self.expected_from_entry.delete(0, tk.END)
+            self.is_float_var.set(False)
             messagebox.showinfo("Success", f"{trans_type} added successfully!")
             self.on_data_changed()
         except ValueError:

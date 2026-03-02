@@ -10,7 +10,7 @@ import json
 
 DEFAULT_EXPENSE_CATEGORIES = [
     "Food", "Transportation", "Entertainment", "Utilities",
-    "Shopping", "Healthcare", "Money Lent", "Other"
+    "Shopping", "Healthcare", "Money Lent", "Float", "Other"
 ]
 DEFAULT_INCOME_CATEGORIES = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
 
@@ -78,6 +78,9 @@ class AppState:
         
         if "Expense" not in self.categories or not self.categories["Expense"]:
             self.categories["Expense"] = DEFAULT_EXPENSE_CATEGORIES.copy()
+        elif "Float" not in self.categories["Expense"]:
+            self.categories["Expense"].append("Float")
+            self.categories["Expense"].sort()
         if "Income" not in self.categories or not self.categories["Income"]:
             self.categories["Income"] = DEFAULT_INCOME_CATEGORIES.copy()
 
@@ -91,14 +94,29 @@ class AppState:
         with open(self.data_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
-    def add_transaction(self, trans_type: str, date_str: str, amount: float, category: str, description: str):
+    def add_transaction(self, trans_type: str, date_str: str, amount: float, category: str, description: str, **metadata):
         trans_id = f"{datetime.now().timestamp()}"
         record = {"id": trans_id, "date": date_str, "amount": amount, "category": category, "description": description}
+        for key, value in metadata.items():
+            record[key] = value
         if trans_type == "Expense":
             self.expenses.append(record)
         else:
             self.incomes.append(record)
         self.save()
+
+    def link_reimbursement(self, float_expense_id: str, income_transaction_id: str) -> bool:
+        float_expense = next((e for e in self.expenses if e.get("id") == float_expense_id), None)
+        income = next((i for i in self.incomes if i.get("id") == income_transaction_id), None)
+        if not float_expense or not income:
+            return False
+
+        float_expense["is_float"] = True
+        float_expense["reimbursement_status"] = "reimbursed"
+        float_expense["linked_transaction_id"] = income_transaction_id
+        income["linked_transaction_id"] = float_expense_id
+        self.save()
+        return True
 
     def delete_transaction_by_id(self, trans_type: str, trans_id: str) -> bool:
         target = self.expenses if trans_type == "Expense" else self.incomes
