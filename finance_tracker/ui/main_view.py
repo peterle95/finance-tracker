@@ -7,7 +7,7 @@ Main application window and tab management.
 import tkinter as tk
 from tkinter import ttk
 
-from .style import apply_styles
+from .style import apply_styles, get_current_theme, get_theme_colors
 from .help_window import show_help
 from .shortcuts import ShortcutManager
 
@@ -41,7 +41,8 @@ class MainView:
         self.root.deiconify()
         
         self.root.minsize(1250, 750)
-        apply_styles()
+        self.theme_var = tk.StringVar(value="dark")
+        apply_styles(self.root, self.theme_var.get())
 
         self.state = state
 
@@ -52,6 +53,9 @@ class MainView:
         help_button_frame = ttk.Frame(main_frame)
         help_button_frame.pack(side='bottom', fill='x', pady=(5, 0))
         
+        ttk.Button(help_button_frame, text="☀/🌙", width=5,
+                   command=self._toggle_theme).pack(side='left')
+
         ttk.Button(help_button_frame, text="⌨", width=3,
                    command=self._show_shortcuts_reference).pack(side='right', padx=(5, 0))
         ttk.Button(help_button_frame, text="?", width=3,
@@ -84,6 +88,12 @@ class MainView:
         self.shortcut_manager = ShortcutManager(self)
         self.shortcut_manager.setup_shortcuts()
 
+    def _toggle_theme(self):
+        """Toggle between dark and light themes."""
+        next_theme = "light" if get_current_theme() == "dark" else "dark"
+        self.theme_var.set(next_theme)
+        apply_styles(self.root, next_theme)
+
     def _show_shortcuts_reference(self):
         """Show keyboard shortcuts reference window"""
         shortcuts_win = tk.Toplevel(self.root)
@@ -106,10 +116,12 @@ class MainView:
         scrollbar.pack(side='right', fill='y')
         shortcuts_text.pack(side='left', fill='both', expand=True)
 
+        colors = get_theme_colors()
+
         # Configure tags
         shortcuts_text.tag_configure('title', font=('Arial', 14, 'bold'), spacing1=10)
-        shortcuts_text.tag_configure('section', font=('Arial', 11, 'bold'), spacing1=8, foreground='#0066cc')
-        shortcuts_text.tag_configure('shortcut', font=('Courier New', 9, 'bold'), background='#f0f0f0')
+        shortcuts_text.tag_configure('section', font=('Arial', 11, 'bold'), spacing1=8, foreground=colors['section_fg'])
+        shortcuts_text.tag_configure('shortcut', font=('Courier New', 9, 'bold'), background=colors['shortcut_bg'])
         shortcuts_text.tag_configure('description', font=('Arial', 9))
         
         # Content
