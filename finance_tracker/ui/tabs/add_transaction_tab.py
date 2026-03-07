@@ -16,6 +16,18 @@ class AddTransactionTab:
         self.frame = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame, text="Add Transaction")
 
+        # Style for Klarna button
+        style = ttk.Style(self.frame)
+        style.configure(
+            "Klarna.TButton",
+            foreground="black",
+            background="#ff69b4",
+        )
+        style.map(
+            "Klarna.TButton",
+            background=[("active", "#ff85c1"), ("!disabled", "#ff69b4")],
+        )
+
         form = ttk.Frame(self.frame)
         form.pack(anchor='center')
 
@@ -47,7 +59,21 @@ class AddTransactionTab:
         self.description_entry = ttk.Entry(form, width=30)
         self.description_entry.grid(row=4, column=1, pady=5, sticky='w')
 
-        ttk.Button(form, text="Add Transaction", command=self.add_transaction).grid(row=5, column=1, pady=20, sticky='w')
+        button_frame = ttk.Frame(form)
+        button_frame.grid(row=5, column=1, pady=20, sticky='w')
+
+        ttk.Button(
+            button_frame,
+            text="Klarna",
+            command=self.add_klarna_transaction,
+            style="Klarna.TButton",
+        ).pack(side='left', padx=(0, 10))
+
+        ttk.Button(
+            button_frame,
+            text="Add Transaction",
+            command=self.add_transaction,
+        ).pack(side='left')
 
         self.update_categories()
 
@@ -74,6 +100,38 @@ class AddTransactionTab:
             self.amount_entry.delete(0, tk.END)
             self.description_entry.delete(0, tk.END)
             messagebox.showinfo("Success", f"{trans_type} added successfully!")
+            self.on_data_changed()
+        except ValueError:
+            messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).")
+
+    def add_klarna_transaction(self):
+        try:
+            base_date_str = self.date_entry.get()
+            base_date = datetime.strptime(base_date_str, "%Y-%m-%d")
+
+            # Compute first day of next month
+            if base_date.month == 12:
+                next_month_year = base_date.year + 1
+                next_month = 1
+            else:
+                next_month_year = base_date.year
+                next_month = base_date.month + 1
+
+            klarna_date_str = datetime(next_month_year, next_month, 1).strftime("%Y-%m-%d")
+
+            amount = float(self.amount_entry.get())
+            category = self.category_var.get()
+            description = self.description_entry.get()
+            trans_type = self.transaction_type_var.get()
+
+            if not category:
+                messagebox.showerror("Error", "Please select a category.")
+                return
+
+            self.state.add_transaction(trans_type, klarna_date_str, amount, category, description)
+            self.amount_entry.delete(0, tk.END)
+            self.description_entry.delete(0, tk.END)
+            messagebox.showinfo("Success", f"{trans_type} scheduled for {klarna_date_str} (Klarna).")
             self.on_data_changed()
         except ValueError:
             messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).")
