@@ -89,7 +89,7 @@ class ReportsTab:
         ttk.Radiobutton(self.pie_controls, text="%", variable=self.value_type_var, value="Percentage").pack(side='left')
         ttk.Radiobutton(self.pie_controls, text="€", variable=self.value_type_var, value="Total").pack(side='left', padx=5)
 
-        self.sort_pie_var = tk.BooleanVar(value=False)
+        self.sort_pie_var = tk.BooleanVar(value=True)
         ttk.Checkbutton(self.pie_controls, text="Sort by Value", variable=self.sort_pie_var).pack(side='left', padx=(10, 0))
 
         # Bar controls
