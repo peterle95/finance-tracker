@@ -53,8 +53,10 @@ class MainView:
         help_button_frame = ttk.Frame(main_frame)
         help_button_frame.pack(side='bottom', fill='x', pady=(5, 0))
         
-        ttk.Button(help_button_frame, text="☀/🌙", width=5,
-                   command=self._toggle_theme).pack(side='left')
+        self.theme_toggle_btn = ttk.Button(help_button_frame, width=14,
+                                           command=self._toggle_theme)
+        self.theme_toggle_btn.pack(side='left')
+        self._update_theme_toggle_label()
 
         ttk.Button(help_button_frame, text="⌨", width=3,
                    command=self._show_shortcuts_reference).pack(side='right', padx=(5, 0))
@@ -88,11 +90,19 @@ class MainView:
         self.shortcut_manager = ShortcutManager(self)
         self.shortcut_manager.setup_shortcuts()
 
+    def _update_theme_toggle_label(self):
+        """Update the toggle button label for the active theme."""
+        if get_current_theme() == "dark":
+            self.theme_toggle_btn.configure(text="Switch to Light")
+        else:
+            self.theme_toggle_btn.configure(text="Switch to Dark")
+
     def _toggle_theme(self):
         """Toggle between dark and light themes."""
         next_theme = "light" if get_current_theme() == "dark" else "dark"
         self.theme_var.set(next_theme)
         apply_styles(self.root, next_theme)
+        self._update_theme_toggle_label()
 
     def _show_shortcuts_reference(self):
         """Show keyboard shortcuts reference window"""

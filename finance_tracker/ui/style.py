@@ -117,8 +117,23 @@ def apply_styles(root, theme_name="dark"):
     style.configure("TLabelframe.Label", background=colors["bg"], foreground=colors["fg"])
 
     style.configure("TEntry", fieldbackground=colors["entry_bg"], foreground=colors["entry_fg"])
-    style.configure("TCombobox", fieldbackground=colors["entry_bg"], foreground=colors["entry_fg"])
-    style.map("TCombobox", fieldbackground=[("readonly", colors["entry_bg"])], foreground=[("readonly", colors["entry_fg"])])
+    style.configure(
+        "TCombobox",
+        fieldbackground=colors["entry_bg"],
+        foreground=colors["entry_fg"],
+        background=colors["surface_alt"],
+        arrowcolor=colors["fg"],
+        bordercolor=colors["surface_alt"],
+        darkcolor=colors["surface_alt"],
+        lightcolor=colors["surface_alt"],
+    )
+    style.map(
+        "TCombobox",
+        fieldbackground=[("readonly", colors["entry_bg"]), ("active", colors["entry_bg"])],
+        foreground=[("readonly", colors["entry_fg"]), ("active", colors["entry_fg"])],
+        background=[("readonly", colors["surface_alt"]), ("active", colors["accent_hover"])],
+        arrowcolor=[("readonly", colors["fg"]), ("active", colors["selection_fg"])],
+    )
 
     style.configure("Treeview", background=colors["surface"], foreground=colors["fg"], fieldbackground=colors["surface"], rowheight=24)
     style.configure("Treeview.Heading", font=("Arial", 10, "bold"), background=colors["surface_alt"], foreground=colors["fg"])
@@ -136,6 +151,9 @@ def apply_styles(root, theme_name="dark"):
     style.configure("Complete.TFrame", background=colors["complete_bg"])
 
     root.configure(bg=colors["bg"])
+    for child in root.winfo_children():
+        if isinstance(child, tk.Toplevel):
+            child.configure(bg=colors["bg"])
     root.option_add("*Background", colors["bg"])
     root.option_add("*Foreground", colors["fg"])
     root.option_add("*Text.background", colors["text_bg"])
@@ -143,5 +161,7 @@ def apply_styles(root, theme_name="dark"):
     root.option_add("*Text.insertBackground", colors["text_fg"])
     root.option_add("*Text.selectBackground", colors["selection_bg"])
     root.option_add("*Text.selectForeground", colors["selection_fg"])
+    root.option_add("*Listbox.background", colors["text_bg"])
+    root.option_add("*Listbox.foreground", colors["text_fg"])
 
     _apply_tk_widget_colors(root, colors)
