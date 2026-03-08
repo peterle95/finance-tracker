@@ -128,6 +128,10 @@ class MainView:
                 selectforeground=colors["selection_fg"],
             )
 
+        goals_canvas = getattr(getattr(self, "goals_tab", None), "goals_canvas", None)
+        if goals_canvas is not None:
+            goals_canvas.configure(background=colors["bg"], highlightbackground=colors["bg"])
+
     def _show_shortcuts_reference(self):
         """Show keyboard shortcuts reference window"""
         shortcuts_win = tk.Toplevel(self.root)
