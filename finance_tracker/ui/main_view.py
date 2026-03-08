@@ -7,7 +7,7 @@ Main application window and tab management.
 import tkinter as tk
 from tkinter import ttk
 
-from .style import apply_styles
+from .style import apply_styles, get_current_theme, get_theme_colors
 from .help_window import show_help
 from .shortcuts import ShortcutManager
 
@@ -41,7 +41,8 @@ class MainView:
         self.root.deiconify()
         
         self.root.minsize(1250, 750)
-        apply_styles()
+        self.theme_var = tk.StringVar(value="dark")
+        apply_styles(self.root, self.theme_var.get())
 
         self.state = state
 
@@ -52,6 +53,11 @@ class MainView:
         help_button_frame = ttk.Frame(main_frame)
         help_button_frame.pack(side='bottom', fill='x', pady=(5, 0))
         
+        self.theme_toggle_btn = ttk.Button(help_button_frame, width=14,
+                                           command=self._toggle_theme)
+        self.theme_toggle_btn.pack(side='left')
+        self._update_theme_toggle_label()
+
         ttk.Button(help_button_frame, text="⌨", width=3,
                    command=self._show_shortcuts_reference).pack(side='right', padx=(5, 0))
         ttk.Button(help_button_frame, text="?", width=3,
@@ -79,10 +85,52 @@ class MainView:
         self.net_worth_tab = NetWorthTab(self.notebook, self.state)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
         self.ai_insights_tab = AIInsightsTab(self.notebook, self.state)
-        
+        self._refresh_theme_sensitive_widgets()
+
         # Setup keyboard shortcuts
         self.shortcut_manager = ShortcutManager(self)
         self.shortcut_manager.setup_shortcuts()
+
+    def _update_theme_toggle_label(self):
+        """Update the toggle button label for the active theme."""
+        if get_current_theme() == "dark":
+            self.theme_toggle_btn.configure(text="Switch to Light", style="ThemeToggleLight.TButton")
+        else:
+            self.theme_toggle_btn.configure(text="Switch to Dark", style="ThemeToggleDark.TButton")
+
+    def _toggle_theme(self):
+        """Toggle between dark and light themes."""
+        next_theme = "light" if get_current_theme() == "dark" else "dark"
+        self.theme_var.set(next_theme)
+        apply_styles(self.root, next_theme)
+        self._update_theme_toggle_label()
+        self._refresh_theme_sensitive_widgets()
+
+
+    def _refresh_theme_sensitive_widgets(self):
+        """Ensure report/text widgets are updated after a theme switch."""
+        colors = get_theme_colors()
+        text_widgets = [
+            getattr(getattr(self, "settings_tab", None), "report_text", None),
+            getattr(getattr(self, "reports_tab", None), "info_text", None),
+            getattr(getattr(self, "projection_tab", None), "text", None),
+            getattr(getattr(self, "ai_insights_tab", None), "chat_text", None),
+        ]
+
+        for widget in text_widgets:
+            if widget is None:
+                continue
+            widget.configure(
+                background=colors["text_bg"],
+                foreground=colors["text_fg"],
+                insertbackground=colors["text_fg"],
+                selectbackground=colors["selection_bg"],
+                selectforeground=colors["selection_fg"],
+            )
+
+        goals_canvas = getattr(getattr(self, "goals_tab", None), "goals_canvas", None)
+        if goals_canvas is not None:
+            goals_canvas.configure(background=colors["bg"], highlightbackground=colors["bg"])
 
     def _show_shortcuts_reference(self):
         """Show keyboard shortcuts reference window"""
@@ -106,10 +154,12 @@ class MainView:
         scrollbar.pack(side='right', fill='y')
         shortcuts_text.pack(side='left', fill='both', expand=True)
 
+        colors = get_theme_colors()
+
         # Configure tags
         shortcuts_text.tag_configure('title', font=('Arial', 14, 'bold'), spacing1=10)
-        shortcuts_text.tag_configure('section', font=('Arial', 11, 'bold'), spacing1=8, foreground='#0066cc')
-        shortcuts_text.tag_configure('shortcut', font=('Courier New', 9, 'bold'), background='#f0f0f0')
+        shortcuts_text.tag_configure('section', font=('Arial', 11, 'bold'), spacing1=8, foreground=colors['section_fg'])
+        shortcuts_text.tag_configure('shortcut', font=('Courier New', 9, 'bold'), background=colors['shortcut_bg'])
         shortcuts_text.tag_configure('description', font=('Arial', 9))
         
         # Content

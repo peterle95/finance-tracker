@@ -149,8 +149,15 @@ class ReportsTab:
         self.paned.add(self.info_frame, weight=1)
         
         # Info text widget
-        self.info_text = tk.Text(self.info_frame, wrap='word', width=30, height=20, state='disabled', 
-                               bg='#f0f0f0', relief='flat', font=('Arial', 10))
+        self.info_text = tk.Text(
+            self.info_frame,
+            wrap='word',
+            width=30,
+            height=20,
+            state='disabled',
+            relief='flat',
+            font=('Arial', 10),
+        )
         self.info_text.pack(fill='both', expand=True)
 
         self._toggle_controls()
