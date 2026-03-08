@@ -85,7 +85,8 @@ class MainView:
         self.net_worth_tab = NetWorthTab(self.notebook, self.state)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
         self.ai_insights_tab = AIInsightsTab(self.notebook, self.state)
-        
+        self._refresh_theme_sensitive_widgets()
+
         # Setup keyboard shortcuts
         self.shortcut_manager = ShortcutManager(self)
         self.shortcut_manager.setup_shortcuts()
@@ -103,6 +104,29 @@ class MainView:
         self.theme_var.set(next_theme)
         apply_styles(self.root, next_theme)
         self._update_theme_toggle_label()
+        self._refresh_theme_sensitive_widgets()
+
+
+    def _refresh_theme_sensitive_widgets(self):
+        """Ensure report/text widgets are updated after a theme switch."""
+        colors = get_theme_colors()
+        text_widgets = [
+            getattr(getattr(self, "settings_tab", None), "report_text", None),
+            getattr(getattr(self, "reports_tab", None), "info_text", None),
+            getattr(getattr(self, "projection_tab", None), "text", None),
+            getattr(getattr(self, "ai_insights_tab", None), "chat_text", None),
+        ]
+
+        for widget in text_widgets:
+            if widget is None:
+                continue
+            widget.configure(
+                background=colors["text_bg"],
+                foreground=colors["text_fg"],
+                insertbackground=colors["text_fg"],
+                selectbackground=colors["selection_bg"],
+                selectforeground=colors["selection_fg"],
+            )
 
     def _show_shortcuts_reference(self):
         """Show keyboard shortcuts reference window"""
