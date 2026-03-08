@@ -6,6 +6,7 @@ Defines and applies custom Tkinter styles for the application.
 
 import tkinter as tk
 from tkinter import ttk
+import ctypes
 
 THEMES = {
     "dark": {
@@ -82,6 +83,25 @@ def _apply_tk_widget_colors(widget, colors):
         _apply_tk_widget_colors(child, colors)
 
 
+def _set_native_titlebar_theme(root, theme_name):
+    """Best-effort native title bar theming (Windows only)."""
+    try:
+        if root.tk.call("tk", "windowingsystem") != "win32":
+            return
+
+        hwnd = ctypes.windll.user32.GetParent(root.winfo_id())
+        if not hwnd:
+            return
+
+        # DWMWA_USE_IMMERSIVE_DARK_MODE: 20 (Win10 2004+) fallback 19 (older builds)
+        use_dark = ctypes.c_int(1 if theme_name == "dark" else 0)
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 20, ctypes.byref(use_dark), ctypes.sizeof(use_dark))
+        ctypes.windll.dwmapi.DwmSetWindowAttribute(hwnd, 19, ctypes.byref(use_dark), ctypes.sizeof(use_dark))
+    except Exception:
+        # Ignore: unsupported platform/window manager
+        pass
+
+
 def apply_styles(root, theme_name="dark"):
     global _current_theme
     _current_theme = theme_name
@@ -109,6 +129,10 @@ def apply_styles(root, theme_name="dark"):
         foreground=[("active", colors["selection_fg"])],
     )
     style.configure("Help.TButton", font=("Arial", 12, "bold"))
+    style.configure("ThemeToggleLight.TButton", background="#8a6f00", foreground="#ffffff", font=("Arial", 10, "bold"))
+    style.map("ThemeToggleLight.TButton", background=[("active", "#a78500")], foreground=[("active", "#ffffff")])
+    style.configure("ThemeToggleDark.TButton", background="#000000", foreground="#ffffff", font=("Arial", 10, "bold"))
+    style.map("ThemeToggleDark.TButton", background=[("active", "#202020")], foreground=[("active", "#ffffff")])
 
     style.configure("TRadiobutton", font=("Arial", 10), background=colors["bg"], foreground=colors["fg"])
     style.configure("TCheckbutton", background=colors["bg"], foreground=colors["fg"])
@@ -151,6 +175,7 @@ def apply_styles(root, theme_name="dark"):
     style.configure("Complete.TFrame", background=colors["complete_bg"])
 
     root.configure(bg=colors["bg"])
+    _set_native_titlebar_theme(root, theme_name)
     for child in root.winfo_children():
         if isinstance(child, tk.Toplevel):
             child.configure(bg=colors["bg"])

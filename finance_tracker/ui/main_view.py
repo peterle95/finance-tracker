@@ -93,9 +93,9 @@ class MainView:
     def _update_theme_toggle_label(self):
         """Update the toggle button label for the active theme."""
         if get_current_theme() == "dark":
-            self.theme_toggle_btn.configure(text="Switch to Light")
+            self.theme_toggle_btn.configure(text="Switch to Light", style="ThemeToggleLight.TButton")
         else:
-            self.theme_toggle_btn.configure(text="Switch to Dark")
+            self.theme_toggle_btn.configure(text="Switch to Dark", style="ThemeToggleDark.TButton")
 
     def _toggle_theme(self):
         """Toggle between dark and light themes."""
