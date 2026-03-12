@@ -24,6 +24,22 @@ class ProjectionTab:
         self.months_entry = ttk.Entry(controls, width=10)
         self.months_entry.insert(0, "12")
         self.months_entry.pack(side='left', padx=5)
+
+        self.projection_mode = tk.StringVar(value="target_savings")
+        ttk.Label(controls, text="Projection mode:").pack(side='left', padx=(15, 5))
+        ttk.Radiobutton(
+            controls,
+            text="Target savings",
+            value="target_savings",
+            variable=self.projection_mode
+        ).pack(side='left', padx=2)
+        ttk.Radiobutton(
+            controls,
+            text="Net worth month-by-month trend",
+            value="net_worth_change",
+            variable=self.projection_mode
+        ).pack(side='left', padx=2)
+
         ttk.Button(controls, text="Generate Projection", command=self.generate).pack(side='left', padx=20)
         ttk.Button(controls, text="Export Projection", command=self.export).pack(side='left', padx=5)
 
@@ -39,7 +55,7 @@ class ProjectionTab:
         except ValueError:
             messagebox.showerror("Error", "Invalid number of months.")
             return
-        report = projection_text(self.state, months)
+        report = projection_text(self.state, months, mode=self.projection_mode.get())
         self.text.delete("1.0", tk.END)
         self.text.insert("1.0", report)
 
