@@ -27,6 +27,7 @@ THEMES = {
         "text_fg": "#eef1f6",
         "shortcut_bg": "#323847",
         "section_fg": "#8ec5ff",
+        "hover_light_blue": "#8ec5ff",
     },
     "light": {
         "bg": "#f6f8fc",
@@ -46,6 +47,7 @@ THEMES = {
         "text_fg": "#1f2430",
         "shortcut_bg": "#edf1fa",
         "section_fg": "#0b5bd3",
+        "hover_light_blue": "#dbeaff",
     },
 }
 
@@ -135,7 +137,18 @@ def apply_styles(root, theme_name="dark"):
     style.map("ThemeToggleDark.TButton", background=[("active", "#202020")], foreground=[("active", "#ffffff")])
 
     style.configure("TRadiobutton", font=("Arial", 10), background=colors["bg"], foreground=colors["fg"])
+    style.map(
+        "TRadiobutton",
+        background=[("active", colors["hover_light_blue"])],
+        foreground=[("active", colors["fg"])],
+    )
+
     style.configure("TCheckbutton", background=colors["bg"], foreground=colors["fg"])
+    style.map(
+        "TCheckbutton",
+        background=[("active", colors["hover_light_blue"])],
+        foreground=[("active", colors["fg"])],
+    )
 
     style.configure("TLabelframe", background=colors["bg"], foreground=colors["fg"])
     style.configure("TLabelframe.Label", background=colors["bg"], foreground=colors["fg"])
