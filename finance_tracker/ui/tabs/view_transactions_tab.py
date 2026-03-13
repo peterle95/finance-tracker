@@ -362,15 +362,7 @@ class ViewTransactionsTab:
         filter_date = self.date_filter.get().strip()
         filter_type = self.type_filter.get().strip()
         filter_description = self.description_filter.get().strip()
-        filter_month = self.month_filter.get().strip()
-        month_is_filtered = bool(filter_month) and filter_month != "All"
-        filters_active = (
-            bool(filter_type)
-            or bool(filter_category)
-            or bool(filter_date)
-            or bool(filter_description)
-            or month_is_filtered
-        )
+        filters_active = bool(filter_type) or bool(filter_category) or bool(filter_date) or bool(filter_description)
 
         if filters_active:
             matching_count = len(self._current_transactions)
