@@ -77,6 +77,18 @@ class AddTransactionTab:
 
         self.update_categories()
 
+    def _ui_is_alive(self):
+        try:
+            return bool(self.frame.winfo_exists() and self.frame.winfo_toplevel().winfo_exists())
+        except tk.TclError:
+            return False
+
+    def _show_message(self, kind, title, message):
+        if not self._ui_is_alive():
+            return None
+        parent = self.frame.winfo_toplevel()
+        return getattr(messagebox, kind)(title, message, parent=parent)
+
     def update_categories(self):
         t = self.transaction_type_var.get()
         categories = self.state.categories.get(t, [])
@@ -93,16 +105,18 @@ class AddTransactionTab:
             trans_type = self.transaction_type_var.get()
 
             if not category:
-                messagebox.showerror("Error", "Please select a category.")
+                self._show_message("showerror", "Error", "Please select a category.")
                 return
 
             self.state.add_transaction(trans_type, date_str, amount, category, description)
+            if not self._ui_is_alive():
+                return
             self.amount_entry.delete(0, tk.END)
             self.description_entry.delete(0, tk.END)
-            messagebox.showinfo("Success", f"{trans_type} added successfully!")
             self.on_data_changed()
+            self._show_message("showinfo", "Success", f"{trans_type} added successfully!")
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).")
+            self._show_message("showerror", "Error", "Invalid amount or date format (YYYY-MM-DD).")
 
     def add_klarna_transaction(self):
         try:
@@ -125,13 +139,15 @@ class AddTransactionTab:
             trans_type = self.transaction_type_var.get()
 
             if not category:
-                messagebox.showerror("Error", "Please select a category.")
+                self._show_message("showerror", "Error", "Please select a category.")
                 return
 
             self.state.add_transaction(trans_type, klarna_date_str, amount, category, description)
+            if not self._ui_is_alive():
+                return
             self.amount_entry.delete(0, tk.END)
             self.description_entry.delete(0, tk.END)
-            messagebox.showinfo("Success", f"{trans_type} scheduled for {klarna_date_str} (Klarna).")
             self.on_data_changed()
+            self._show_message("showinfo", "Success", f"{trans_type} scheduled for {klarna_date_str} (Klarna).")
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).")
+            self._show_message("showerror", "Error", "Invalid amount or date format (YYYY-MM-DD).")

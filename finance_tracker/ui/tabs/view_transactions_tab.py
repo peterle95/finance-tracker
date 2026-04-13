@@ -95,6 +95,7 @@ class ViewTransactionsTab:
         self.summary_label = ttk.Label(frame, text="", font=('Arial', 10, 'bold'))
         self.summary_label.pack(pady=10, fill='x')
 
+        self.frame.bind("<Destroy>", self._on_destroy, add="+")
         self.refresh()
 
     def sort_by_column(self, column):
@@ -163,13 +164,37 @@ class ViewTransactionsTab:
                 trans['category'], trans['description']), tags=(tag,))
 
     def _schedule_refresh(self, _event=None):
+        if not self._frame_exists():
+            return
         if self._refresh_job is not None:
-            self.frame.after_cancel(self._refresh_job)
+            self.cancel_pending_refresh()
         self._refresh_job = self.frame.after(50, self._run_scheduled_refresh)
 
     def _run_scheduled_refresh(self):
         self._refresh_job = None
+        if not self._frame_exists():
+            return
         self.refresh()
+
+    def _frame_exists(self):
+        try:
+            return bool(self.frame.winfo_exists())
+        except tk.TclError:
+            return False
+
+    def cancel_pending_refresh(self):
+        if self._refresh_job is None or not self._frame_exists():
+            self._refresh_job = None
+            return
+        try:
+            self.frame.after_cancel(self._refresh_job)
+        except tk.TclError:
+            pass
+        self._refresh_job = None
+
+    def _on_destroy(self, event):
+        if event.widget is self.frame:
+            self.cancel_pending_refresh()
 
     def update_filter_options(self):
         """Update the available options in filter dropdowns based on current transactions"""

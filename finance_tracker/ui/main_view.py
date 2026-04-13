@@ -24,6 +24,7 @@ from .tabs.ai_insights_tab import AIInsightsTab
 class MainView:
     def __init__(self, root, state):
         self.root = root
+        self._closing = False
         self.root.title("Personal Finance Tracker")
         
         # Set initial window size and position
@@ -39,6 +40,7 @@ class MainView:
         
         # Make sure window is visible
         self.root.deiconify()
+        self.root.focus_force()
         
         self.root.minsize(1250, 750)
         self.theme_var = tk.StringVar(value="dark")
@@ -90,6 +92,27 @@ class MainView:
         # Setup keyboard shortcuts
         self.shortcut_manager = ShortcutManager(self)
         self.shortcut_manager.setup_shortcuts()
+        self.root.protocol("WM_DELETE_WINDOW", self._on_close)
+
+    def _on_close(self):
+        if self._closing:
+            return
+
+        self._closing = True
+
+        view_tab = getattr(self, "view_tab", None)
+        if view_tab is not None:
+            view_tab.cancel_pending_refresh()
+
+        try:
+            self.root.quit()
+        except tk.TclError:
+            pass
+
+        try:
+            self.root.destroy()
+        except tk.TclError:
+            pass
 
     def _update_theme_toggle_label(self):
         """Update the toggle button label for the active theme."""
