@@ -14,6 +14,7 @@ from ...services.budget_calculator import (
     get_active_monthly_income_sources,
 )
 from ..charts import create_budget_depletion_figure
+from ..windowing import close_window, create_child_window
 
 class SettingsTab:
     def __init__(self, notebook, state):
@@ -167,14 +168,12 @@ class SettingsTab:
         self.budget_canvas.get_tk_widget().pack(fill='both', expand=True)
 
     def _open_income_manager(self):
-        win = tk.Toplevel()
-        win.title("Base Monthly Income Manager")
-        win.geometry("700x500")
-        win.transient()
-        win.grab_set()
-
-        # Bind ESC to close window
-        win.bind('<Escape>', lambda e: win.destroy())
+        win = create_child_window(
+            self.income_btn,
+            title="Base Monthly Income Manager",
+            geometry="700x500",
+            modal=True,
+        )
 
         main = ttk.Frame(win, padding=10)
         main.pack(fill='both', expand=True)
@@ -245,19 +244,17 @@ class SettingsTab:
         ttk.Button(btns, text="Add New Income", command=self.add_income).pack(side='left', padx=5)
         ttk.Button(btns, text="Update Selected", command=self.update_income).pack(side='left', padx=5)
         ttk.Button(btns, text="Delete Selected", command=self.delete_income).pack(side='left', padx=5)
-        ttk.Button(btns, text="Close", command=win.destroy).pack(side='right', padx=5)
+        ttk.Button(btns, text="Close", command=lambda: close_window(win)).pack(side='right', padx=5)
 
         self.refresh_income_tree()
 
     def _open_fixed_costs_manager(self):
-        win = tk.Toplevel()
-        win.title("Base Monthly Costs Manager")
-        win.geometry("800x600")
-        win.transient()
-        win.grab_set()
-
-        # Bind ESC to close window
-        win.bind('<Escape>', lambda e: win.destroy())
+        win = create_child_window(
+            self.costs_btn,
+            title="Base Monthly Costs Manager",
+            geometry="800x600",
+            modal=True,
+        )
 
         main = ttk.Frame(win, padding=10)
         main.pack(fill='both', expand=True)
@@ -328,7 +325,7 @@ class SettingsTab:
         ttk.Button(btns, text="Add New Cost", command=self.add_fixed_cost).pack(side='left', padx=5)
         ttk.Button(btns, text="Update Selected", command=self.update_fixed_cost).pack(side='left', padx=5)
         ttk.Button(btns, text="Delete Selected", command=self.delete_fixed_cost).pack(side='left', padx=5)
-        ttk.Button(btns, text="Close", command=win.destroy).pack(side='right', padx=5)
+        ttk.Button(btns, text="Close", command=lambda: close_window(win)).pack(side='right', padx=5)
 
         self.refresh_fixed_costs_tree()
 
@@ -342,15 +339,13 @@ class SettingsTab:
 
     def _open_lending_manager(self):
         """Open the lending manager window to manage individual loans."""
-        loan_win = tk.Toplevel()
-        loan_win.title("Lending Manager")
-        loan_win.geometry("800x600")
-        loan_win.minsize(600, 500)
-        loan_win.transient()
-        loan_win.grab_set()
-        
-        # Bind ESC to close window
-        loan_win.bind('<Escape>', lambda e: loan_win.destroy())
+        loan_win = create_child_window(
+            self.money_lent_btn,
+            title="Lending Manager",
+            geometry="800x600",
+            minsize=(600, 500),
+            modal=True,
+        )
 
         main_frame = ttk.Frame(loan_win, padding=10)
         main_frame.pack(fill='both', expand=True)
@@ -411,7 +406,7 @@ class SettingsTab:
 
         ttk.Button(btn_frame, text="Update Selected", command=lambda: self._update_loan(loan_win)).pack(side='left', padx=5)
         ttk.Button(btn_frame, text="Mark as Returned", command=lambda: self._mark_loan_returned(loan_win)).pack(side='left', padx=5)
-        ttk.Button(btn_frame, text="Close", command=loan_win.destroy).pack(side='right', padx=5)
+        ttk.Button(btn_frame, text="Close", command=lambda: close_window(loan_win)).pack(side='right', padx=5)
 
         # Store reference to loan window for use in other methods
         self.loan_win_ref = loan_win
@@ -620,6 +615,14 @@ class SettingsTab:
         set_entry(self.daily_savings_entry, 'daily_savings_goal')
         self._update_money_lent_button()
 
+    def _alive_window(self, window):
+        try:
+            if window is not None and window.winfo_exists():
+                return window
+        except tk.TclError:
+            pass
+        return None
+
     def save_settings(self):
         try:
             s = self.state.budget_settings
@@ -673,6 +676,11 @@ class SettingsTab:
         # Only refresh if the manager window is open (tree exists)
         if not hasattr(self, 'fixed_costs_tree'):
             return
+        try:
+            if not self.fixed_costs_tree.winfo_exists():
+                return
+        except tk.TclError:
+            return
         for i in self.fixed_costs_tree.get_children():
             self.fixed_costs_tree.delete(i)
 
@@ -715,6 +723,7 @@ class SettingsTab:
         self.refresh_fixed_costs_tree()
 
     def add_fixed_cost(self):
+        parent = self._alive_window(getattr(self, 'fc_win', None))
         try:
             desc = self.fc_desc_entry.get().strip()
             amount = float(self.fc_amount_entry.get())
@@ -722,17 +731,17 @@ class SettingsTab:
             end_date = self.fc_end_date_entry.get().strip()
             
             if not desc:
-                messagebox.showerror("Error", "Description cannot be empty.")
+                messagebox.showerror("Error", "Description cannot be empty.", parent=parent)
                 return
             
             # Validate start date
             if not start_date:
-                messagebox.showerror("Error", "Start date is required.")
+                messagebox.showerror("Error", "Start date is required.", parent=parent)
                 return
             try:
                 datetime.strptime(start_date, "%Y-%m-%d")
             except ValueError:
-                messagebox.showerror("Error", "Invalid start date format. Use YYYY-MM-DD.")
+                messagebox.showerror("Error", "Invalid start date format. Use YYYY-MM-DD.", parent=parent)
                 return
             
             # Validate end date if provided
@@ -740,7 +749,7 @@ class SettingsTab:
                 try:
                     datetime.strptime(end_date, "%Y-%m-%d")
                 except ValueError:
-                    messagebox.showerror("Error", "Invalid end date format. Use YYYY-MM-DD.")
+                    messagebox.showerror("Error", "Invalid end date format. Use YYYY-MM-DD.", parent=parent)
                     return
             else:
                 end_date = None
@@ -762,12 +771,13 @@ class SettingsTab:
             self.fc_start_date_entry.insert(0, datetime.now().strftime("%Y-%m-%d"))
             self.fc_end_date_entry.delete(0, tk.END)
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount for fixed cost.", parent=getattr(self, 'fc_win', None))
+            messagebox.showerror("Error", "Invalid amount for fixed cost.", parent=parent)
 
     def update_fixed_cost(self):
+        parent = self._alive_window(getattr(self, 'fc_win', None))
         selected = self.fixed_costs_tree.selection()
         if not selected:
-            messagebox.showwarning("Warning", "Please select a fixed cost to update.")
+            messagebox.showwarning("Warning", "Please select a fixed cost to update.", parent=parent)
             return
         try:
             desc = self.fc_desc_entry.get().strip()
@@ -776,24 +786,24 @@ class SettingsTab:
             end_date = self.fc_end_date_entry.get().strip()
             
             if not desc:
-                messagebox.showerror("Error", "Description cannot be empty.")
+                messagebox.showerror("Error", "Description cannot be empty.", parent=parent)
                 return
             
             # Validate dates
             if not start_date:
-                messagebox.showerror("Error", "Start date is required.")
+                messagebox.showerror("Error", "Start date is required.", parent=parent)
                 return
             try:
                 datetime.strptime(start_date, "%Y-%m-%d")
             except ValueError:
-                messagebox.showerror("Error", "Invalid start date format. Use YYYY-MM-DD.")
+                messagebox.showerror("Error", "Invalid start date format. Use YYYY-MM-DD.", parent=parent)
                 return
             
             if end_date:
                 try:
                     datetime.strptime(end_date, "%Y-%m-%d")
                 except ValueError:
-                    messagebox.showerror("Error", "Invalid end date format. Use YYYY-MM-DD.")
+                    messagebox.showerror("Error", "Invalid end date format. Use YYYY-MM-DD.", parent=parent)
                     return
             else:
                 end_date = None
@@ -813,10 +823,7 @@ class SettingsTab:
             self._update_costs_display()
             self._refresh_budget_graph()
         except ValueError:
-            messagebox.showerror("Error", "Invalid amount for fixed cost.", parent=getattr(self, 'fc_win', None))
-
-        except ValueError:
-            messagebox.showerror("Error", "Invalid amount for fixed cost.")
+            messagebox.showerror("Error", "Invalid amount for fixed cost.", parent=parent)
 
     def _populate_income_form(self, win):
         """Populate the income form fields when an entry is selected in the tree."""
@@ -1069,9 +1076,10 @@ class SettingsTab:
                 return
 
     def delete_fixed_cost(self):
+        parent = self._alive_window(getattr(self, 'fc_win', None))
         selected = self.fixed_costs_tree.selection()
         if not selected:
-            messagebox.showwarning("Warning", "Please select a fixed cost to delete.")
+            messagebox.showwarning("Warning", "Please select a fixed cost to delete.", parent=parent)
             return
         
         values = self.fixed_costs_tree.item(selected[0])['values']
@@ -1088,7 +1096,8 @@ class SettingsTab:
                         f"Do you want to:\n\n"
                         f"YES - Set an end date (archives the cost)\n"
                         f"NO - Permanently delete this cost\n"
-                        f"CANCEL - Keep the cost as-is"
+                        f"CANCEL - Keep the cost as-is",
+                        parent=parent
                     )
                     if response is None:  # Cancel
                         return
@@ -1097,7 +1106,7 @@ class SettingsTab:
                         cost['end_date'] = end_date
                         self.state.save()
                         self.refresh_fixed_costs_tree()
-                        messagebox.showinfo("Success", f"Cost archived with end date: {end_date}")
+                        messagebox.showinfo("Success", f"Cost archived with end date: {end_date}", parent=parent)
                         return
                     # else: fall through to delete
                 
@@ -1109,7 +1118,7 @@ class SettingsTab:
                 self._refresh_budget_graph()
                 return
         
-        messagebox.showerror("Error", "Could not find the selected fixed cost item.", parent=getattr(self, 'fc_win', None))
+        messagebox.showerror("Error", "Could not find the selected fixed cost item.", parent=parent)
 
     def generate_report(self):
         month = self.budget_month_entry.get()

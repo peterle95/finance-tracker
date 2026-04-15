@@ -8,6 +8,7 @@ import tkinter as tk
 from tkinter import ttk, messagebox
 from datetime import datetime
 from ...services.budget_calculator import get_active_fixed_costs, get_active_monthly_income
+from ..windowing import close_window, create_child_window
 
 class ViewTransactionsTab:
     def __init__(self, notebook, state, on_data_changed):
@@ -469,12 +470,7 @@ class ViewTransactionsTab:
             messagebox.showerror("Error", "Could not find the selected transaction in the data.")
             return
 
-        win = tk.Toplevel(self.frame)
-        win.title("Modify Transaction")
-        win.transient(self.frame)
-        win.grab_set()
-
-        win.bind('<Escape>', lambda e: win.destroy())
+        win = create_child_window(self.frame, title="Modify Transaction", modal=True)
 
         form = ttk.Frame(win, padding="20")
         form.pack(fill='both', expand=True)
@@ -544,7 +540,7 @@ class ViewTransactionsTab:
 
                 self.state.save()
                 self.on_data_changed()
-                win.destroy()
+                close_window(win)
             except ValueError:
                 messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).", parent=win)
 

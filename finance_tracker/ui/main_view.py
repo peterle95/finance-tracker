@@ -10,6 +10,7 @@ from tkinter import ttk
 from .style import apply_styles, get_current_theme, get_theme_colors
 from .help_window import show_help
 from .shortcuts import ShortcutManager
+from .windowing import close_window, create_child_window, show_main_window
 
 from .tabs.add_transaction_tab import AddTransactionTab
 from .tabs.view_transactions_tab import ViewTransactionsTab
@@ -29,18 +30,6 @@ class MainView:
         
         # Set initial window size and position
         self.root.geometry("1250x750")
-        
-        # Ensure window is visible and on top initially
-        self.root.lift()
-        self.root.attributes('-topmost', True)
-        self.root.after_idle(self.root.attributes, '-topmost', False)
-        
-        # Force window to normal state (not minimized)
-        self.root.state('normal')
-        
-        # Make sure window is visible
-        self.root.deiconify()
-        self.root.focus_force()
         
         self.root.minsize(1250, 750)
         self.theme_var = tk.StringVar(value="dark")
@@ -92,6 +81,7 @@ class MainView:
         # Setup keyboard shortcuts
         self.shortcut_manager = ShortcutManager(self)
         self.shortcut_manager.setup_shortcuts()
+        show_main_window(self.root)
         self.root.protocol("WM_DELETE_WINDOW", self._on_close)
 
     def _on_close(self):
@@ -103,6 +93,23 @@ class MainView:
         view_tab = getattr(self, "view_tab", None)
         if view_tab is not None:
             view_tab.cancel_pending_refresh()
+
+        try:
+            current_grab = self.root.grab_current()
+        except tk.TclError:
+            current_grab = None
+        if current_grab:
+            try:
+                current_grab.grab_release()
+            except tk.TclError:
+                pass
+
+        managed_windows = set(getattr(self.root, "_managed_child_windows", set()))
+        for child in self.root.winfo_children():
+            if isinstance(child, tk.Toplevel):
+                managed_windows.add(child)
+        for window in list(managed_windows):
+            close_window(window)
 
         try:
             self.root.quit()
@@ -157,13 +164,12 @@ class MainView:
 
     def _show_shortcuts_reference(self):
         """Show keyboard shortcuts reference window"""
-        shortcuts_win = tk.Toplevel(self.root)
-        shortcuts_win.title("Keyboard Shortcuts Reference")
-        shortcuts_win.geometry("700x650")
-        shortcuts_win.minsize(600, 500)
-        
-        # Bind ESC to close window
-        shortcuts_win.bind('<Escape>', lambda e: shortcuts_win.destroy())
+        shortcuts_win = create_child_window(
+            self.root,
+            title="Keyboard Shortcuts Reference",
+            geometry="700x650",
+            minsize=(600, 500),
+        )
 
         main_frame = ttk.Frame(shortcuts_win, padding=10)
         main_frame.pack(fill='both', expand=True)
@@ -242,4 +248,4 @@ class MainView:
         # Close button
         button_frame = ttk.Frame(main_frame)
         button_frame.pack(fill='x', pady=(10, 0))
-        ttk.Button(button_frame, text="Close", command=shortcuts_win.destroy).pack(side='right')
+        ttk.Button(button_frame, text="Close", command=lambda: close_window(shortcuts_win)).pack(side='right')

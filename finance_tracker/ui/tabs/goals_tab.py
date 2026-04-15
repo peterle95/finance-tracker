@@ -19,6 +19,7 @@ from ...services.goals_service import (
     validate_allocation,
     auto_distribute_savings
 )
+from ..windowing import close_window, create_child_window
 
 class GoalsTab:
     def __init__(self, notebook, state):
@@ -510,15 +511,12 @@ class GoalsTab:
         goal = goals[index]
         current_allocation = goal.get('allocated_amount', 0)
     
-        # Create dialog
-        dialog = tk.Toplevel(self.goals_container)
-        dialog.title(f"Allocate Savings to {goal['name']}")
-        dialog.geometry("450x450")
-        dialog.transient(self.goals_container)
-        dialog.grab_set()
-    
-        # Bind ESC to close dialog
-        dialog.bind('<Escape>', lambda e: dialog.destroy())
+        dialog = create_child_window(
+            self.goals_container,
+            title=f"Allocate Savings to {goal['name']}",
+            geometry="450x450",
+            modal=True,
+        )
     
         ttk.Label(dialog, text=f"Allocate savings to: {goal['name']}", 
                  font=('Arial', 11, 'bold')).pack(pady=10)
@@ -598,7 +596,7 @@ class GoalsTab:
                     goal['completion_date'] = None
                 
                 self.state.save()
-                dialog.destroy()
+                close_window(dialog)
                 self.refresh_goals()
                 
             except ValueError:
@@ -607,7 +605,7 @@ class GoalsTab:
         button_frame = ttk.Frame(dialog)
         button_frame.pack(pady=10)
         ttk.Button(button_frame, text="Save", command=validate_and_save).pack(side='left', padx=5)
-        ttk.Button(button_frame, text="Cancel", command=dialog.destroy).pack(side='left', padx=5)
+        ttk.Button(button_frame, text="Cancel", command=lambda: close_window(dialog)).pack(side='left', padx=5)
         
         # Bind Enter key
         allocation_entry.bind('<Return>', lambda e: validate_and_save())
@@ -647,9 +645,11 @@ class GoalsTab:
         """Show goals report in a new window"""
         report_text = generate_goals_report(self.state)
         
-        report_win = tk.Toplevel(self.goals_container)
-        report_win.title("Savings Goals Report")
-        report_win.geometry("900x700")
+        report_win = create_child_window(
+            self.goals_container,
+            title="Savings Goals Report",
+            geometry="900x700",
+        )
         
         main_frame = ttk.Frame(report_win, padding=10)
         main_frame.pack(fill='both', expand=True)
@@ -667,11 +667,11 @@ class GoalsTab:
         button_frame = ttk.Frame(report_win, padding=10)
         button_frame.pack(fill='x')
         ttk.Button(button_frame, text="Export", 
-                  command=lambda: self.export_report(report_text)).pack(side='right')
+                  command=lambda: self.export_report(report_text, parent=report_win)).pack(side='right')
         ttk.Button(button_frame, text="Close", 
-                  command=report_win.destroy).pack(side='right', padx=5)
+                  command=lambda: close_window(report_win)).pack(side='right', padx=5)
     
-    def export_report(self, report_text=None):
+    def export_report(self, report_text=None, parent=None):
         """Export goals report to file"""
         if report_text is None:
             report_text = generate_goals_report(self.state)
@@ -691,6 +691,6 @@ class GoalsTab:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(report_text)
-            messagebox.showinfo("Success", f"Report successfully exported to:\n{path}")
+            messagebox.showinfo("Success", f"Report successfully exported to:\n{path}", parent=parent)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to export report.\nError: {e}")
+            messagebox.showerror("Error", f"Failed to export report.\nError: {e}", parent=parent)

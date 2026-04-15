@@ -14,6 +14,7 @@ from ...services.ai_insights_service import (
     build_insights_prompt,
     request_ai_insights,
 )
+from ..windowing import create_child_window
 
 
 class AIInsightsTab:
@@ -128,11 +129,12 @@ class AIInsightsTab:
         return base_urls.get(provider_key, base_urls["OpenAI-Compatible"])
 
     def open_insights_window(self):
-        win = tk.Toplevel(self.chat_entry)
-        win.title("AI Insights Report")
-        win.geometry("900x600")
-        win.minsize(700, 500)
-        win.bind('<Escape>', lambda e: win.destroy())
+        win = create_child_window(
+            self.chat_entry,
+            title="AI Insights Report",
+            geometry="900x600",
+            minsize=(700, 500),
+        )
 
         options = ttk.Frame(win, padding=10)
         options.pack(fill="x")
@@ -164,7 +166,7 @@ class AIInsightsTab:
             api_url = self._get_api_base_url()
 
             if not model or not api_key:
-                messagebox.showerror("Missing Settings", "Please enter a model and API key.")
+                messagebox.showerror("Missing Settings", "Please enter a model and API key.", parent=win)
                 return
 
             try:
@@ -172,7 +174,7 @@ class AIInsightsTab:
                 if months_back <= 0:
                     raise ValueError
             except ValueError:
-                messagebox.showerror("Invalid Input", "Months to analyze must be a positive integer.")
+                messagebox.showerror("Invalid Input", "Months to analyze must be a positive integer.", parent=win)
                 return
 
             self.last_month = month_str or self.last_month
@@ -196,7 +198,7 @@ class AIInsightsTab:
             try:
                 insights = request_ai_insights(config, messages)
             except RuntimeError as exc:
-                messagebox.showerror("AI Request Failed", str(exc))
+                messagebox.showerror("AI Request Failed", str(exc), parent=win)
                 return
 
             report_text.delete("1.0", tk.END)

@@ -7,14 +7,16 @@ Displays the help and instructions window for the application.
 import tkinter as tk
 from tkinter import ttk
 
+from .windowing import close_window, create_child_window
+
+
 def show_help(root):
-    help_win = tk.Toplevel(root)
-    help_win.title("Help & Instructions")
-    help_win.geometry("800x600")
-    help_win.minsize(600, 400)
-    
-    # Bind ESC to close window
-    help_win.bind('<Escape>', lambda e: help_win.destroy())
+    help_win = create_child_window(
+        root,
+        title="Help & Instructions",
+        geometry="800x600",
+        minsize=(600, 400),
+    )
 
     main_frame = ttk.Frame(help_win, padding=10)
     main_frame.pack(fill='both', expand=True)
@@ -37,13 +39,13 @@ def show_help(root):
         ("Core Concepts", "h1"),
         ("\nTo use this tracker effectively, it's important to understand these key ideas:", "italic"),
 
-        ("\n• Assets (Your Accounts):", "bold"),
+        ("\n- Assets (Your Accounts):", "bold"),
         ("\n The main ones are 'Bank', 'Wallet', 'Savings', 'Investments', and 'Money Lent'. Balances are in 'Budget Report'.", "none"),
 
-        ("\n• Transactions (Income/Expense):", "bold"),
+        ("\n- Transactions (Income/Expense):", "bold"),
         ("\n Money entering/leaving your finances.", "none"),
 
-        ("\n• Savings Goals:", "bold"),
+        ("\n- Savings Goals:", "bold"),
         ("\n Allocate your existing savings across different objectives. The Savings Balance (set in Budget Report) is the source - you distribute it to goals.\n", "none"),
 
         ("\nHow To Use Each Tab", "h1"),
@@ -71,9 +73,9 @@ def show_help(root):
 
         ("\nProjection Tab", "h2"),
         ("\nProject future total assets based on daily savings goal.", "none"),
-        
+
         ("\n\nKeyboard Shortcuts", "h1"),
-        ("\nPress the ⌨ button or press Escape to close this window. See the keyboard shortcuts reference for all available shortcuts.", "italic"),
+        ("\nPress the keyboard shortcuts button or press Escape to close this window. See the keyboard shortcuts reference for all available shortcuts.", "italic"),
     ]
     for text, tag in content:
         if tag == "none":
@@ -82,8 +84,7 @@ def show_help(root):
             help_text_widget.insert(tk.END, text, tag)
 
     help_text_widget.config(state='disabled')
-    
-    # Close button
+
     button_frame = ttk.Frame(main_frame)
     button_frame.pack(fill='x', pady=(10, 0))
-    ttk.Button(button_frame, text="Close", command=help_win.destroy).pack(side='right')
+    ttk.Button(button_frame, text="Close", command=lambda: close_window(help_win)).pack(side='right')

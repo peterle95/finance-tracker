@@ -11,6 +11,7 @@ from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from ...services.report_builder import pie_data, pie_data_range, history_data, line_expense_category_range
 from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
 from ..charts import create_bar_figure, create_pie_figure, create_line_figure
+from ..windowing import close_window, create_child_window
 
 class ReportsTab:
     def __init__(self, notebook, state):
@@ -205,15 +206,13 @@ class ReportsTab:
         """Open a modal dialog to select categories for the line chart."""
         categories = self.state.categories.get("Expense", [])
         
-        # Create modal dialog
-        dialog = tk.Toplevel(self.line_controls.winfo_toplevel())
-        dialog.title("Select Categories")
-        dialog.transient(self.line_controls.winfo_toplevel())
-        dialog.grab_set()
-        
-        # Center the dialog
-        dialog.geometry("500x500")
-        dialog.minsize(400, 350)
+        dialog = create_child_window(
+            self.line_controls,
+            title="Select Categories",
+            geometry="500x500",
+            minsize=(400, 350),
+            modal=True,
+        )
         dialog.resizable(True, True)
         
         # Main frame with padding
@@ -265,10 +264,10 @@ class ReportsTab:
         def on_ok():
             self.selected_categories = {cat for cat, var in checkbox_vars.items() if var.get()}
             self._update_category_button_text()
-            dialog.destroy()
+            close_window(dialog)
         
         def on_cancel():
-            dialog.destroy()
+            close_window(dialog)
         
         ttk.Button(button_frame, text="Select All", command=select_all).pack(side='left', padx=(0, 5))
         ttk.Button(button_frame, text="Deselect All", command=deselect_all).pack(side='left')

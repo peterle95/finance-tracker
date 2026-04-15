@@ -19,6 +19,7 @@ from ...services.asset_tracking_service import (
     get_asset_allocation_data
 )
 from ..charts import create_net_worth_figure, create_allocation_figure, create_breakdown_figure
+from ..windowing import close_window, create_child_window
 
 class NetWorthTab:
     def __init__(self, notebook, state):
@@ -362,9 +363,11 @@ class NetWorthTab:
         """Show the net worth report in a dialog"""
         report = generate_net_worth_report(self.state)
         
-        report_win = tk.Toplevel()
-        report_win.title("Net Worth Report")
-        report_win.geometry("700x600")
+        report_win = create_child_window(
+            self.chart_container,
+            title="Net Worth Report",
+            geometry="700x600",
+        )
         
         # Text widget for report
         text_frame = ttk.Frame(report_win)
@@ -385,11 +388,11 @@ class NetWorthTab:
         button_frame.pack(fill='x', padx=10, pady=(0, 10))
         
         ttk.Button(button_frame, text="Close", 
-                  command=report_win.destroy).pack(side='right', padx=5)
+                  command=lambda: close_window(report_win)).pack(side='right', padx=5)
         ttk.Button(button_frame, text="Export to File", 
-                  command=lambda: self.export_report(report)).pack(side='right', padx=5)
+                  command=lambda: self.export_report(report, parent=report_win)).pack(side='right', padx=5)
     
-    def export_report(self, report_text=None):
+    def export_report(self, report_text=None, parent=None):
         """Export the net worth report to a text file"""
         if report_text is None:
             report_text = generate_net_worth_report(self.state)
@@ -404,6 +407,6 @@ class NetWorthTab:
             try:
                 with open(filename, 'w') as f:
                     f.write(report_text)
-                messagebox.showinfo("Success", f"Report saved to {filename}")
+                messagebox.showinfo("Success", f"Report saved to {filename}", parent=parent)
             except Exception as e:
-                messagebox.showerror("Error", f"Failed to save report: {str(e)}")
+                messagebox.showerror("Error", f"Failed to save report: {str(e)}", parent=parent)
