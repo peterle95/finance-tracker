@@ -21,6 +21,7 @@ from .tabs.projection_tab import ProjectionTab
 from .tabs.goals_tab import GoalsTab
 from .tabs.net_worth_tab import NetWorthTab
 from .tabs.ai_insights_tab import AIInsightsTab
+from .tabs.reconciliation_tab import ReconciliationTab
 
 class MainView:
     def __init__(self, root, state):
@@ -64,6 +65,8 @@ class MainView:
             self.settings_tab.refresh_fixed_costs_tree()
             self.settings_tab.refresh_balance_entries()
             self.goals_tab.refresh_goals()
+            if hasattr(self, 'reconciliation_tab'):
+                self.reconciliation_tab.refresh_after_data_change()
         self.on_data_changed = on_data_changed
 
         # Tabs
@@ -76,6 +79,7 @@ class MainView:
         self.net_worth_tab = NetWorthTab(self.notebook, self.state)
         self.projection_tab = ProjectionTab(self.notebook, self.state)
         self.ai_insights_tab = AIInsightsTab(self.notebook, self.state)
+        self.reconciliation_tab = ReconciliationTab(self.notebook, self.state, self.on_data_changed)
         self._refresh_theme_sensitive_widgets()
 
         # Setup keyboard shortcuts
@@ -145,6 +149,7 @@ class MainView:
             getattr(getattr(self, "reports_tab", None), "info_text", None),
             getattr(getattr(self, "projection_tab", None), "text", None),
             getattr(getattr(self, "ai_insights_tab", None), "chat_text", None),
+            getattr(getattr(self, "reconciliation_tab", None), "_detail_text", None),
         ]
 
         for widget in text_widgets:

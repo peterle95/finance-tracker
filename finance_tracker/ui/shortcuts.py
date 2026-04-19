@@ -38,6 +38,8 @@ class ShortcutManager:
         self.root.bind('<Control-W>', lambda e: self._switch_to_tab(6))
         self.root.bind('<Control-p>', lambda e: self._switch_to_tab(7))
         self.root.bind('<Control-P>', lambda e: self._switch_to_tab(7))
+        self.root.bind('<Control-i>', lambda e: self._switch_to_tab(9))
+        self.root.bind('<Control-I>', lambda e: self._switch_to_tab(9))
         
         # Help
         self.root.bind('<Control-h>', lambda e: show_help(self.root))
