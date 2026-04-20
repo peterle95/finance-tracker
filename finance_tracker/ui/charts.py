@@ -499,6 +499,154 @@ def create_bar_figure(labels, values, title, breakdown_mode="total", display_mod
     
     return fig
 
+def create_dow_heatmap_figure(state, num_months: int = 3):
+    """
+    Bar chart of average daily spending by day of week.
+    Shows both the mean spend and number of transaction days for context.
+    """
+    import calendar as cal
+    from datetime import date
+    from dateutil.relativedelta import relativedelta
+    from collections import defaultdict
+
+    today = date.today()
+    cutoff = (today - relativedelta(months=num_months)).strftime("%Y-%m-%d")
+
+    day_totals  = defaultdict(float)   # 0=Mon … 6=Sun
+    day_counts  = defaultdict(int)     # days that had at least one transaction
+    day_days    = defaultdict(set)     # unique dates seen
+
+    for e in state.expenses:
+        if e.get("date", "") < cutoff:
+            continue
+        try:
+            d = datetime.strptime(e["date"], "%Y-%m-%d")
+            dow = d.weekday()          # 0=Monday
+            day_totals[dow] += e["amount"]
+            day_days[dow].add(e["date"])
+        except ValueError:
+            continue
+
+    labels  = [cal.day_abbr[i] for i in range(7)]
+    # Average = total / number of unique days that had spending
+    averages = [
+        day_totals[i] / len(day_days[i]) if day_days[i] else 0
+        for i in range(7)
+    ]
+    counts = [len(day_days[i]) for i in range(7)]
+
+    fig = Figure(figsize=(8, 4), dpi=100)
+    ax  = fig.add_subplot(111)
+
+    colors = ["#e74c3c" if avg == max(averages) else "#4c8dff"
+              for avg in averages]
+    bars = ax.bar(labels, averages, color=colors)
+
+    for bar, avg, cnt in zip(bars, averages, counts):
+        if avg > 0:
+            ax.annotate(
+                f"€{avg:.0f}\n({cnt}d)",
+                xy=(bar.get_x() + bar.get_width() / 2, bar.get_height()),
+                xytext=(0, 4), textcoords="offset points",
+                ha="center", va="bottom", fontsize=8,
+            )
+
+    ax.set_title(
+        f"Average Spending by Day of Week  (last {num_months} months)",
+        fontweight="bold")
+    ax.set_ylabel("Avg daily spend (€)")
+    ax.yaxis.set_major_formatter(plt.FuncFormatter(lambda x, _: f"€{x:,.0f}"))
+    ax.grid(True, alpha=0.3, axis="y")
+    fig.tight_layout()
+    return fig
+
+def create_spending_pace_figure(state, month_str: str):
+    """
+    Cumulative actual spending vs ideal linear budget pace for a month.
+    The crossover point where actual exceeds pace is immediately visible.
+    """
+    from ..services.budget_calculator import (
+        get_active_monthly_income,
+        get_active_fixed_costs,
+    )
+
+    try:
+        year, month = map(int, month_str.split("-"))
+    except ValueError:
+        fig = Figure(figsize=(8, 4), dpi=100)
+        return fig
+
+    days_in_month = calendar.monthrange(year, month)[1]
+    today         = datetime.now().date()
+
+    # Budget baseline
+    base_income    = get_active_monthly_income(state, month_str)
+    daily_savings  = state.budget_settings.get("daily_savings_goal", 0)
+    fixed_costs    = sum(fc["amount"] for fc in get_active_fixed_costs(state, month_str))
+    monthly_budget = base_income - fixed_costs - (daily_savings * days_in_month)
+
+    # Daily actual spending
+    daily_spend = {}
+    for e in state.expenses:
+        if e.get("date", "").startswith(month_str):
+            daily_spend[e["date"]] = daily_spend.get(e["date"], 0) + e["amount"]
+
+    days      = []
+    cumulative = []
+    pace_line  = []
+    running    = 0
+
+    for day in range(1, days_in_month + 1):
+        date_obj = datetime(year, month, day).date()
+        if date_obj > today:
+            break
+        date_str_d = date_obj.strftime("%Y-%m-%d")
+        running   += daily_spend.get(date_str_d, 0)
+        days.append(day)
+        cumulative.append(running)
+        pace_line.append(monthly_budget * (day / days_in_month))
+
+    if not days:
+        fig = Figure(figsize=(8, 4), dpi=100)
+        ax  = fig.add_subplot(111)
+        ax.text(0.5, 0.5, "No data yet", ha="center", va="center",
+                transform=ax.transAxes)
+        return fig
+
+    fig = Figure(figsize=(8, 4), dpi=100)
+    ax  = fig.add_subplot(111)
+
+    ax.plot(days, pace_line, linestyle="--", color="gray",
+            linewidth=2, label="Budget pace")
+    ax.plot(days, cumulative, color="#e74c3c", linewidth=2.5,
+            marker="o", markersize=3, label="Actual spending")
+
+    # Shade the gap between lines
+    ax.fill_between(
+        days, cumulative, pace_line,
+        where=[c > p for c, p in zip(cumulative, pace_line)],
+        alpha=0.25, color="red", interpolate=True, label="Over budget")
+    ax.fill_between(
+        days, cumulative, pace_line,
+        where=[c <= p for c, p in zip(cumulative, pace_line)],
+        alpha=0.2, color="green", interpolate=True, label="Under budget")
+
+    # Budget ceiling line
+    ax.axhline(monthly_budget, color="black", linestyle=":", linewidth=1,
+               alpha=0.5, label=f"Monthly budget (€{monthly_budget:,.0f})")
+
+    ax.set_title(
+        f"Spending Pace — {calendar.month_name[month]} {year}",
+        fontweight="bold")
+    ax.set_xlabel("Day of month")
+    ax.set_ylabel("Cumulative spending (€)")
+    ax.yaxis.set_major_formatter(
+        plt.FuncFormatter(lambda x, _: f"€{x:,.0f}"))
+    ax.legend(loc="upper left", fontsize=8)
+    ax.grid(True, alpha=0.3)
+    fig.tight_layout()
+    return fig
+
 def create_pie_figure(labels, sizes, title, value_type="Total"):
     """Generate pie chart"""
     fig = Figure(figsize=(8, 6), dpi=100)

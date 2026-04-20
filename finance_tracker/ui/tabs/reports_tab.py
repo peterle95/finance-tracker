@@ -40,7 +40,8 @@ class ReportsTab:
             style_frame,
             textvariable=self.style_var,
             state="readonly",
-            values=("Pie Chart", "Historical Bar Chart", "Line Chart")
+            values=("Pie Chart", "Historical Bar Chart", "Line Chart",
+                    "Day-of-Week Heatmap", "Spending Pace")
         )
         self.style_menu.pack(side='left', padx=5)
         self.style_menu.bind("<<ComboboxSelected>>", lambda _event: self._toggle_controls())
@@ -122,6 +123,20 @@ class ReportsTab:
         )
         self.category_button.pack(side='left', padx=(10, 5))
 
+        # Spending Pace controls
+        self.pace_controls = ttk.Frame(top)
+        ttk.Label(self.pace_controls, text="Month (YYYY-MM):").pack(side='left')
+        self.pace_month_entry = ttk.Entry(self.pace_controls, width=10)
+        self.pace_month_entry.insert(0, current_month)
+        self.pace_month_entry.pack(side='left', padx=5)
+
+        # Day-of-Week Heatmap controls
+        self.dow_controls = ttk.Frame(top)
+        ttk.Label(self.dow_controls, text="Months of history:").pack(side='left')
+        self.dow_months_entry = ttk.Entry(self.dow_controls, width=6)
+        self.dow_months_entry.insert(0, "3")
+        self.dow_months_entry.pack(side='left', padx=5)
+
         bottom = ttk.Frame(controls)
         bottom.pack(fill='x', expand=True)
 
@@ -169,6 +184,8 @@ class ReportsTab:
         self.pie_controls.pack_forget()
         self.bar_controls.pack_forget()
         self.line_controls.pack_forget()
+        self.pace_controls.pack_forget()
+        self.dow_controls.pack_forget()
         self.budget_lines_check.pack_forget()
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
@@ -178,9 +195,28 @@ class ReportsTab:
             self.paned.pane(self.info_frame, weight=1)
         elif s == "Historical Bar Chart":
             self.bar_controls.pack(side='left', padx=(0, 15))
-            self._update_info_panel(["Click on chart to toggle: Total → Categories → Flexible → Over/Under view", 
-                                   "Right-click to toggle: Value/Percentage display"], title="Instructions")
+            self._update_info_panel(["Click on chart to toggle: Total → Categories → Flexible → Over/Under view",
+                                     "Right-click to toggle: Value/Percentage display"], title="Instructions")
             self.paned.pane(self.chart_frame, weight=90)
+            self.paned.pane(self.info_frame, weight=1)
+        elif s == "Day-of-Week Heatmap":
+            self.dow_controls.pack(side='left', padx=(0, 15))
+            self._update_info_panel(
+                ["Shows your average spending per day of the week.",
+                 "Red bar = highest spending day.",
+                 "Number in brackets = how many days had transactions."],
+                title="Day-of-Week Heatmap")
+            self.paned.pane(self.chart_frame, weight=110)
+            self.paned.pane(self.info_frame, weight=1)
+        elif s == "Spending Pace":
+            self.pace_controls.pack(side='left', padx=(0, 15))
+            self._update_info_panel(
+                ["Shows cumulative spending vs the ideal even budget pace.",
+                 "Red fill = over budget pace.",
+                 "Green fill = under budget pace.",
+                 "Dotted line = total monthly flexible budget ceiling."],
+                title="Spending Pace")
+            self.paned.pane(self.chart_frame, weight=110)
             self.paned.pane(self.info_frame, weight=1)
         else:
             self.line_controls.pack(side='left', padx=(0, 15))
@@ -290,10 +326,13 @@ class ReportsTab:
         if style == "Pie Chart":
             self._make_pie()
         elif style == "Historical Bar Chart":
-            # Reset to defaults when generating new chart
             self.bar_breakdown_mode = "total"
             self.bar_display_mode = "value"
             self._make_bar()
+        elif style == "Day-of-Week Heatmap":
+            self._make_dow_heatmap()
+        elif style == "Spending Pace":
+            self._make_spending_pace()
         else:
             self._make_line()
 
@@ -510,6 +549,34 @@ class ReportsTab:
                 else:
                     self.bar_display_mode = "value"
                 self._render_bar_chart()
+
+    def _make_dow_heatmap(self):
+        from ..charts import create_dow_heatmap_figure
+        try:
+            n = int(self.dow_months_entry.get())
+            if n <= 0:
+                raise ValueError
+        except ValueError:
+            messagebox.showerror("Error", "Months of history must be a positive integer.")
+            return
+        fig = create_dow_heatmap_figure(self.state, num_months=n)
+        self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
+
+    def _make_spending_pace(self):
+        from ..charts import create_spending_pace_figure
+        month = self.pace_month_entry.get().strip()
+        try:
+            from datetime import datetime as _dt
+            _dt.strptime(month, "%Y-%m")
+        except ValueError:
+            messagebox.showerror("Error", "Month must be in YYYY-MM format.")
+            return
+        fig = create_spending_pace_figure(self.state, month)
+        self.canvas = FigureCanvasTkAgg(fig, master=self.chart_frame)
+        self.canvas.draw()
+        self.canvas.get_tk_widget().pack(fill='both', expand=True)
 
     def _make_pie(self):
         is_range = self.pie_period_var.get() == "Range"

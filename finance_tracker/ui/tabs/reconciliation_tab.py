@@ -1,8 +1,9 @@
 """
 finance_tracker/ui/tabs/reconciliation_tab.py
 
-Tab for importing bank CSV exports and reconciling them against manually
-entered transactions. Highlights what's missing and lets the user add it.
+Reconciliation tab: finds the "Reconciliation" placeholder expense for a month,
+cross-references the bank CSV, and suggests which missing transactions explain
+the unaccounted amount so the user can properly categorize them.
 """
 
 from __future__ import annotations
@@ -10,462 +11,472 @@ from __future__ import annotations
 import tkinter as tk
 from tkinter import filedialog, messagebox, ttk
 from datetime import datetime
-from typing import TYPE_CHECKING
+from typing import Optional
 
 from ...services.reconciliation_service import (
     STATUS_MATCHED,
     STATUS_MISSING,
     STATUS_POSSIBLE,
     BankTransaction,
-    get_summary,
     match_transactions,
     parse_bank_csv,
     suggest_category,
 )
 
-if TYPE_CHECKING:
-    pass
+_TAG_CANDIDATE  = "candidate"   # likely explains part of reconciliation
+_TAG_UNLIKELY   = "unlikely"    # unmatched but amount doesn't fit
+_TAG_MATCHED    = "matched"
+_RECON_CATEGORY = "Reconciliation"
 
-# Row colours (tag names mapped to background colours, set via Treeview tag_configure)
-_TAG_MISSING  = "rec_missing"
-_TAG_POSSIBLE = "rec_possible"
-_TAG_MATCHED  = "rec_matched"
 
-_FILTER_ALL      = "All"
-_FILTER_MISSING  = "Missing"
-_FILTER_POSSIBLE = "Possible match"
-_FILTER_MATCHED  = "Matched"
+def _find_candidates(
+    unmatched: list[BankTransaction],
+    target: float,
+    tolerance: float = 2.0,
+) -> list[tuple[BankTransaction, float]]:
+    """
+    For each unmatched expense, score how likely it contributes to the
+    reconciliation gap.  Returns list of (txn, score) sorted best first.
+    Score = 100 if transaction alone equals target, decreasing otherwise.
+    """
+    results = []
+    for t in unmatched:
+        if t.tx_type != "Expense":
+            continue
+        amt = abs(t.amount)
+        # Score: 100 if exact match, scaled by closeness, 0 if amt > target + tolerance
+        if amt <= target + tolerance:
+            # How much of the target does this cover?
+            coverage = min(amt / target, 1.0) if target > 0 else 0
+            # Bonus if it alone exactly explains the gap
+            exact_bonus = 30 if abs(amt - target) <= tolerance else 0
+            score = coverage * 70 + exact_bonus
+        else:
+            score = 0
+        results.append((t, round(score, 1)))
+
+    results.sort(key=lambda x: x[1], reverse=True)
+    return results
 
 
 class ReconciliationTab:
-    """Bank CSV import and reconciliation tab."""
-
     def __init__(self, notebook: ttk.Notebook, state, on_data_changed):
         self.state = state
         self.on_data_changed = on_data_changed
 
         self._bank_txns: list[BankTransaction] = []
-        self._filtered_txns: list[BankTransaction] = []
-        self._loaded_file: str = ""
+        self._unmatched_month: list[BankTransaction] = []
+        self._scored: list[tuple[BankTransaction, float]] = []
+        self._recon_entries: list[dict] = []   # existing Reconciliation-category txns
 
-        # ------------------------------------------------------------------ #
-        # Root frame
-        # ------------------------------------------------------------------ #
         self.frame = ttk.Frame(notebook, padding="10")
         notebook.add(self.frame, text="Reconciliation")
-        self.frame.rowconfigure(2, weight=1)
+        self.frame.rowconfigure(1, weight=1)
         self.frame.columnconfigure(0, weight=1)
 
-        # ------------------------------------------------------------------ #
-        # Row 0 — file loader + summary stats
-        # ------------------------------------------------------------------ #
+        # ── TOP BAR ──────────────────────────────────────────────────────
         top = ttk.Frame(self.frame)
         top.grid(row=0, column=0, sticky="ew", pady=(0, 8))
-        top.columnconfigure(1, weight=1)
 
-        load_frame = ttk.LabelFrame(top, text="Bank CSV Import", padding="10")
-        load_frame.grid(row=0, column=0, sticky="ns", padx=(0, 10))
+        # Month selector
+        ttk.Label(top, text="Month (YYYY-MM):").pack(side="left")
+        self._month_var = tk.StringVar(value=datetime.now().strftime("%Y-%m"))
+        ttk.Entry(top, textvariable=self._month_var, width=10).pack(
+            side="left", padx=(5, 15))
+        ttk.Button(top, text="Analyse", command=self._analyse).pack(side="left")
 
-        ttk.Button(load_frame, text="📂  Load Bank CSV",
-                   command=self._load_csv).pack(side="left", padx=(0, 10))
-
-        self._file_label = ttk.Label(load_frame, text="No file loaded",
-                                     foreground="gray", font=("Arial", 9, "italic"))
+        # CSV loader
+        ttk.Separator(top, orient="vertical").pack(
+            side="left", fill="y", padx=15)
+        ttk.Button(top, text="📂  Load Bank CSV",
+                   command=self._load_csv).pack(side="left", padx=(0, 8))
+        self._file_label = ttk.Label(top, text="No CSV loaded",
+                                     foreground="gray",
+                                     font=("Arial", 9, "italic"))
         self._file_label.pack(side="left")
 
-        ttk.Button(load_frame, text="↻  Re-match",
-                   command=self._rematch).pack(side="left", padx=(15, 0))
+        # ── MAIN AREA ─────────────────────────────────────────────────────
+        main = ttk.Frame(self.frame)
+        main.grid(row=1, column=0, sticky="nsew")
+        main.rowconfigure(0, weight=1)
+        main.columnconfigure(0, weight=2)
+        main.columnconfigure(1, weight=1)
 
-        # Summary stats panel
-        self._stats_frame = ttk.LabelFrame(top, text="CSV Summary", padding="10")
-        self._stats_frame.grid(row=0, column=1, sticky="nsew")
-        self._stats_label = ttk.Label(self._stats_frame,
-                                      text="Load a CSV file to see statistics.",
-                                      font=("Arial", 10), justify="left")
-        self._stats_label.pack(anchor="w")
+        # LEFT: summary + candidate table
+        left = ttk.Frame(main)
+        left.grid(row=0, column=0, sticky="nsew", padx=(0, 8))
+        left.rowconfigure(1, weight=1)
+        left.columnconfigure(0, weight=1)
 
-        # ------------------------------------------------------------------ #
-        # Row 1 — filter bar + action buttons
-        # ------------------------------------------------------------------ #
-        filter_bar = ttk.Frame(self.frame)
-        filter_bar.grid(row=1, column=0, sticky="ew", pady=(0, 5))
+        # Summary cards
+        cards = ttk.Frame(left)
+        cards.grid(row=0, column=0, sticky="ew", pady=(0, 8))
+        for i in range(4):
+            cards.columnconfigure(i, weight=1)
 
-        ttk.Label(filter_bar, text="Show:").pack(side="left", padx=(0, 5))
-        self._filter_var = tk.StringVar(value=_FILTER_MISSING)
-        for label in (_FILTER_ALL, _FILTER_MISSING, _FILTER_POSSIBLE, _FILTER_MATCHED):
-            ttk.Radiobutton(
-                filter_bar, text=label,
-                variable=self._filter_var, value=label,
-                command=self._apply_filter,
-            ).pack(side="left", padx=4)
+        def _card(col, title):
+            f = ttk.LabelFrame(cards, text=title, padding="8")
+            f.grid(row=0, column=col, sticky="ew", padx=3)
+            lbl = ttk.Label(f, text="—", font=("Arial", 13, "bold"), anchor="center")
+            lbl.pack(fill="x")
+            return lbl
 
-        # Action buttons (right-aligned)
-        btn_frame = ttk.Frame(filter_bar)
-        btn_frame.pack(side="right")
-        ttk.Button(btn_frame, text="Add Selected to Tracker",
-                   command=self._add_selected).pack(side="left", padx=5)
-        ttk.Button(btn_frame, text="Add All Missing to Tracker",
-                   command=self._add_all_missing).pack(side="left")
+        self._lbl_recon_total  = _card(0, "Reconciliation Placeholder")
+        self._lbl_csv_missing  = _card(1, "Unmatched CSV Expenses")
+        self._lbl_csv_sum      = _card(2, "Unmatched CSV Total")
+        self._lbl_remaining    = _card(3, "Still Unexplained")
 
-        # ------------------------------------------------------------------ #
-        # Row 2 — main paned area: treeview (left) + detail panel (right)
-        # ------------------------------------------------------------------ #
-        paned = ttk.PanedWindow(self.frame, orient="horizontal")
-        paned.grid(row=2, column=0, sticky="nsew")
+        # Candidate table
+        tbl_frame = ttk.LabelFrame(
+            left,
+            text="CSV transactions NOT in tracker  "
+                 "(🎯 = likely candidate, sorted by relevance)",
+            padding="8",
+        )
+        tbl_frame.grid(row=1, column=0, sticky="nsew")
+        tbl_frame.rowconfigure(0, weight=1)
+        tbl_frame.columnconfigure(0, weight=1)
 
-        # Left: transaction table
-        tree_outer = ttk.Frame(paned)
-        paned.add(tree_outer, weight=4)
-        tree_outer.rowconfigure(0, weight=1)
-        tree_outer.columnconfigure(0, weight=1)
+        cols = ("score", "date", "amount", "payee", "purpose", "suggested_cat")
+        self._tree = ttk.Treeview(
+            tbl_frame, columns=cols, show="headings", selectmode="browse")
+        self._tree.heading("score",         text="Fit")
+        self._tree.heading("date",          text="Date")
+        self._tree.heading("amount",        text="Amount")
+        self._tree.heading("payee",         text="Payee")
+        self._tree.heading("purpose",       text="Purpose")
+        self._tree.heading("suggested_cat", text="Suggested Category")
 
-        cols = ("status", "date", "amount", "type", "payee", "purpose", "category")
-        self._tree = ttk.Treeview(tree_outer, columns=cols, show="headings", selectmode="browse")
+        self._tree.column("score",         width=55,  anchor="center", stretch=False)
+        self._tree.column("date",          width=90,  anchor="center", stretch=False)
+        self._tree.column("amount",        width=85,  anchor="e",      stretch=False)
+        self._tree.column("payee",         width=170, anchor="w")
+        self._tree.column("purpose",       width=200, anchor="w")
+        self._tree.column("suggested_cat", width=140, anchor="w")
 
-        self._tree.heading("status",   text="Status")
-        self._tree.heading("date",     text="Date",     command=lambda: self._sort("date"))
-        self._tree.heading("amount",   text="Amount",   command=lambda: self._sort("amount"))
-        self._tree.heading("type",     text="Type",     command=lambda: self._sort("type"))
-        self._tree.heading("payee",    text="Payee",    command=lambda: self._sort("payee"))
-        self._tree.heading("purpose",  text="Purpose")
-        self._tree.heading("category", text="Suggested Category")
+        self._tree.tag_configure(_TAG_CANDIDATE,
+                                 background="#2a3d1a", foreground="#a8e08a")
+        self._tree.tag_configure(_TAG_UNLIKELY,
+                                 background="#1e2028", foreground="#9098b0")
 
-        self._tree.column("status",   width=90,  anchor="center", stretch=False)
-        self._tree.column("date",     width=95,  anchor="center", stretch=False)
-        self._tree.column("amount",   width=90,  anchor="e",      stretch=False)
-        self._tree.column("type",     width=70,  anchor="center", stretch=False)
-        self._tree.column("payee",    width=180, anchor="w")
-        self._tree.column("purpose",  width=220, anchor="w")
-        self._tree.column("category", width=140, anchor="w")
-
-        # Colour tags
-        self._tree.tag_configure(_TAG_MISSING,  background="#3d1a1a", foreground="#ff8080")
-        self._tree.tag_configure(_TAG_POSSIBLE, background="#3d3000", foreground="#ffd080")
-        self._tree.tag_configure(_TAG_MATCHED,  background="#1a3a1a", foreground="#80c880")
-
-        vsb = ttk.Scrollbar(tree_outer, orient="vertical",   command=self._tree.yview)
-        hsb = ttk.Scrollbar(tree_outer, orient="horizontal",  command=self._tree.xview)
+        vsb = ttk.Scrollbar(tbl_frame, orient="vertical",
+                             command=self._tree.yview)
+        hsb = ttk.Scrollbar(tbl_frame, orient="horizontal",
+                             command=self._tree.xview)
         self._tree.configure(yscrollcommand=vsb.set, xscrollcommand=hsb.set)
         self._tree.grid(row=0, column=0, sticky="nsew")
         vsb.grid(row=0, column=1, sticky="ns")
         hsb.grid(row=1, column=0, sticky="ew")
-
         self._tree.bind("<<TreeviewSelect>>", self._on_select)
 
-        # Right: detail panel
-        detail_outer = ttk.LabelFrame(paned, text="Transaction Detail", padding="10")
-        paned.add(detail_outer, weight=1)
-        detail_outer.columnconfigure(0, weight=1)
-        detail_outer.rowconfigure(1, weight=1)
+        # Table buttons
+        tbl_btns = ttk.Frame(left)
+        tbl_btns.grid(row=2, column=0, sticky="ew", pady=(6, 0))
+        ttk.Button(tbl_btns, text="✚  Add Selected with Proper Category",
+                   command=self._add_selected).pack(side="left", padx=(0, 8))
+        ttk.Button(tbl_btns, text="Add All Candidates",
+                   command=self._add_all_candidates).pack(side="left")
+        self._lbl_progress = ttk.Label(
+            tbl_btns, text="", font=("Arial", 9, "italic"), foreground="gray")
+        self._lbl_progress.pack(side="right")
 
-        self._detail_text = tk.Text(
-            detail_outer, wrap="word", font=("Courier New", 9),
-            height=12, state="disabled", relief="flat",
-        )
-        self._detail_text.grid(row=0, column=0, sticky="nsew")
+        # RIGHT: explanation + quick-add form
+        right = ttk.Frame(main)
+        right.grid(row=0, column=1, sticky="nsew")
+        right.rowconfigure(0, weight=1)
+        right.columnconfigure(0, weight=1)
 
-        # --- Quick-add form inside detail panel ---
-        add_frame = ttk.LabelFrame(detail_outer, text="Add to Tracker", padding="8")
-        add_frame.grid(row=1, column=0, sticky="ew", pady=(10, 0))
+        # Explanation text
+        explain_frame = ttk.LabelFrame(right, text="What is happening?", padding="8")
+        explain_frame.grid(row=0, column=0, sticky="nsew", pady=(0, 8))
+        explain_frame.rowconfigure(0, weight=1)
+        explain_frame.columnconfigure(0, weight=1)
+
+        self._explain_text = tk.Text(
+            explain_frame, wrap="word", font=("Arial", 9),
+            state="disabled", relief="flat", height=12)
+        esb = ttk.Scrollbar(explain_frame, orient="vertical",
+                             command=self._explain_text.yview)
+        self._explain_text.configure(yscrollcommand=esb.set)
+        self._explain_text.grid(row=0, column=0, sticky="nsew")
+        esb.grid(row=0, column=1, sticky="ns")
+
+        # Quick-add form
+        add_frame = ttk.LabelFrame(right, text="Add as proper transaction", padding="8")
+        add_frame.grid(row=1, column=0, sticky="ew")
         add_frame.columnconfigure(1, weight=1)
 
-        ttk.Label(add_frame, text="Date:").grid(row=0, column=0, sticky="w", pady=3)
+        def _row(r, label):
+            ttk.Label(add_frame, text=label).grid(
+                row=r, column=0, sticky="w", pady=2, padx=(0, 6))
+
+        _row(0, "Date:")
         self._add_date_var = tk.StringVar()
-        ttk.Entry(add_frame, textvariable=self._add_date_var, width=14).grid(
-            row=0, column=1, sticky="w", pady=3)
+        ttk.Entry(add_frame, textvariable=self._add_date_var, width=12).grid(
+            row=0, column=1, sticky="w", pady=2)
 
-        ttk.Label(add_frame, text="Amount:").grid(row=1, column=0, sticky="w", pady=3)
+        _row(1, "Amount (€):")
         self._add_amount_var = tk.StringVar()
-        ttk.Entry(add_frame, textvariable=self._add_amount_var, width=14).grid(
-            row=1, column=1, sticky="w", pady=3)
+        ttk.Entry(add_frame, textvariable=self._add_amount_var, width=12).grid(
+            row=1, column=1, sticky="w", pady=2)
 
-        ttk.Label(add_frame, text="Type:").grid(row=2, column=0, sticky="w", pady=3)
+        _row(2, "Type:")
         self._add_type_var = tk.StringVar(value="Expense")
-        type_f = ttk.Frame(add_frame)
-        type_f.grid(row=2, column=1, sticky="w")
-        ttk.Radiobutton(type_f, text="Expense", variable=self._add_type_var,
-                        value="Expense", command=self._refresh_category_combo).pack(side="left")
-        ttk.Radiobutton(type_f, text="Income",  variable=self._add_type_var,
-                        value="Income",  command=self._refresh_category_combo).pack(side="left", padx=5)
+        tf = ttk.Frame(add_frame)
+        tf.grid(row=2, column=1, sticky="w")
+        ttk.Radiobutton(tf, text="Expense", variable=self._add_type_var,
+                        value="Expense",
+                        command=self._refresh_cats).pack(side="left")
+        ttk.Radiobutton(tf, text="Income", variable=self._add_type_var,
+                        value="Income",
+                        command=self._refresh_cats).pack(side="left", padx=5)
 
-        ttk.Label(add_frame, text="Category:").grid(row=3, column=0, sticky="w", pady=3)
+        _row(3, "Category:")
         self._add_cat_var = tk.StringVar()
-        self._add_cat_combo = ttk.Combobox(
-            add_frame, textvariable=self._add_cat_var, width=20, state="readonly")
-        self._add_cat_combo.grid(row=3, column=1, sticky="ew", pady=3)
+        self._cat_combo = ttk.Combobox(
+            add_frame, textvariable=self._add_cat_var,
+            width=22, state="readonly")
+        self._cat_combo.grid(row=3, column=1, sticky="ew", pady=2)
 
-        ttk.Label(add_frame, text="Description:").grid(row=4, column=0, sticky="w", pady=3)
+        _row(4, "Description:")
         self._add_desc_var = tk.StringVar()
         ttk.Entry(add_frame, textvariable=self._add_desc_var).grid(
-            row=4, column=1, sticky="ew", pady=3)
+            row=4, column=1, sticky="ew", pady=2)
 
-        ttk.Button(add_frame, text="✚  Add This Transaction",
-                   command=self._add_selected).grid(
-            row=5, column=0, columnspan=2, sticky="e", pady=(8, 0))
+        ttk.Button(
+            add_frame,
+            text="✚  Add & remove from reconciliation",
+            command=self._add_selected,
+        ).grid(row=5, column=0, columnspan=2, sticky="e", pady=(10, 0))
 
-        self._refresh_category_combo()
-        self._sort_col: str = "date"
-        self._sort_rev: bool = False
+        # Existing reconciliation entries
+        recon_frame = ttk.LabelFrame(
+            right, text=f'Existing "{_RECON_CATEGORY}" entries this month',
+            padding="8")
+        recon_frame.grid(row=2, column=0, sticky="ew", pady=(8, 0))
+        recon_frame.columnconfigure(0, weight=1)
 
-    # ---------------------------------------------------------------------- #
-    # Public helpers
-    # ---------------------------------------------------------------------- #
-    def refresh_after_data_change(self):
-        """Called when the user adds/deletes transactions externally."""
-        if self._bank_txns:
-            self._rematch()
+        rcols = ("date", "amount", "desc")
+        self._recon_tree = ttk.Treeview(
+            recon_frame, columns=rcols, show="headings",
+            height=4, selectmode="browse")
+        self._recon_tree.heading("date",   text="Date")
+        self._recon_tree.heading("amount", text="Amount")
+        self._recon_tree.heading("desc",   text="Description")
+        self._recon_tree.column("date",   width=80,  anchor="center", stretch=False)
+        self._recon_tree.column("amount", width=80,  anchor="e",      stretch=False)
+        self._recon_tree.column("desc",   width=150, anchor="w")
+        self._recon_tree.grid(row=0, column=0, sticky="ew")
 
-    # ---------------------------------------------------------------------- #
-    # File loading
-    # ---------------------------------------------------------------------- #
-    def _load_csv(self):
-        path = filedialog.askopenfilename(
-            title="Select bank CSV export",
-            filetypes=[
-                ("CSV files", "*.csv *.CSV"),
-                ("All files", "*.*"),
-            ],
-        )
-        if not path:
-            return
-        self._loaded_file = path
-        self._do_load_and_match(path)
+        ttk.Button(recon_frame, text="🗑  Delete selected placeholder",
+                   command=self._delete_recon_entry).grid(
+            row=1, column=0, sticky="e", pady=(4, 0))
 
-    def _do_load_and_match(self, path: str):
+        self._refresh_cats()
+        self._set_explanation_initial()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Core analysis
+    # ──────────────────────────────────────────────────────────────────────
+    def _analyse(self):
+        month = self._month_var.get().strip()
         try:
-            txns, meta = parse_bank_csv(path)
-        except Exception as exc:
-            messagebox.showerror("Import Error",
-                                 f"Could not read the CSV file:\n\n{exc}",
-                                 parent=self.frame)
+            datetime.strptime(month, "%Y-%m")
+        except ValueError:
+            messagebox.showerror("Invalid", "Use YYYY-MM format.", parent=self.frame)
             return
 
-        if "error" in meta:
-            messagebox.showerror("Import Error", meta["error"], parent=self.frame)
-            return
+        # 1. Find Reconciliation category entries for the month
+        self._recon_entries = [
+            e for e in self.state.expenses
+            if e.get("category") == _RECON_CATEGORY
+            and e.get("date", "").startswith(month)
+        ]
+        recon_total = sum(e["amount"] for e in self._recon_entries)
 
-        if not txns:
-            messagebox.showinfo("Empty", "No transactions found in the file.",
-                                parent=self.frame)
-            return
-
-        # Suggest categories before matching (matching doesn't need them)
-        for t in txns:
-            t.suggested_category = suggest_category(
-                t.payee, t.purpose, t.tx_type, self.state)
-
-        self._bank_txns = match_transactions(txns, self.state)
-
-        # Show file name
-        import os
-        fname = os.path.basename(path)
-        self._file_label.configure(text=fname, foreground="")
-
-        self._update_stats()
-        self._apply_filter()
-
-    def _rematch(self):
-        if not self._bank_txns:
-            return
-        for t in self._bank_txns:
-            t.status = STATUS_MISSING
-            t.matched_tx = None
-            t.match_confidence = ""
-        match_transactions(self._bank_txns, self.state)
-        self._update_stats()
-        self._apply_filter()
-
-    # ---------------------------------------------------------------------- #
-    # Stats display
-    # ---------------------------------------------------------------------- #
-    def _update_stats(self):
-        s = get_summary(self._bank_txns)
-        if not s:
-            return
-
-        pct_matched = 0
-        if s["total"] > 0:
-            pct_matched = (s["matched_count"] + s["possible_count"]) / s["total"] * 100
-
-        text = (
-            f"Period: {s['date_from']}  →  {s['date_to']}   |   "
-            f"Total: {s['total']} transactions\n"
-            f"Income: {s['income_count']} rows  (+€{s['total_income']:,.2f})     "
-            f"Expenses: {s['expense_count']} rows  (-€{s['total_expenses']:,.2f})     "
-            f"Net: {'+'if s['net']>=0 else ''}€{s['net']:,.2f}\n"
-            f"🟢 Matched: {s['matched_count']}   "
-            f"🟡 Possible: {s['possible_count']}   "
-            f"🔴 Missing: {s['missing_count']}   "
-            f"({pct_matched:.0f}% reconciled)"
-        )
-        self._stats_label.configure(text=text)
-
-    # ---------------------------------------------------------------------- #
-    # Filtering + rendering
-    # ---------------------------------------------------------------------- #
-    def _apply_filter(self, *_):
-        filt = self._filter_var.get()
-        if filt == _FILTER_ALL:
-            self._filtered_txns = list(self._bank_txns)
-        elif filt == _FILTER_MISSING:
-            self._filtered_txns = [t for t in self._bank_txns if t.status == STATUS_MISSING]
-        elif filt == _FILTER_POSSIBLE:
-            self._filtered_txns = [t for t in self._bank_txns if t.status == STATUS_POSSIBLE]
+        # 2. Re-match CSV (excluding recon entries from matching target)
+        if self._bank_txns:
+            match_transactions(self._bank_txns, self.state)
+            self._unmatched_month = [
+                t for t in self._bank_txns
+                if t.date.startswith(month)
+                and t.status == STATUS_MISSING
+                and t.tx_type == "Expense"
+            ]
         else:
-            self._filtered_txns = [t for t in self._bank_txns if t.status == STATUS_MATCHED]
+            self._unmatched_month = []
 
-        self._sort_list()
-        self._render_tree()
+        # 3. Score candidates
+        self._scored = _find_candidates(self._unmatched_month, recon_total)
 
-    def _sort(self, col: str):
-        if self._sort_col == col:
-            self._sort_rev = not self._sort_rev
-        else:
-            self._sort_col = col
-            self._sort_rev = False
-        self._sort_list()
-        self._render_tree()
+        # 4. Compute running totals
+        candidate_sum = sum(
+            abs(t.amount) for t, s in self._scored if s >= 10)
+        remaining = max(recon_total - candidate_sum, 0)
 
-    def _sort_list(self):
-        col = self._sort_col
-        rev = self._sort_rev
-        if col == "date":
-            self._filtered_txns.sort(key=lambda t: t.date, reverse=rev)
-        elif col == "amount":
-            self._filtered_txns.sort(key=lambda t: abs(t.amount), reverse=rev)
-        elif col == "type":
-            self._filtered_txns.sort(key=lambda t: t.tx_type, reverse=rev)
-        elif col == "payee":
-            self._filtered_txns.sort(key=lambda t: t.payee.lower(), reverse=rev)
+        # 5. Update summary cards
+        self._lbl_recon_total.configure(
+            text=f"-€{recon_total:.2f}" if recon_total > 0 else "None ✓",
+            foreground="red" if recon_total > 0.5 else "green")
+        self._lbl_csv_missing.configure(
+            text=str(len(self._unmatched_month))
+            if self._bank_txns else "Load CSV")
+        self._lbl_csv_sum.configure(
+            text=f"€{sum(abs(t.amount) for t in self._unmatched_month):.2f}"
+            if self._bank_txns else "—")
+        self._lbl_remaining.configure(
+            text=f"€{remaining:.2f}" if self._bank_txns else "Load CSV",
+            foreground="red" if remaining > 0.5 else "green")
 
-    def _render_tree(self):
+        # 6. Render table
+        self._render_table()
+
+        # 7. Populate existing recon entries list
+        self._recon_tree.delete(*self._recon_tree.get_children())
+        for e in self._recon_entries:
+            self._recon_tree.insert("", "end",
+                                    iid=e.get("id", id(e)),
+                                    values=(e["date"],
+                                            f"€{e['amount']:.2f}",
+                                            e.get("description", "")))
+
+        # 8. Update explanation
+        self._update_explanation(month, recon_total, candidate_sum, remaining)
+
+    def _render_table(self):
         self._tree.delete(*self._tree.get_children())
-        for idx, t in enumerate(self._filtered_txns):
-            if t.status == STATUS_MISSING:
-                tag  = _TAG_MISSING
-                icon = "🔴 Missing"
-            elif t.status == STATUS_POSSIBLE:
-                tag  = _TAG_POSSIBLE
-                icon = "🟡 Possible"
-            else:
-                tag  = _TAG_MATCHED
-                icon = "🟢 Matched"
-
-            amt_str = f"{'+'if t.amount >= 0 else ''}€{t.amount:,.2f}"
+        for idx, (t, score) in enumerate(self._scored):
+            is_candidate = score >= 10
+            tag = _TAG_CANDIDATE if is_candidate else _TAG_UNLIKELY
+            icon = "🎯" if score >= 50 else ("✓" if is_candidate else "·")
             self._tree.insert(
                 "", "end", iid=str(idx), tags=(tag,),
                 values=(
                     icon,
                     t.date,
-                    amt_str,
-                    t.tx_type,
-                    t.payee[:50],
-                    t.purpose[:60],
+                    f"-€{abs(t.amount):.2f}",
+                    t.payee[:42],
+                    t.purpose[:52],
                     t.suggested_category,
                 ),
             )
 
-    # ---------------------------------------------------------------------- #
-    # Selection → detail panel
-    # ---------------------------------------------------------------------- #
+    # ──────────────────────────────────────────────────────────────────────
+    # Explanation text
+    # ──────────────────────────────────────────────────────────────────────
+    def _set_explanation_initial(self):
+        lines = [
+            "HOW THIS WORKS\n",
+            "1. Select a month and click Analyse.\n\n",
+            f'2. The app finds your "{_RECON_CATEGORY}" category '
+            "expense for that month — this is the lump sum you entered "
+            "when you couldn't identify certain transactions.\n\n",
+            "3. Load your bank CSV. The app finds all bank transactions "
+            "from that month that are NOT yet in your tracker.\n\n",
+            "4. Those unmatched bank rows are sorted by how likely they "
+            "are to explain the reconciliation gap (🎯 = strong candidate).\n\n",
+            "5. Select a row, assign the correct category, click Add. "
+            "The transaction is properly recorded and the reconciliation "
+            "placeholder is no longer needed.\n\n",
+            "6. Once you've identified all missing transactions, delete "
+            'the "Reconciliation" placeholder entry below.',
+        ]
+        self._explain_text.configure(state="normal")
+        self._explain_text.delete("1.0", "end")
+        for line in lines:
+            self._explain_text.insert("end", line)
+        self._explain_text.configure(state="disabled")
+
+    def _update_explanation(self, month: str, recon_total: float,
+                            candidate_sum: float, remaining: float):
+        self._explain_text.configure(state="normal")
+        self._explain_text.delete("1.0", "end")
+
+        if recon_total < 0.01:
+            self._explain_text.insert("end",
+                f"✅  No Reconciliation entry found for {month}.\n\n"
+                "Your books are clean for this month.")
+            self._explain_text.configure(state="disabled")
+            return
+
+        lines = [f"ANALYSIS FOR {month}\n{'─'*35}\n\n"]
+
+        if not self._bank_txns:
+            lines.append(
+                f"You have a Reconciliation placeholder of €{recon_total:.2f}.\n\n"
+                "Load your bank CSV to identify which specific transactions "
+                "this amount represents.")
+        else:
+            n_cand = sum(1 for _, s in self._scored if s >= 10)
+            lines.append(
+                f"Reconciliation gap:    €{recon_total:.2f}\n"
+                f"CSV candidates found:  {n_cand} transactions\n"
+                f"Candidate total:       €{candidate_sum:.2f}\n"
+                f"Still unexplained:     €{remaining:.2f}\n\n"
+            )
+            if remaining < 0.50:
+                lines.append(
+                    "✅  The candidate transactions fully explain the gap.\n"
+                    "Add them with proper categories, then delete the "
+                    "Reconciliation placeholder.\n")
+            elif candidate_sum > 0:
+                lines.append(
+                    "⚠  Candidates only partially explain the gap.\n"
+                    f"€{remaining:.2f} is still unaccounted for — it may be\n"
+                    "a cash transaction or a date outside the CSV range.\n")
+            else:
+                lines.append(
+                    "❌  No CSV candidates found for this month.\n"
+                    "The missing transactions may be cash payments,\n"
+                    "or from a different bank account not in the CSV.\n")
+
+            lines.append(
+                "\nHOW TO USE\n"
+                "• 🎯 rows are the most likely candidates.\n"
+                "• Click a row → adjust category → click Add.\n"
+                "• Added transactions reduce the unexplained amount.\n"
+                "• Once done, delete the Reconciliation placeholder.\n")
+
+        self._explain_text.insert("end", "".join(lines))
+        self._explain_text.configure(state="disabled")
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Adding transactions
+    # ──────────────────────────────────────────────────────────────────────
     def _on_select(self, _event=None):
         sel = self._tree.selection()
         if not sel:
             return
-        idx = int(sel[0])
-        t   = self._filtered_txns[idx]
-
-        # Fill detail text
-        self._detail_text.configure(state="normal")
-        self._detail_text.delete("1.0", "end")
-
-        lines = [
-            f"{'─'*40}",
-            f"  Date          : {t.date}",
-            f"  Amount        : {'+'if t.amount>=0 else ''}€{t.amount:,.2f} {t.currency}",
-            f"  Type          : {t.tx_type}",
-            f"  Booking type  : {t.booking_text}",
-            f"  Payee         : {t.payee}",
-            f"  Purpose       : {t.purpose}",
-            f"{'─'*40}",
-            f"  Status        : {t.status.upper()}",
-        ]
-        if t.matched_tx:
-            m = t.matched_tx
-            lines += [
-                f"  Matched with  : {m.get('description','(no desc)')}",
-                f"  Match date    : {m.get('date','')}",
-                f"  Match amount  : €{m.get('amount',0):,.2f}",
-                f"  Match cat     : {m.get('category','')}",
-                f"  Confidence    : {t.match_confidence}",
-            ]
-        lines.append(f"{'─'*40}")
-
-        self._detail_text.insert("end", "\n".join(lines))
-        self._detail_text.configure(state="disabled")
-
-        # Pre-fill the quick-add form
+        t, _score = self._scored[int(sel[0])]
         self._add_date_var.set(t.date)
         self._add_amount_var.set(f"{abs(t.amount):.2f}")
         self._add_type_var.set(t.tx_type)
-        self._refresh_category_combo()
+        self._refresh_cats()
         self._add_cat_var.set(t.suggested_category)
-
-        # Pre-fill description: prefer payee, fallback to purpose
         desc = t.payee if t.payee else t.purpose
         self._add_desc_var.set(desc[:60])
 
-    # ---------------------------------------------------------------------- #
-    # Category combo helper
-    # ---------------------------------------------------------------------- #
-    def _refresh_category_combo(self):
-        tx_type = self._add_type_var.get()
-        cats = self.state.categories.get(tx_type, [])
-        self._add_cat_combo.configure(values=cats)
-        current = self._add_cat_var.get()
-        if current not in cats:
-            self._add_cat_combo.set(cats[0] if cats else "")
-
-    # ---------------------------------------------------------------------- #
-    # Adding transactions
-    # ---------------------------------------------------------------------- #
-    def _get_selected_btx(self) -> BankTransaction | None:
+    def _add_selected(self):
         sel = self._tree.selection()
         if not sel:
-            return None
-        return self._filtered_txns[int(sel[0])]
-
-    def _add_selected(self):
-        btx = self._get_selected_btx()
-        if btx is None:
             messagebox.showwarning("No selection",
-                                   "Please select a transaction in the table first.",
+                                   "Click a row in the table first.",
                                    parent=self.frame)
             return
-        if btx.status == STATUS_MATCHED:
-            if not messagebox.askyesno(
-                "Already matched",
-                "This transaction appears to already be in your tracker.\n"
-                "Add it anyway?",
-                parent=self.frame,
-            ):
-                return
-        self._do_add_one(btx)
+        t, _ = self._scored[int(sel[0])]
+        self._do_add(t)
 
-    def _do_add_one(self, btx: BankTransaction):
-        """Read the quick-add form and add the transaction to state."""
-        date_str = self._add_date_var.get().strip()
+    def _do_add(self, t: BankTransaction):
+        date_str   = self._add_date_var.get().strip()
         amount_str = self._add_amount_var.get().strip()
-        cat = self._add_cat_var.get().strip()
-        desc = self._add_desc_var.get().strip()
-        tx_type = self._add_type_var.get()
+        cat        = self._add_cat_var.get().strip()
+        desc       = self._add_desc_var.get().strip()
+        tx_type    = self._add_type_var.get()
 
-        # Validate
         try:
             datetime.strptime(date_str, "%Y-%m-%d")
         except ValueError:
-            messagebox.showerror("Invalid date",
-                                 "Date must be in YYYY-MM-DD format.",
+            messagebox.showerror("Bad date", "Date must be YYYY-MM-DD.",
                                  parent=self.frame)
             return
         try:
@@ -473,64 +484,125 @@ class ReconciliationTab:
             if amount <= 0:
                 raise ValueError
         except ValueError:
-            messagebox.showerror("Invalid amount",
-                                 "Amount must be a positive number.",
+            messagebox.showerror("Bad amount", "Amount must be a positive number.",
                                  parent=self.frame)
             return
         if not cat:
-            messagebox.showerror("No category",
-                                 "Please select a category.",
+            messagebox.showerror("No category", "Pick a category.",
                                  parent=self.frame)
             return
+        if cat == _RECON_CATEGORY:
+            messagebox.showerror(
+                "Wrong category",
+                f'Do not add back to "{_RECON_CATEGORY}". '
+                "Choose the real category instead.",
+                parent=self.frame)
+            return
 
-        self.state.add_transaction(tx_type, date_str, amount, cat, desc or btx.payee)
+        self.state.add_transaction(tx_type, date_str, amount, cat,
+                                   desc or t.payee)
+        t.status = STATUS_MATCHED
+        t.match_confidence = "reconciled"
         self.on_data_changed()
+        self._analyse()   # refresh everything
 
-        # Mark as matched in our local list so the display updates
-        btx.status = STATUS_MATCHED
-        btx.match_confidence = "manual"
-
-        self._update_stats()
-        self._apply_filter()
-
-        messagebox.showinfo("Added",
-                            f"{tx_type} of €{amount:.2f} on {date_str} added.",
-                            parent=self.frame)
-
-    def _add_all_missing(self):
-        missing = [t for t in self._bank_txns if t.status == STATUS_MISSING]
-        if not missing:
+    def _add_all_candidates(self):
+        candidates = [(t, s) for t, s in self._scored if s >= 10]
+        if not candidates:
             messagebox.showinfo("Nothing to add",
-                                "No missing transactions found.",
-                                parent=self.frame)
+                                "No strong candidates found.", parent=self.frame)
             return
-
-        answer = messagebox.askyesno(
-            "Add all missing",
-            f"This will add {len(missing)} missing transaction(s) using the "
-            f"suggested categories and the payee name as description.\n\n"
-            f"Continue?",
+        if not messagebox.askyesno(
+            "Add all candidates",
+            f"Add {len(candidates)} candidate transaction(s) with suggested "
+            "categories?",
             parent=self.frame,
-        )
-        if not answer:
+        ):
             return
-
-        added = 0
-        for t in missing:
-            cat = t.suggested_category
-            if not cat or cat not in self.state.categories.get(t.tx_type, []):
-                cats = self.state.categories.get(t.tx_type, ["Other"])
+        for t, _ in candidates:
+            cat  = t.suggested_category
+            cats = self.state.categories.get(t.tx_type, ["Other"])
+            if cat not in cats:
                 cat = cats[-1]
             desc = t.payee if t.payee else t.purpose
-            self.state.add_transaction(
-                t.tx_type, t.date, abs(t.amount), cat, desc[:60])
+            self.state.add_transaction(t.tx_type, t.date, abs(t.amount),
+                                       cat, desc[:60])
             t.status = STATUS_MATCHED
-            t.match_confidence = "bulk_import"
-            added += 1
-
         self.on_data_changed()
-        self._update_stats()
-        self._apply_filter()
+        self._analyse()
         messagebox.showinfo("Done",
-                            f"Added {added} transaction(s) to the tracker.",
+                            f"Added {len(candidates)} transaction(s).",
                             parent=self.frame)
+
+    def _delete_recon_entry(self):
+        sel = self._recon_tree.selection()
+        if not sel:
+            messagebox.showwarning("No selection",
+                                   "Select a Reconciliation entry to delete.",
+                                   parent=self.frame)
+            return
+        entry_id = sel[0]
+        entry = next(
+            (e for e in self._recon_entries
+             if str(e.get("id", id(e))) == str(entry_id)),
+            None)
+        if not entry:
+            return
+        if not messagebox.askyesno(
+            "Delete placeholder",
+            f"Delete the Reconciliation entry of €{entry['amount']:.2f} "
+            f"on {entry['date']}?\n\n"
+            "Only do this after you've properly added all the transactions "
+            "it represented.",
+            parent=self.frame,
+        ):
+            return
+        self.state.delete_transaction_by_id("Expense", entry.get("id", ""))
+        self.on_data_changed()
+        self._analyse()
+
+    # ──────────────────────────────────────────────────────────────────────
+    # Helpers
+    # ──────────────────────────────────────────────────────────────────────
+    def _refresh_cats(self):
+        cats = self.state.categories.get(self._add_type_var.get(), [])
+        # Remove Reconciliation from available choices — force proper category
+        cats = [c for c in cats if c != _RECON_CATEGORY]
+        self._cat_combo.configure(values=cats)
+        if self._add_cat_var.get() not in cats:
+            self._cat_combo.set(cats[0] if cats else "")
+
+    def _load_csv(self):
+        path = filedialog.askopenfilename(
+            title="Select bank CSV",
+            filetypes=[("CSV files", "*.csv *.CSV"), ("All files", "*.*")],
+        )
+        if not path:
+            return
+        try:
+            txns, meta = parse_bank_csv(path)
+        except Exception as exc:
+            messagebox.showerror("Import Error", str(exc), parent=self.frame)
+            return
+        if "error" in meta:
+            messagebox.showerror("Import Error", meta["error"], parent=self.frame)
+            return
+        if not txns:
+            messagebox.showinfo("Empty", "No transactions found.", parent=self.frame)
+            return
+
+        for t in txns:
+            t.suggested_category = suggest_category(
+                t.payee, t.purpose, t.tx_type, self.state)
+
+        self._bank_txns = match_transactions(txns, self.state)
+
+        import os
+        self._file_label.configure(text=os.path.basename(path), foreground="")
+
+        if self._month_var.get():
+            self._analyse()
+
+    def refresh_after_data_change(self):
+        if self._bank_txns:
+            match_transactions(self._bank_txns, self.state)

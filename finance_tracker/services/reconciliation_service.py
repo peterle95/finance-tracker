@@ -75,21 +75,20 @@ def _parse_german_date(s: str) -> str:
 
 
 def _detect_encoding_and_sep(filepath: str) -> tuple[str, str]:
-    """Sniff encoding and separator."""
+    """Detect encoding by actually attempting a full file read, then sniff separator."""
     for enc in _KNOWN_ENCODINGS:
-        for sep in _KNOWN_SEPARATORS:
-            try:
-                with open(filepath, encoding=enc, newline="") as f:
-                    sample = f.read(4096)
-                dialect = csv.Sniffer().sniff(sample, delimiters=sep)
-                # Quick sanity check: parsed header should have >3 columns
-                reader = csv.reader(io.StringIO(sample), delimiter=sep)
-                header = next(reader, [])
-                if len(header) > 3:
+        try:
+            with open(filepath, encoding=enc, newline="") as f:
+                content = f.read()
+            # Encoding works — now detect separator from first line
+            first_line = content.split("\n")[0]
+            for sep in _KNOWN_SEPARATORS:
+                if first_line.count(sep) >= 3:
                     return enc, sep
-            except Exception:
-                continue
-    return "latin-1", ";"   # safe fallback for German bank exports
+            return enc, ";"  # fallback separator
+        except (UnicodeDecodeError, LookupError):
+            continue
+    return "latin-1", ";"  # absolute fallback
 
 
 def parse_bank_csv(filepath: str) -> tuple[list[BankTransaction], dict[str, Any]]:
