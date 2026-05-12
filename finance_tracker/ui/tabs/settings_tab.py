@@ -26,19 +26,21 @@ class SettingsTab:
         self.show_inactive_income_sources = tk.BooleanVar(value=False)
         self.show_inactive_fixed_costs = tk.BooleanVar(value=False)
         self.include_negative_carryover = tk.BooleanVar(value=False)
+        self.daily_budget_window = None
+        self.budget_month_entry = None
+        self.report_text = None
 
         main = ttk.Frame(notebook, padding="10")
         notebook.add(main, text="Budget Report")
-        main.rowconfigure(1, weight=1)
+        main.rowconfigure(0, weight=1)
         main.columnconfigure(0, weight=1)
 
         top = ttk.Frame(main)
-        top.grid(row=0, column=0, sticky='ew', pady=(0, 10))
+        top.grid(row=0, column=0, sticky='nsew')
+        top.rowconfigure(0, weight=1)
         top.columnconfigure(1, weight=1)
 
         settings = ttk.LabelFrame(top, text="Monthly Settings & Balances", padding="10")
-        settings.grid(row=0, column=0, sticky='ns', padx=(0, 10))
-
         settings.grid(row=0, column=0, sticky='ns', padx=(0, 10))
 
         # Base Monthly Income Button + Readonly Display
@@ -79,7 +81,11 @@ class SettingsTab:
         self.daily_savings_entry = ttk.Entry(settings, width=15)
         self.daily_savings_entry.grid(row=7, column=1, pady=5)
 
-        ttk.Button(settings, text="Save Settings", command=self.save_settings).grid(row=8, column=1, pady=10, sticky='e')
+        button_row = ttk.Frame(settings)
+        button_row.grid(row=8, column=0, columnspan=2, pady=(10, 0), sticky='e')
+        self.daily_budget_btn = ttk.Button(button_row, text="Daily Budget", command=self._open_daily_budget_report)
+        self.daily_budget_btn.pack(side='left', padx=(0, 5))
+        ttk.Button(button_row, text="Save Settings", command=self.save_settings).pack(side='left')
 
         # === Budget Depletion Graph ===
         manage = ttk.Frame(top)
@@ -95,36 +101,6 @@ class SettingsTab:
         # Canvas placeholder for matplotlib figure
         self.budget_graph_frame = graph_frame
         self.budget_canvas = None
-
-        report = ttk.LabelFrame(main, text="Daily Budget Report", padding="10")
-        report.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
-        report.rowconfigure(1, weight=1)
-        report.columnconfigure(0, weight=1)
-
-        month_frame = ttk.Frame(report)
-        month_frame.grid(row=0, column=0, sticky='ew', pady=5)
-        ttk.Label(month_frame, text="Select Month:").pack(side='left', padx=5)
-        self.budget_month_entry = ttk.Entry(month_frame, width=15)
-        self.budget_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
-        self.budget_month_entry.pack(side='left', padx=5)
-        ttk.Checkbutton(
-            month_frame,
-            text="Include previous month deficit",
-            variable=self.include_negative_carryover,
-            command=self.generate_report
-        ).pack(side='left', padx=10)
-        ttk.Button(month_frame, text="Generate Report", command=self.generate_report).pack(side='left', padx=10)
-        ttk.Button(month_frame, text="Export Report", command=self.export_report).pack(side='left', padx=5)
-
-        text_frame = ttk.Frame(report)
-        text_frame.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
-        text_frame.rowconfigure(0, weight=1)
-        text_frame.columnconfigure(0, weight=1)
-        self.report_text = tk.Text(text_frame, height=20, width=90, font=('Courier New', 9))
-        self.report_text.grid(row=0, column=0, sticky='nsew')
-        scroll = ttk.Scrollbar(text_frame, orient='vertical', command=self.report_text.yview)
-        scroll.grid(row=0, column=1, sticky='ns')
-        self.report_text.configure(yscrollcommand=scroll.set)
 
         self.refresh_balance_entries()
         # self.refresh_income_tree() # Moved to manager window
@@ -166,6 +142,79 @@ class SettingsTab:
         self.budget_canvas = FigureCanvasTkAgg(fig, master=self.budget_graph_frame)
         self.budget_canvas.draw()
         self.budget_canvas.get_tk_widget().pack(fill='both', expand=True)
+
+    def _daily_budget_widgets_ready(self):
+        try:
+            return (
+                self.budget_month_entry is not None
+                and self.budget_month_entry.winfo_exists()
+                and self.report_text is not None
+                and self.report_text.winfo_exists()
+            )
+        except tk.TclError:
+            return False
+
+    def _open_daily_budget_report(self):
+        existing = self._alive_window(self.daily_budget_window)
+        if existing is not None:
+            existing.lift()
+            existing.focus_set()
+            return existing
+
+        win = create_child_window(
+            self.daily_budget_btn,
+            title="Daily Budget Report",
+            geometry="1000x650",
+            minsize=(720, 420),
+        )
+        self.daily_budget_window = win
+
+        def clear_refs(event=None):
+            if event is not None and event.widget is not win:
+                return
+            if self.daily_budget_window is win:
+                self.daily_budget_window = None
+                self.budget_month_entry = None
+                self.report_text = None
+
+        def handle_close():
+            clear_refs()
+            close_window(win)
+
+        win.protocol("WM_DELETE_WINDOW", handle_close)
+        win.bind("<Destroy>", clear_refs, add="+")
+
+        report = ttk.LabelFrame(win, text="Daily Budget Report", padding="10")
+        report.pack(fill='both', expand=True, padx=10, pady=10)
+        report.rowconfigure(1, weight=1)
+        report.columnconfigure(0, weight=1)
+
+        month_frame = ttk.Frame(report)
+        month_frame.grid(row=0, column=0, sticky='ew', pady=5)
+        ttk.Label(month_frame, text="Select Month:").pack(side='left', padx=5)
+        self.budget_month_entry = ttk.Entry(month_frame, width=15)
+        self.budget_month_entry.insert(0, datetime.now().strftime("%Y-%m"))
+        self.budget_month_entry.pack(side='left', padx=5)
+        ttk.Checkbutton(
+            month_frame,
+            text="Include previous month deficit",
+            variable=self.include_negative_carryover,
+            command=self.generate_report
+        ).pack(side='left', padx=10)
+        ttk.Button(month_frame, text="Generate Report", command=self.generate_report).pack(side='left', padx=10)
+        ttk.Button(month_frame, text="Export Report", command=self.export_report).pack(side='left', padx=5)
+
+        text_frame = ttk.Frame(report)
+        text_frame.grid(row=1, column=0, sticky='nsew', pady=(10, 0))
+        text_frame.rowconfigure(0, weight=1)
+        text_frame.columnconfigure(0, weight=1)
+        self.report_text = tk.Text(text_frame, height=24, width=100, font=('Courier New', 9))
+        self.report_text.grid(row=0, column=0, sticky='nsew')
+        scroll = ttk.Scrollbar(text_frame, orient='vertical', command=self.report_text.yview)
+        scroll.grid(row=0, column=1, sticky='ns')
+        self.report_text.configure(yscrollcommand=scroll.set)
+
+        return win
 
     def _open_income_manager(self):
         win = create_child_window(
@@ -1121,6 +1170,11 @@ class SettingsTab:
         messagebox.showerror("Error", "Could not find the selected fixed cost item.", parent=parent)
 
     def generate_report(self):
+        if not self._daily_budget_widgets_ready():
+            self._open_daily_budget_report()
+        if not self._daily_budget_widgets_ready():
+            return
+
         month = self.budget_month_entry.get()
         text = generate_daily_budget_report(
             self.state, month, include_negative_carryover=self.include_negative_carryover.get()
@@ -1139,14 +1193,21 @@ class SettingsTab:
         self.budget_canvas.get_tk_widget().pack(fill='both', expand=True)
 
     def export_report(self):
+        if not self._daily_budget_widgets_ready():
+            self._open_daily_budget_report()
+        if not self._daily_budget_widgets_ready():
+            return
+
+        parent = self._alive_window(self.daily_budget_window)
         content = self.report_text.get("1.0", tk.END).strip()
         if not content:
-            messagebox.showwarning("Warning", "Please generate a report before exporting.")
+            messagebox.showwarning("Warning", "Please generate a report before exporting.", parent=parent)
             return
         today = datetime.now().strftime("%Y-%m-%d")
         month_str = self.budget_month_entry.get()
         default_filename = f"day_report_{month_str}_{today}.txt"
         path = filedialog.asksaveasfilename(
+            parent=parent,
             initialfile=default_filename,
             defaultextension=".txt",
             filetypes=[("Text Documents", "*.txt"), ("All Files", "*.*")]
@@ -1156,6 +1217,6 @@ class SettingsTab:
         try:
             with open(path, "w", encoding="utf-8") as f:
                 f.write(content)
-            messagebox.showinfo("Success", f"Report successfully exported to:\n{path}")
+            messagebox.showinfo("Success", f"Report successfully exported to:\n{path}", parent=parent)
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to export report.\nError: {e}")
+            messagebox.showerror("Error", f"Failed to export report.\nError: {e}", parent=parent)
