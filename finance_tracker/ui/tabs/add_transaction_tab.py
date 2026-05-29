@@ -142,7 +142,7 @@ class AddTransactionTab:
                 self._show_message("showerror", "Error", "Please select a category.")
                 return
 
-            self.state.add_transaction(trans_type, klarna_date_str, amount, category, description)
+            self.state.add_transaction(trans_type, klarna_date_str, amount, category, description, behavior_date=base_date_str)
             if not self._ui_is_alive():
                 return
             self.amount_entry.delete(0, tk.END)

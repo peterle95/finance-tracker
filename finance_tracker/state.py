@@ -91,9 +91,11 @@ class AppState:
         with open(self.data_file, "w", encoding="utf-8") as f:
             json.dump(data, f, indent=4)
 
-    def add_transaction(self, trans_type: str, date_str: str, amount: float, category: str, description: str):
+    def add_transaction(self, trans_type: str, date_str: str, amount: float, category: str, description: str, behavior_date: str = None):
         trans_id = f"{datetime.now().timestamp()}"
         record = {"id": trans_id, "date": date_str, "amount": amount, "category": category, "description": description}
+        if behavior_date:
+            record["behavior_date"] = behavior_date
         if trans_type == "Expense":
             self.expenses.append(record)
         else:

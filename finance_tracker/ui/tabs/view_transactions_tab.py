@@ -65,7 +65,7 @@ class ViewTransactionsTab:
         tree_frame = ttk.Frame(frame)
         tree_frame.pack(fill='both', expand=True, pady=10)
 
-        columns = ('ID', 'Date', 'Type', 'Amount', 'Category', 'Description')
+        columns = ('ID', 'Date', 'Type', 'Amount', 'Category', 'Description', 'Behavior Date')
         self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
         
         # Create column headers with click bindings
@@ -73,8 +73,9 @@ class ViewTransactionsTab:
             self.transaction_tree.heading(col, text=col, command=lambda c=col: self.sort_by_column(c))
             width = 120
             if col == 'Amount': width = 100
-            if col == 'Description': width = 250
+            if col == 'Description': width = 200
             if col == 'Type': width = 80
+            if col == 'Behavior Date': width = 120
             self.transaction_tree.column(col, width=width, anchor='w')
 
         self.transaction_tree.column('ID', width=0, stretch=tk.NO)
@@ -146,6 +147,9 @@ class ViewTransactionsTab:
         elif column == 'ID':
             # Sort by ID
             self._current_transactions.sort(key=lambda x: x.get('id', ''), reverse=reverse)
+        elif column == 'Behavior Date':
+            # Sort by behavior date
+            self._current_transactions.sort(key=lambda x: x.get('behavior_date', ''), reverse=reverse)
         
         # Rebuild the tree view with sorted data
         self._rebuild_tree()
@@ -162,7 +166,7 @@ class ViewTransactionsTab:
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(
                 trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
-                trans['category'], trans['description']), tags=(tag,))
+                trans['category'], trans['description'], trans.get('behavior_date', '')), tags=(tag,))
 
     def _schedule_refresh(self, _event=None):
         if not self._frame_exists():
@@ -374,13 +378,15 @@ class ViewTransactionsTab:
                 self._current_transactions.sort(key=lambda x: x.get('description', ''), reverse=reverse)
             elif column == 'ID':
                 self._current_transactions.sort(key=lambda x: x.get('id', ''), reverse=reverse)
+            elif column == 'Behavior Date':
+                self._current_transactions.sort(key=lambda x: x.get('behavior_date', ''), reverse=reverse)
 
         for trans in self._current_transactions:
             tag = 'expense' if trans['type'] == 'Expense' else 'income'
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(
                 trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
-                trans['category'], trans['description']), tags=(tag,))
+                trans['category'], trans['description'], trans.get('behavior_date', '')), tags=(tag,))
         self.update_summary()
 
     def update_summary(self):
@@ -430,7 +436,7 @@ class ViewTransactionsTab:
                 messagebox.showerror("Error", "Could not delete the transaction.")
         else:
             # Legacy no-id fallback
-            date_str, _, amount_str, category, desc = v[1:]
+            date_str, _, amount_str, category, desc = v[1:6]
             target = self.state.expenses if trans_type == "Expense" else self.state.incomes
             try:
                 target.remove({
@@ -515,6 +521,19 @@ class ViewTransactionsTab:
         mod_desc_entry.insert(0, original.get('description', ''))
         mod_desc_entry.grid(row=4, column=1, pady=5, sticky='w')
 
+        # Check if transaction has behavior_date
+        has_behavior_date = 'behavior_date' in original
+        mod_behavior_date_entry = None
+        if has_behavior_date:
+            ttk.Label(form, text="Behavior Date:").grid(row=5, column=0, sticky='w', pady=5)
+            mod_behavior_date_entry = ttk.Entry(form, width=30)
+            mod_behavior_date_entry.insert(0, original.get('behavior_date', ''))
+            mod_behavior_date_entry.grid(row=5, column=1, pady=5, sticky='w')
+            ttk.Label(form, text="(YYYY-MM-DD)", foreground="gray").grid(row=5, column=2, sticky='w', padx=5)
+            button_row = 6
+        else:
+            button_row = 5
+
         def save_changes():
             try:
                 new_date = mod_date_entry.get()
@@ -527,11 +546,23 @@ class ViewTransactionsTab:
                     messagebox.showerror("Error", "Please select a category.", parent=win)
                     return
 
+                new_behavior_date = None
+                if has_behavior_date and mod_behavior_date_entry:
+                    new_behavior_date = mod_behavior_date_entry.get().strip()
+                    if new_behavior_date:
+                        datetime.strptime(new_behavior_date, "%Y-%m-%d")
+
                 # Update existing
                 original['date'] = new_date
                 original['amount'] = new_amount
                 original['category'] = new_cat
                 original['description'] = new_desc
+                if has_behavior_date:
+                    if new_behavior_date:
+                        original['behavior_date'] = new_behavior_date
+                    else:
+                        if 'behavior_date' in original:
+                            del original['behavior_date']
 
                 if new_type != original_list_name:
                     source = self.state.expenses if original_list_name == "Expense" else self.state.incomes
@@ -544,4 +575,4 @@ class ViewTransactionsTab:
             except ValueError:
                 messagebox.showerror("Error", "Invalid amount or date format (YYYY-MM-DD).", parent=win)
 
-        ttk.Button(form, text="Save Changes", command=save_changes).grid(row=5, column=1, pady=20, sticky='w')
+        ttk.Button(form, text="Save Changes", command=save_changes).grid(row=button_row, column=1, pady=20, sticky='w')
