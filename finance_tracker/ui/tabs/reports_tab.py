@@ -61,13 +61,14 @@ class ReportsTab:
         meta_frame = ttk.Frame(top)
         meta_frame.pack(side='left', padx=(0, 20))
         ttk.Label(meta_frame, text="Transaction Filter:").pack(side='left')
-        self.meta_filter_var = tk.StringVar(value="All")
+        # Default to BNPL mode: transactions with behavior_date are counted in that month
+        self.meta_filter_var = tk.StringVar(value="BNPL")
         self.meta_filter_menu = ttk.Combobox(
             meta_frame,
             textvariable=self.meta_filter_var,
             state="readonly",
-            values=("All", "Normal Only", "BNPL (Metadata) Only"),
-            width=18
+            values=("BNPL", "Normal"),
+            width=10
         )
         self.meta_filter_menu.pack(side='left', padx=5)
 
@@ -200,10 +201,7 @@ class ReportsTab:
         original_incomes = self.state.incomes
         
         filter_mode = self.meta_filter_var.get()
-        if filter_mode == "Normal Only":
-            self.state.expenses = [e for e in original_expenses if "behavior_date" not in e]
-            self.state.incomes = [i for i in original_incomes if "behavior_date" not in i]
-        elif filter_mode == "BNPL (Metadata) Only":
+        if filter_mode == "BNPL":
             # For BNPL mode, we still want to include all transactions, but any transaction that has
             # a behavior_date should be *counted* in the month of that behavior_date (metadata),
             # not its posted date. We do this by creating shallow copies where 'date' is replaced
@@ -223,6 +221,10 @@ class ReportsTab:
 
             self.state.expenses = _apply_behavior_date(original_expenses)
             self.state.incomes = _apply_behavior_date(original_incomes)
+        else:
+            # Normal mode: group strictly by the posted date (no rewriting)
+            self.state.expenses = original_expenses
+            self.state.incomes = original_incomes
             
         try:
             yield
