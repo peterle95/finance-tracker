@@ -76,31 +76,11 @@ class ReportsTab:
         self.pie_controls = ttk.Frame(top)
         self.pie_controls.pack(side='left', padx=(0, 15))
         self.pie_period_var = tk.StringVar(value="Month")
-        ttk.Radiobutton(self.pie_controls, text="Month", variable=self.pie_period_var, value="Month",
-                        command=self._toggle_pie_period_controls).pack(side='left')
-        ttk.Radiobutton(self.pie_controls, text="Range", variable=self.pie_period_var, value="Range",
-                        command=self._toggle_pie_period_controls).pack(side='left', padx=(5, 10))
-
-        ttk.Label(self.pie_controls, text="Select Month:").pack(side='left')
-        self.month_entry = ttk.Entry(self.pie_controls, width=10)
         from datetime import datetime
         from dateutil.relativedelta import relativedelta
         now = datetime.now()
         three_months_ago = (now - relativedelta(months=3)).strftime("%Y-%m")
         current_month = now.strftime("%Y-%m")
-        
-        self.month_entry.insert(0, current_month)
-        self.month_entry.pack(side='left', padx=5)
-
-        ttk.Label(self.pie_controls, text="From:").pack(side='left', padx=(10, 0))
-        self.range_start_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_start_entry.insert(0, three_months_ago)
-        self.range_start_entry.pack(side='left', padx=5)
-
-        ttk.Label(self.pie_controls, text="To:").pack(side='left')
-        self.range_end_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_end_entry.insert(0, current_month)
-        self.range_end_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="Display As:").pack(side='left', padx=(10, 0))
         self.value_type_var = tk.StringVar(value="Total")
@@ -163,6 +143,25 @@ class ReportsTab:
         self.include_base_var = tk.BooleanVar(value=False)
         self.base_check = ttk.Checkbutton(self.fixed_frame, text="Include Base Income", variable=self.include_base_var)
         self._toggle_fixed_controls()
+
+        # Keep month/range controls on the bottom row to avoid truncation in narrow windows.
+        self.pie_period_controls = ttk.Frame(bottom)
+        ttk.Radiobutton(self.pie_period_controls, text="Month", variable=self.pie_period_var, value="Month",
+                        command=self._toggle_pie_period_controls).pack(side='left')
+        ttk.Radiobutton(self.pie_period_controls, text="Range", variable=self.pie_period_var, value="Range",
+                        command=self._toggle_pie_period_controls).pack(side='left', padx=(5, 10))
+        ttk.Label(self.pie_period_controls, text="Select Month:").pack(side='left')
+        self.month_entry = ttk.Entry(self.pie_period_controls, width=10)
+        self.month_entry.insert(0, current_month)
+        self.month_entry.pack(side='left', padx=5)
+        ttk.Label(self.pie_period_controls, text="From:").pack(side='left', padx=(10, 0))
+        self.range_start_entry = ttk.Entry(self.pie_period_controls, width=10)
+        self.range_start_entry.insert(0, three_months_ago)
+        self.range_start_entry.pack(side='left', padx=5)
+        ttk.Label(self.pie_period_controls, text="To:").pack(side='left')
+        self.range_end_entry = ttk.Entry(self.pie_period_controls, width=10)
+        self.range_end_entry.insert(0, current_month)
+        self.range_end_entry.pack(side='left', padx=5)
 
         self.show_budget_lines_var = tk.BooleanVar(value=False)
         self.budget_lines_check = ttk.Checkbutton(bottom, text="Show Budget Limits", variable=self.show_budget_lines_var)
@@ -235,6 +234,7 @@ class ReportsTab:
     def _toggle_controls(self):
         s = self.style_var.get()
         self.pie_controls.pack_forget()
+        self.pie_period_controls.pack_forget()
         self.bar_controls.pack_forget()
         self.line_controls.pack_forget()
         self.pace_controls.pack_forget()
@@ -242,6 +242,7 @@ class ReportsTab:
         self.budget_lines_check.pack_forget()
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
+            self.pie_period_controls.pack(side='left', padx=(0, 15))
             self.budget_lines_check.pack(side='left', padx=(0, 15))
             self._update_info_panel([])
             self.paned.pane(self.chart_frame, weight=110)
