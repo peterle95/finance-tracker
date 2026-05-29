@@ -65,7 +65,7 @@ class ViewTransactionsTab:
         tree_frame = ttk.Frame(frame)
         tree_frame.pack(fill='both', expand=True, pady=10)
 
-        columns = ('ID', 'Date', 'Type', 'Amount', 'Category', 'Description', 'Behavior Date')
+        columns = ('ID', 'Date', 'Behavior Date', 'Type', 'Amount', 'Category', 'Description')
         self.transaction_tree = ttk.Treeview(tree_frame, columns=columns, show='headings', height=15)
         
         # Create column headers with click bindings
@@ -165,8 +165,8 @@ class ViewTransactionsTab:
             tag = 'expense' if trans['type'] == 'Expense' else 'income'
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(
-                trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
-                trans['category'], trans['description'], trans.get('behavior_date', '')), tags=(tag,))
+                trans_id, trans['date'], trans.get('behavior_date', ''), trans['type'], f"€{trans['amount']:.2f}",
+                trans['category'], trans['description']), tags=(tag,))
 
     def _schedule_refresh(self, _event=None):
         if not self._frame_exists():
@@ -385,8 +385,8 @@ class ViewTransactionsTab:
             tag = 'expense' if trans['type'] == 'Expense' else 'income'
             trans_id = trans.get('id', '')
             self.transaction_tree.insert('', 'end', values=(
-                trans_id, trans['date'], trans['type'], f"€{trans['amount']:.2f}",
-                trans['category'], trans['description'], trans.get('behavior_date', '')), tags=(tag,))
+                trans_id, trans['date'], trans.get('behavior_date', ''), trans['type'], f"€{trans['amount']:.2f}",
+                trans['category'], trans['description']), tags=(tag,))
         self.update_summary()
 
     def update_summary(self):
@@ -429,14 +429,18 @@ class ViewTransactionsTab:
 
         v = self.transaction_tree.item(selected[0])['values']
         trans_id = v[0]
-        trans_type = v[2]
+        trans_type = v[3]
         if trans_id:
             ok = self.state.delete_transaction_by_id(trans_type, trans_id)
             if not ok:
                 messagebox.showerror("Error", "Could not delete the transaction.")
         else:
             # Legacy no-id fallback
-            date_str, _, amount_str, category, desc = v[1:6]
+            date_str = v[1]
+            trans_type = v[3]
+            amount_str = v[4]
+            category = v[5]
+            desc = v[6]
             target = self.state.expenses if trans_type == "Expense" else self.state.incomes
             try:
                 target.remove({

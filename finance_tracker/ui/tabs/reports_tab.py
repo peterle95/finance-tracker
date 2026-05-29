@@ -7,6 +7,7 @@ Tab for generating and viewing various financial reports and charts.
 import tkinter as tk
 from tkinter import ttk, messagebox
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from contextlib import contextmanager
 
 from ...services.report_builder import pie_data, pie_data_range, history_data, line_expense_category_range
 from ...services.budget_calculator import compute_net_available_for_spending, get_active_fixed_costs, get_active_monthly_income
@@ -55,6 +56,20 @@ class ReportsTab:
                         command=self._toggle_fixed_controls).pack(side='left')
         ttk.Radiobutton(type_frame, text="Incomes", variable=self.chart_type_var, value="Income",
                         command=self._toggle_fixed_controls).pack(side='left', padx=5)
+
+        # Metadata Filter
+        meta_frame = ttk.Frame(top)
+        meta_frame.pack(side='left', padx=(0, 20))
+        ttk.Label(meta_frame, text="Transaction Filter:").pack(side='left')
+        self.meta_filter_var = tk.StringVar(value="All")
+        self.meta_filter_menu = ttk.Combobox(
+            meta_frame,
+            textvariable=self.meta_filter_var,
+            state="readonly",
+            values=("All", "Normal Only", "Klarna (Metadata) Only"),
+            width=18
+        )
+        self.meta_filter_menu.pack(side='left', padx=5)
 
         # Pie controls
         self.pie_controls = ttk.Frame(top)
@@ -178,6 +193,25 @@ class ReportsTab:
 
         self._toggle_controls()
         self._toggle_pie_period_controls()
+
+    @contextmanager
+    def _filtered_state(self):
+        original_expenses = self.state.expenses
+        original_incomes = self.state.incomes
+        
+        filter_mode = self.meta_filter_var.get()
+        if filter_mode == "Normal Only":
+            self.state.expenses = [e for e in original_expenses if "behavior_date" not in e]
+            self.state.incomes = [i for i in original_incomes if "behavior_date" not in i]
+        elif filter_mode == "Klarna (Metadata) Only":
+            self.state.expenses = [e for e in original_expenses if "behavior_date" in e]
+            self.state.incomes = [i for i in original_incomes if "behavior_date" in i]
+            
+        try:
+            yield
+        finally:
+            self.state.expenses = original_expenses
+            self.state.incomes = original_incomes
 
     def _toggle_controls(self):
         s = self.style_var.get()
@@ -323,18 +357,19 @@ class ReportsTab:
             self.canvas.get_tk_widget().destroy()
             self.canvas = None
         style = self.style_var.get()
-        if style == "Pie Chart":
-            self._make_pie()
-        elif style == "Historical Bar Chart":
-            self.bar_breakdown_mode = "total"
-            self.bar_display_mode = "value"
-            self._make_bar()
-        elif style == "Day-of-Week Heatmap":
-            self._make_dow_heatmap()
-        elif style == "Spending Pace":
-            self._make_spending_pace()
-        else:
-            self._make_line()
+        with self._filtered_state():
+            if style == "Pie Chart":
+                self._make_pie()
+            elif style == "Historical Bar Chart":
+                self.bar_breakdown_mode = "total"
+                self.bar_display_mode = "value"
+                self._make_bar()
+            elif style == "Day-of-Week Heatmap":
+                self._make_dow_heatmap()
+            elif style == "Spending Pace":
+                self._make_spending_pace()
+            else:
+                self._make_line()
 
     def _update_info_panel(self, lines, title="Details"):
         self.info_frame.config(text=title)
@@ -529,26 +564,27 @@ class ReportsTab:
         if event.inaxes is None:
             return
         
-        # Left click: toggle breakdown mode (total -> categories -> flexible -> total)
-        if event.button == 1:
-            if self.bar_breakdown_mode == "total":
-                self.bar_breakdown_mode = "categories"
-            elif self.bar_breakdown_mode == "categories":
-                self.bar_breakdown_mode = "flexible"
-            elif self.bar_breakdown_mode == "flexible":
-                self.bar_breakdown_mode = "over_under"
-            else:
-                self.bar_breakdown_mode = "total"
-            self._render_bar_chart()
-        
-        # Right click: toggle display mode (in category or flexible view)
-        elif event.button == 3:
-            if self.bar_breakdown_mode in ("categories", "flexible", "over_under"):
-                if self.bar_display_mode == "value":
-                    self.bar_display_mode = "percentage"
+        with self._filtered_state():
+            # Left click: toggle breakdown mode (total -> categories -> flexible -> total)
+            if event.button == 1:
+                if self.bar_breakdown_mode == "total":
+                    self.bar_breakdown_mode = "categories"
+                elif self.bar_breakdown_mode == "categories":
+                    self.bar_breakdown_mode = "flexible"
+                elif self.bar_breakdown_mode == "flexible":
+                    self.bar_breakdown_mode = "over_under"
                 else:
-                    self.bar_display_mode = "value"
+                    self.bar_breakdown_mode = "total"
                 self._render_bar_chart()
+            
+            # Right click: toggle display mode (in category or flexible view)
+            elif event.button == 3:
+                if self.bar_breakdown_mode in ("categories", "flexible", "over_under"):
+                    if self.bar_display_mode == "value":
+                        self.bar_display_mode = "percentage"
+                    else:
+                        self.bar_display_mode = "value"
+                    self._render_bar_chart()
 
     def _make_dow_heatmap(self):
         from ..charts import create_dow_heatmap_figure
