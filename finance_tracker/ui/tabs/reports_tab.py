@@ -61,13 +61,14 @@ class ReportsTab:
         meta_frame = ttk.Frame(top)
         meta_frame.pack(side='left', padx=(0, 20))
         ttk.Label(meta_frame, text="Transaction Filter:").pack(side='left')
-        self.meta_filter_var = tk.StringVar(value="All")
+        # Default to BNPL mode: transactions with behavior_date are counted in that month
+        self.meta_filter_var = tk.StringVar(value="BNPL")
         self.meta_filter_menu = ttk.Combobox(
             meta_frame,
             textvariable=self.meta_filter_var,
             state="readonly",
-            values=("All", "Normal Only", "Klarna (Metadata) Only"),
-            width=18
+            values=("BNPL", "Normal"),
+            width=10
         )
         self.meta_filter_menu.pack(side='left', padx=5)
 
@@ -75,31 +76,11 @@ class ReportsTab:
         self.pie_controls = ttk.Frame(top)
         self.pie_controls.pack(side='left', padx=(0, 15))
         self.pie_period_var = tk.StringVar(value="Month")
-        ttk.Radiobutton(self.pie_controls, text="Month", variable=self.pie_period_var, value="Month",
-                        command=self._toggle_pie_period_controls).pack(side='left')
-        ttk.Radiobutton(self.pie_controls, text="Range", variable=self.pie_period_var, value="Range",
-                        command=self._toggle_pie_period_controls).pack(side='left', padx=(5, 10))
-
-        ttk.Label(self.pie_controls, text="Select Month:").pack(side='left')
-        self.month_entry = ttk.Entry(self.pie_controls, width=10)
         from datetime import datetime
         from dateutil.relativedelta import relativedelta
         now = datetime.now()
         three_months_ago = (now - relativedelta(months=3)).strftime("%Y-%m")
         current_month = now.strftime("%Y-%m")
-        
-        self.month_entry.insert(0, current_month)
-        self.month_entry.pack(side='left', padx=5)
-
-        ttk.Label(self.pie_controls, text="From:").pack(side='left', padx=(10, 0))
-        self.range_start_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_start_entry.insert(0, three_months_ago)
-        self.range_start_entry.pack(side='left', padx=5)
-
-        ttk.Label(self.pie_controls, text="To:").pack(side='left')
-        self.range_end_entry = ttk.Entry(self.pie_controls, width=10)
-        self.range_end_entry.insert(0, current_month)
-        self.range_end_entry.pack(side='left', padx=5)
 
         ttk.Label(self.pie_controls, text="Display As:").pack(side='left', padx=(10, 0))
         self.value_type_var = tk.StringVar(value="Total")
@@ -163,6 +144,25 @@ class ReportsTab:
         self.base_check = ttk.Checkbutton(self.fixed_frame, text="Include Base Income", variable=self.include_base_var)
         self._toggle_fixed_controls()
 
+        # Keep month/range controls on the bottom row to avoid truncation in narrow windows.
+        self.pie_period_controls = ttk.Frame(bottom)
+        ttk.Radiobutton(self.pie_period_controls, text="Month", variable=self.pie_period_var, value="Month",
+                        command=self._toggle_pie_period_controls).pack(side='left')
+        ttk.Radiobutton(self.pie_period_controls, text="Range", variable=self.pie_period_var, value="Range",
+                        command=self._toggle_pie_period_controls).pack(side='left', padx=(5, 10))
+        ttk.Label(self.pie_period_controls, text="Select Month:").pack(side='left')
+        self.month_entry = ttk.Entry(self.pie_period_controls, width=10)
+        self.month_entry.insert(0, current_month)
+        self.month_entry.pack(side='left', padx=5)
+        ttk.Label(self.pie_period_controls, text="From:").pack(side='left', padx=(10, 0))
+        self.range_start_entry = ttk.Entry(self.pie_period_controls, width=10)
+        self.range_start_entry.insert(0, three_months_ago)
+        self.range_start_entry.pack(side='left', padx=5)
+        ttk.Label(self.pie_period_controls, text="To:").pack(side='left')
+        self.range_end_entry = ttk.Entry(self.pie_period_controls, width=10)
+        self.range_end_entry.insert(0, current_month)
+        self.range_end_entry.pack(side='left', padx=5)
+
         self.show_budget_lines_var = tk.BooleanVar(value=False)
         self.budget_lines_check = ttk.Checkbutton(bottom, text="Show Budget Limits", variable=self.show_budget_lines_var)
         self.budget_lines_check.pack(side='left', padx=(0, 15))
@@ -200,12 +200,30 @@ class ReportsTab:
         original_incomes = self.state.incomes
         
         filter_mode = self.meta_filter_var.get()
-        if filter_mode == "Normal Only":
-            self.state.expenses = [e for e in original_expenses if "behavior_date" not in e]
-            self.state.incomes = [i for i in original_incomes if "behavior_date" not in i]
-        elif filter_mode == "Klarna (Metadata) Only":
-            self.state.expenses = [e for e in original_expenses if "behavior_date" in e]
-            self.state.incomes = [i for i in original_incomes if "behavior_date" in i]
+        if filter_mode == "BNPL":
+            # For BNPL mode, we still want to include all transactions, but any transaction that has
+            # a behavior_date should be *counted* in the month of that behavior_date (metadata),
+            # not its posted date. We do this by creating shallow copies where 'date' is replaced
+            # in-memory, so downstream report_builder logic (which groups by item['date']) works
+            # without changing persisted data.
+            def _apply_behavior_date(items):
+                updated = []
+                for item in items:
+                    bd = item.get("behavior_date")
+                    if bd:
+                        copied = dict(item)
+                        copied["date"] = bd
+                        updated.append(copied)
+                    else:
+                        updated.append(item)
+                return updated
+
+            self.state.expenses = _apply_behavior_date(original_expenses)
+            self.state.incomes = _apply_behavior_date(original_incomes)
+        else:
+            # Normal mode: group strictly by the posted date (no rewriting)
+            self.state.expenses = original_expenses
+            self.state.incomes = original_incomes
             
         try:
             yield
@@ -216,6 +234,7 @@ class ReportsTab:
     def _toggle_controls(self):
         s = self.style_var.get()
         self.pie_controls.pack_forget()
+        self.pie_period_controls.pack_forget()
         self.bar_controls.pack_forget()
         self.line_controls.pack_forget()
         self.pace_controls.pack_forget()
@@ -223,6 +242,7 @@ class ReportsTab:
         self.budget_lines_check.pack_forget()
         if s == "Pie Chart":
             self.pie_controls.pack(side='left', padx=(0, 15))
+            self.pie_period_controls.pack(side='left', padx=(0, 15))
             self.budget_lines_check.pack(side='left', padx=(0, 15))
             self._update_info_panel([])
             self.paned.pane(self.chart_frame, weight=110)

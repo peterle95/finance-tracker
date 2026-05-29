@@ -20,7 +20,7 @@ def test_state_saving():
     
     # Add a normal transaction
     state.add_transaction("Expense", "2026-05-05", 50.0, "Food", "groceries")
-    # Add a Klarna transaction
+    # Add a BNPL transaction
     state.add_transaction("Expense", "2026-06-01", 100.0, "Shopping", "phone", behavior_date="2026-05-05")
     
     # Reload and verify
