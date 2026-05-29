@@ -66,7 +66,7 @@ class ReportsTab:
             meta_frame,
             textvariable=self.meta_filter_var,
             state="readonly",
-            values=("All", "Normal Only", "Klarna (Metadata) Only"),
+            values=("All", "Normal Only", "BNPL (Metadata) Only"),
             width=18
         )
         self.meta_filter_menu.pack(side='left', padx=5)
@@ -203,7 +203,7 @@ class ReportsTab:
         if filter_mode == "Normal Only":
             self.state.expenses = [e for e in original_expenses if "behavior_date" not in e]
             self.state.incomes = [i for i in original_incomes if "behavior_date" not in i]
-        elif filter_mode == "Klarna (Metadata) Only":
+        elif filter_mode == "BNPL (Metadata) Only":
             self.state.expenses = [e for e in original_expenses if "behavior_date" in e]
             self.state.incomes = [i for i in original_incomes if "behavior_date" in i]
             

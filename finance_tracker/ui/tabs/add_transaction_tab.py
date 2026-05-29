@@ -16,15 +16,15 @@ class AddTransactionTab:
         self.frame = ttk.Frame(notebook, padding="20")
         notebook.add(self.frame, text="Add Transaction")
 
-        # Style for Klarna button
+        # Style for BNPL button
         style = ttk.Style(self.frame)
         style.configure(
-            "Klarna.TButton",
+            "BNPL.TButton",
             foreground="black",
             background="#ff69b4",
         )
         style.map(
-            "Klarna.TButton",
+            "BNPL.TButton",
             background=[("active", "#ff85c1"), ("!disabled", "#ff69b4")],
         )
 
@@ -64,9 +64,9 @@ class AddTransactionTab:
 
         ttk.Button(
             button_frame,
-            text="Klarna",
+            text="BNPL",
             command=self.add_klarna_transaction,
-            style="Klarna.TButton",
+            style="BNPL.TButton",
         ).pack(side='left', padx=(0, 10))
 
         ttk.Button(
@@ -148,6 +148,6 @@ class AddTransactionTab:
             self.amount_entry.delete(0, tk.END)
             self.description_entry.delete(0, tk.END)
             self.on_data_changed()
-            self._show_message("showinfo", "Success", f"{trans_type} scheduled for {klarna_date_str} (Klarna).")
+            self._show_message("showinfo", "Success", f"{trans_type} scheduled for {klarna_date_str} (BNPL).")
         except ValueError:
             self._show_message("showerror", "Error", "Invalid amount or date format (YYYY-MM-DD).")
