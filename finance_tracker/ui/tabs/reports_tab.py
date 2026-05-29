@@ -204,8 +204,25 @@ class ReportsTab:
             self.state.expenses = [e for e in original_expenses if "behavior_date" not in e]
             self.state.incomes = [i for i in original_incomes if "behavior_date" not in i]
         elif filter_mode == "BNPL (Metadata) Only":
-            self.state.expenses = [e for e in original_expenses if "behavior_date" in e]
-            self.state.incomes = [i for i in original_incomes if "behavior_date" in i]
+            # For BNPL mode, we still want to include all transactions, but any transaction that has
+            # a behavior_date should be *counted* in the month of that behavior_date (metadata),
+            # not its posted date. We do this by creating shallow copies where 'date' is replaced
+            # in-memory, so downstream report_builder logic (which groups by item['date']) works
+            # without changing persisted data.
+            def _apply_behavior_date(items):
+                updated = []
+                for item in items:
+                    bd = item.get("behavior_date")
+                    if bd:
+                        copied = dict(item)
+                        copied["date"] = bd
+                        updated.append(copied)
+                    else:
+                        updated.append(item)
+                return updated
+
+            self.state.expenses = _apply_behavior_date(original_expenses)
+            self.state.incomes = _apply_behavior_date(original_incomes)
             
         try:
             yield

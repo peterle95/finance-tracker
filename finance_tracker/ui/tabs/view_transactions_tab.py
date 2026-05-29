@@ -525,18 +525,13 @@ class ViewTransactionsTab:
         mod_desc_entry.insert(0, original.get('description', ''))
         mod_desc_entry.grid(row=4, column=1, pady=5, sticky='w')
 
-        # Check if transaction has behavior_date
-        has_behavior_date = 'behavior_date' in original
-        mod_behavior_date_entry = None
-        if has_behavior_date:
-            ttk.Label(form, text="Behavior Date:").grid(row=5, column=0, sticky='w', pady=5)
-            mod_behavior_date_entry = ttk.Entry(form, width=30)
-            mod_behavior_date_entry.insert(0, original.get('behavior_date', ''))
-            mod_behavior_date_entry.grid(row=5, column=1, pady=5, sticky='w')
-            ttk.Label(form, text="(YYYY-MM-DD)", foreground="gray").grid(row=5, column=2, sticky='w', padx=5)
-            button_row = 6
-        else:
-            button_row = 5
+        # Allow editing/adding/removing behavior_date even if it wasn't present originally.
+        ttk.Label(form, text="Behavior Date:").grid(row=5, column=0, sticky='w', pady=5)
+        mod_behavior_date_entry = ttk.Entry(form, width=30)
+        mod_behavior_date_entry.insert(0, original.get('behavior_date', ''))
+        mod_behavior_date_entry.grid(row=5, column=1, pady=5, sticky='w')
+        ttk.Label(form, text="(optional, YYYY-MM-DD)", foreground="gray").grid(row=5, column=2, sticky='w', padx=5)
+        button_row = 6
 
         def save_changes():
             try:
@@ -550,23 +545,21 @@ class ViewTransactionsTab:
                     messagebox.showerror("Error", "Please select a category.", parent=win)
                     return
 
-                new_behavior_date = None
-                if has_behavior_date and mod_behavior_date_entry:
-                    new_behavior_date = mod_behavior_date_entry.get().strip()
-                    if new_behavior_date:
-                        datetime.strptime(new_behavior_date, "%Y-%m-%d")
+                new_behavior_date = mod_behavior_date_entry.get().strip()
+                if new_behavior_date:
+                    datetime.strptime(new_behavior_date, "%Y-%m-%d")
 
                 # Update existing
                 original['date'] = new_date
                 original['amount'] = new_amount
                 original['category'] = new_cat
                 original['description'] = new_desc
-                if has_behavior_date:
-                    if new_behavior_date:
-                        original['behavior_date'] = new_behavior_date
-                    else:
-                        if 'behavior_date' in original:
-                            del original['behavior_date']
+                if new_behavior_date:
+                    original['behavior_date'] = new_behavior_date
+                else:
+                    # Remove the key entirely when cleared to preserve existing sorting/report behavior.
+                    if 'behavior_date' in original:
+                        del original['behavior_date']
 
                 if new_type != original_list_name:
                     source = self.state.expenses if original_list_name == "Expense" else self.state.incomes
