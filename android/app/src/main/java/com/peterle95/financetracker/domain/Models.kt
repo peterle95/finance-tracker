@@ -13,7 +13,7 @@ enum class TransactionType(val label: String) {
 }
 
 data class FinanceTransaction(
-    val localId: Long,
+    val uiKey: String,
     val exportId: String?,
     val type: TransactionType,
     val date: String,

@@ -28,6 +28,7 @@ import com.peterle95.financetracker.ui.components.CategoryDropdown
 @Composable
 fun AddTransactionScreen(viewModel: FinanceViewModel) {
     val categories by viewModel.categories.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
     var type by remember { mutableStateOf(TransactionType.Expense) }
     var amount by remember { mutableStateOf("") }
     var category by remember { mutableStateOf(categories.forType(type).firstOrNull().orEmpty()) }
@@ -88,9 +89,13 @@ fun AddTransactionScreen(viewModel: FinanceViewModel) {
                 amount = ""
                 description = ""
             },
+            enabled = syncStatus.isConnected,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Save")
+        }
+        if (!syncStatus.isConnected) {
+            Text("Connect finance_data.json in Settings before adding transactions.")
         }
     }
 }

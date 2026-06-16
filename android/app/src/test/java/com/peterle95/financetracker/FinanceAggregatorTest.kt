@@ -25,10 +25,10 @@ class FinanceAggregatorTest {
             """.trimIndent(),
         ).jsonObject
         val transactions = listOf(
-            FinanceTransaction(1, "e1", TransactionType.Expense, "2026-06-10", 25.0, "Food", "Lunch", null),
-            FinanceTransaction(2, "e2", TransactionType.Expense, "2026-06-11", 75.0, "Food", "Dinner", null),
-            FinanceTransaction(3, "i1", TransactionType.Income, "2026-06-01", 200.0, "Side Gig", "Project", null),
-            FinanceTransaction(4, "old", TransactionType.Expense, "2026-05-01", 999.0, "Other", "Old", null),
+            FinanceTransaction("e1", "e1", TransactionType.Expense, "2026-06-10", 25.0, "Food", "Lunch", null),
+            FinanceTransaction("e2", "e2", TransactionType.Expense, "2026-06-11", 75.0, "Food", "Dinner", null),
+            FinanceTransaction("i1", "i1", TransactionType.Income, "2026-06-01", 200.0, "Side Gig", "Project", null),
+            FinanceTransaction("old", "old", TransactionType.Expense, "2026-05-01", 999.0, "Other", "Old", null),
         )
 
         val summary = FinanceAggregator.buildInsightsSummary(

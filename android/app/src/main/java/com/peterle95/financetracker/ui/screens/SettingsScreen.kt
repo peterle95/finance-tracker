@@ -34,14 +34,12 @@ import com.peterle95.financetracker.ui.FinanceViewModel
 @Composable
 fun SettingsScreen(viewModel: FinanceViewModel) {
     val categories by viewModel.categories.collectAsState()
+    val syncStatus by viewModel.syncStatus.collectAsState()
     var type by remember { mutableStateOf(TransactionType.Expense) }
     var newCategory by remember { mutableStateOf("") }
     val current = categories.forType(type)
-    val importLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(viewModel::importJson)
-    }
-    val exportLauncher = rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-        uri?.let(viewModel::exportJson)
+    val connectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        uri?.let(viewModel::connectSyncedFile)
     }
 
     Column(
@@ -60,12 +58,30 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
                 )
             }
         }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { importLauncher.launch(arrayOf("application/json", "text/*", "*/*")) }) {
-                Text("Import")
-            }
-            Button(onClick = { exportLauncher.launch("finance_data.json") }) {
-                Text("Export")
+        Button(
+            onClick = { connectLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Connect synced finance_data.json")
+        }
+        Button(
+            onClick = { viewModel.reloadFromSyncedFile() },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Reload from synced file")
+        }
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                Text("Synced file", style = MaterialTheme.typography.titleMedium)
+                Text("File: ${syncStatus.fileName ?: "Not connected"}")
+                Text("Last loaded: ${syncStatus.lastLoadedAt ?: "Never"}")
+                Text("Last write: ${syncStatus.lastWrittenAt ?: "Never"}")
+                syncStatus.lastError?.let { Text("Last error: $it", color = MaterialTheme.colorScheme.error) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

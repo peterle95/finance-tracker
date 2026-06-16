@@ -5,11 +5,11 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.peterle95.financetracker.data.FinanceRepository
+import com.peterle95.financetracker.data.SyncedFileStatus
 import com.peterle95.financetracker.domain.CategoryState
 import com.peterle95.financetracker.domain.DashboardSummary
 import com.peterle95.financetracker.domain.FinanceAggregator
 import com.peterle95.financetracker.domain.FinanceTransaction
-import com.peterle95.financetracker.domain.InsightsJson
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -42,6 +42,12 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         initialValue = buildJsonObject {},
     )
 
+    val syncStatus: StateFlow<SyncedFileStatus> = repository.syncStatus.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = SyncedFileStatus(),
+    )
+
     val dashboard: StateFlow<DashboardSummary> = combine(transactions, budgetSettings) { rows, budget ->
         FinanceAggregator.buildDashboardSummary(rows, budget, YearMonth.now())
     }.stateIn(
@@ -50,15 +56,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         initialValue = FinanceAggregator.buildDashboardSummary(emptyList(), buildJsonObject {}, YearMonth.now()),
     )
 
-    val insightsJson: StateFlow<String> = combine(transactions, budgetSettings) { rows, budget ->
-        InsightsJson.encode(FinanceAggregator.buildInsightsSummary(rows, budget, YearMonth.now(), monthsBack = 3))
-    }.stateIn(
-        scope = viewModelScope,
-        started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = "{}",
-    )
-
     val messages = MutableSharedFlow<String>()
+
+    init {
+        viewModelScope.launch {
+            runCatching { repository.loadConfiguredFileIfAny() }
+        }
+    }
 
     fun addTransaction(
         type: TransactionType,
@@ -88,10 +92,16 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun deleteTransaction(localId: Long) {
+    fun deleteTransaction(exportId: String?) {
         viewModelScope.launch {
-            repository.deleteTransaction(localId)
-            messages.emit("Transaction deleted.")
+            runCatching {
+                require(!exportId.isNullOrBlank()) { "This transaction has no JSON id and cannot be deleted from Android." }
+                repository.deleteTransaction(exportId)
+            }.onSuccess {
+                messages.emit("Transaction deleted.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not delete transaction.")
+            }
         }
     }
 
@@ -102,26 +112,26 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun importJson(uri: Uri) {
+    fun connectSyncedFile(uri: Uri) {
         viewModelScope.launch {
             runCatching {
-                repository.importFromUri(getApplication<Application>().contentResolver, uri)
+                repository.connectSyncedFile(uri)
             }.onSuccess {
-                messages.emit("Imported finance_data.json.")
+                messages.emit("Connected finance_data.json.")
             }.onFailure {
-                messages.emit(it.message ?: "Import failed.")
+                messages.emit(it.message ?: "Could not connect file.")
             }
         }
     }
 
-    fun exportJson(uri: Uri) {
+    fun reloadFromSyncedFile(showMessage: Boolean = true) {
         viewModelScope.launch {
             runCatching {
-                repository.exportToUri(getApplication<Application>().contentResolver, uri)
+                repository.loadConfiguredFileIfAny()
             }.onSuccess {
-                messages.emit("Exported finance_data.json.")
+                if (showMessage) messages.emit("Reloaded synced file.")
             }.onFailure {
-                messages.emit(it.message ?: "Export failed.")
+                if (showMessage) messages.emit(it.message ?: "Reload failed.")
             }
         }
     }

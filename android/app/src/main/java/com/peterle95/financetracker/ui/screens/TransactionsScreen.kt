@@ -77,8 +77,8 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
             modifier = Modifier.fillMaxWidth(),
         )
         LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(filtered, key = { it.localId }) { transaction ->
-                TransactionRow(transaction = transaction, onDelete = { viewModel.deleteTransaction(transaction.localId) })
+            items(filtered, key = { it.uiKey }) { transaction ->
+                TransactionRow(transaction = transaction, onDelete = { viewModel.deleteTransaction(transaction.exportId) })
             }
         }
     }
@@ -95,7 +95,7 @@ private fun TransactionRow(transaction: FinanceTransaction, onDelete: () -> Unit
         ) {
             Column(Modifier.weight(1f)) {
                 Text(transaction.description.ifBlank { transaction.category }, style = MaterialTheme.typography.titleMedium)
-                Text("${transaction.date} · ${transaction.type.label} · ${transaction.category}")
+                Text("${transaction.date} - ${transaction.type.label} - ${transaction.category}")
             }
             Column {
                 Text(money(transaction.amount), style = MaterialTheme.typography.labelLarge)
