@@ -51,6 +51,9 @@ class FinanceRepository(context: Context) {
     }
 
     suspend fun connectSyncedFile(uri: Uri) {
+        require(uri.scheme == ContentResolver.SCHEME_CONTENT) {
+            "Choose finance_data.json through Android's file picker so the app receives a content URI."
+        }
         val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
         contentResolver.takePersistableUriPermission(uri, flags)
         settingsDataStore.setSyncedFileUri(uri.toString())

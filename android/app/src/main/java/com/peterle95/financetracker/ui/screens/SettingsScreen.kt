@@ -59,7 +59,7 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
             }
         }
         Button(
-            onClick = { connectLauncher.launch(arrayOf("application/json", "text/*", "*/*")) },
+            onClick = { connectLauncher.launch(arrayOf("application/json")) },
             modifier = Modifier.fillMaxWidth(),
         ) {
             Text("Connect synced finance_data.json")
@@ -78,9 +78,9 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 Text("Synced file", style = MaterialTheme.typography.titleMedium)
-                Text("File: ${syncStatus.fileName ?: "Not connected"}")
+                Text("Connected file: ${syncStatus.fileName ?: "Not connected"}")
                 Text("Last loaded: ${syncStatus.lastLoadedAt ?: "Never"}")
-                Text("Last write: ${syncStatus.lastWrittenAt ?: "Never"}")
+                Text("Last written: ${syncStatus.lastWrittenAt ?: "Never"}")
                 syncStatus.lastError?.let { Text("Last error: $it", color = MaterialTheme.colorScheme.error) }
             }
         }
