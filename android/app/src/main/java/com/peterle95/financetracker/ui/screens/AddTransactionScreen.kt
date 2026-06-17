@@ -36,12 +36,15 @@ fun AddTransactionScreen(viewModel: FinanceViewModel) {
     var category by remember { mutableStateOf(categories.forType(type).firstOrNull().orEmpty()) }
     var description by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(todayIsoDate()) }
-    var isBnpl by remember { mutableStateOf(false) }
+    var isBnpl by remember { mutableStateOf(true) }
     val currentCategories = categories.forType(type)
 
     LaunchedEffect(type, categories) {
         if (category !in currentCategories) category = currentCategories.firstOrNull().orEmpty()
-        if (type != TransactionType.Expense) isBnpl = false
+    }
+
+    LaunchedEffect(type) {
+        isBnpl = type == TransactionType.Expense
     }
 
     Column(
@@ -109,7 +112,7 @@ fun AddTransactionScreen(viewModel: FinanceViewModel) {
                 viewModel.addTransaction(type, amount, category, description, date, isBnpl)
                 amount = ""
                 description = ""
-                isBnpl = false
+                isBnpl = type == TransactionType.Expense
             },
             enabled = syncStatus.isConnected,
             modifier = Modifier.fillMaxWidth(),
