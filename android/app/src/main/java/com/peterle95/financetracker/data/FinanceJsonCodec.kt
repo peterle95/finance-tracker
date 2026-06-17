@@ -105,6 +105,7 @@ object FinanceJsonCodec {
         amount: Double,
         category: String,
         description: String,
+        behaviorDate: String? = null,
         id: String = UUID.randomUUID().toString(),
     ): FinanceDocument {
         val transaction = FinanceTransaction(
@@ -115,7 +116,7 @@ object FinanceJsonCodec {
             amount = amount,
             category = category,
             description = description,
-            behaviorDate = null,
+            behaviorDate = behaviorDate,
         )
         return document.copy(records = document.records + FinanceRecord(transaction))
     }

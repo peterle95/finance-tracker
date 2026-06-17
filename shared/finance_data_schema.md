@@ -43,7 +43,9 @@ Known transaction fields:
 - `amount` is a number.
 - `category` is a string from the matching `categories` list when possible.
 - `description` is free text.
-- `behavior_date` is optional and is preserved for desktop BNPL/Klarna-style rows.
+- `behavior_date` is optional. For desktop and Android BNPL/Klarna-style rows, `date` is the booking date and `behavior_date` is the original spending date.
+
+BNPL / pay-next-month expenses are booked on the 1st day of the next month. For example, an expense spent on `2026-06-16` is stored with `date: "2026-07-01"` and `behavior_date: "2026-06-16"`. Transaction month filters use the booked `date`, not `behavior_date`.
 
 Unknown transaction fields are preserved by Android read/write operations.
 

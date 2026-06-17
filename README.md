@@ -44,6 +44,8 @@ It includes:
 - Direct read/write access to one synced `finance_data.json` file through Android's Storage Access Framework.
 - DataStore app settings for the connected file URI.
 - JSON compatibility with the Python desktop app through kotlinx.serialization.
+- BNPL / pay-next-month expense entry that stores the real spending date and books the expense on the 1st of the next month.
+- Transactions filtering by booking month, category, type, and description search.
 
 Open `/android` in Android Studio, let Gradle sync, then run the `app` configuration on an emulator or Android phone.
 
@@ -63,5 +65,7 @@ Recommended setup:
 6. Choose the synced `finance_data.json` file using Android's file picker.
 
 After connection, Android reads from and writes to that file directly. On app start and resume it reloads the file, and Settings also has a manual reload button.
+
+BNPL expenses follow the desktop app's Klarna-style behavior: Android writes the booked transaction `date` as the 1st day of the next month and writes the original spending date to `behavior_date`. The Transactions tab filters by booked `date`, so a BNPL row spent in June and booked on July 1 appears under July.
 
 Avoid editing from desktop and Android at the exact same second. Syncthing is file-based, so close or pause on one device when doing a burst of edits on the other.

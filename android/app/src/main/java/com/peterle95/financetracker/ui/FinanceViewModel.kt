@@ -10,6 +10,7 @@ import com.peterle95.financetracker.domain.CategoryState
 import com.peterle95.financetracker.domain.DashboardSummary
 import com.peterle95.financetracker.domain.FinanceAggregator
 import com.peterle95.financetracker.domain.FinanceTransaction
+import com.peterle95.financetracker.domain.TransactionUiLogic
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -19,6 +20,7 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import java.time.LocalDate
 import java.time.YearMonth
 
 class FinanceViewModel(application: Application) : AndroidViewModel(application) {
@@ -70,19 +72,23 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         category: String,
         description: String,
         date: String,
+        isBnpl: Boolean = false,
     ) {
         viewModelScope.launch {
             runCatching {
                 val amount = amountText.trim().toDouble()
                 require(amount > 0.0) { "Amount must be greater than zero." }
                 require(date.matches(Regex("\\d{4}-\\d{2}-\\d{2}"))) { "Date must use YYYY-MM-DD." }
+                LocalDate.parse(date)
                 require(category.isNotBlank()) { "Choose a category." }
+                val bookingDates = TransactionUiLogic.bookingDatesFor(type, date, isBnpl)
                 repository.addTransaction(
                     type = type,
-                    date = date,
+                    date = bookingDates.date,
                     amount = amount,
                     category = category,
                     description = description.trim(),
+                    behaviorDate = bookingDates.behaviorDate,
                 )
             }.onSuccess {
                 messages.emit("Transaction saved.")

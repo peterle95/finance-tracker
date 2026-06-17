@@ -17,8 +17,8 @@ The MVP uses Jetpack Compose, Material 3, DataStore, Android's Storage Access Fr
 ## Screens
 
 - Dashboard: current-month income, expenses, net, top expense categories, and balance estimate from preserved desktop balances.
-- Add Transaction: Expense/Income toggle, amount, category, description, ISO date input, and synced JSON write.
-- Transactions: list with type/category/search filters and delete action.
+- Add Transaction: Expense/Income toggle, amount, category, description, ISO date input, optional BNPL / pay-next-month expense toggle, and synced JSON write.
+- Transactions: list with month/category/type/search filters and delete action.
 - Settings: connect synced file, reload synced file, connection status, and category editing.
 
 ## Compatibility Rules
@@ -29,6 +29,8 @@ The MVP uses Jetpack Compose, Material 3, DataStore, Android's Storage Access Fr
 - Before every add, delete, or category edit, Android reads the latest file, applies the change, writes the whole JSON document back, and refreshes UI state.
 - Android preserves unknown root fields and unknown transaction fields.
 - Android-created rows include a UUID `id`.
+- Android BNPL expenses mirror desktop semantics by writing the booked `date` as the 1st of the next month and the original spending date as `behavior_date`.
+- Transaction month filtering uses the booked `date`, not `behavior_date`.
 - Deletes use exported JSON `id`, not a local database id.
 - Advanced desktop settings are not edited by Android in MVP.
 
@@ -51,6 +53,8 @@ JVM unit tests cover:
 
 - JSON import from desktop-style files.
 - JSON document mutation back to desktop-compatible shape.
+- BNPL booking-date calculation and `behavior_date` export.
+- Transaction month filtering by booked date, including BNPL rows.
 - Monthly totals including fixed costs and base monthly income.
 - Category totals and flexible transaction counts.
 - Reloading Android app state from changed file text.

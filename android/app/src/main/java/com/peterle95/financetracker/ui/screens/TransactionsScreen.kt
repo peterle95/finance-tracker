@@ -26,25 +26,35 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.peterle95.financetracker.domain.FinanceTransaction
+import com.peterle95.financetracker.domain.TransactionUiLogic
 import com.peterle95.financetracker.domain.TransactionType
 import com.peterle95.financetracker.ui.FinanceViewModel
 import com.peterle95.financetracker.ui.components.CategoryDropdown
 import com.peterle95.financetracker.ui.components.money
+import java.time.YearMonth
 
 @Composable
 fun TransactionsScreen(viewModel: FinanceViewModel) {
     val rows by viewModel.transactions.collectAsState()
     val categories by viewModel.categories.collectAsState()
+    val currentMonth = remember { YearMonth.now() }
+    var selectedMonthKey by remember { mutableStateOf(currentMonth.toString()) }
     var typeFilter by remember { mutableStateOf<TransactionType?>(null) }
     var categoryFilter by remember { mutableStateOf("") }
     var search by remember { mutableStateOf("") }
+    val monthOptions = listOf(TransactionUiLogic.ALL_MONTHS_KEY) +
+        TransactionUiLogic.availableMonthKeys(rows, currentMonth)
+    val monthLabels = monthOptions.associateWith { TransactionUiLogic.monthLabel(it) }
+    val monthLabelToKey = monthLabels.entries.associate { (key, label) -> label to key }
     val categoryOptions = listOf("All") + TransactionType.entries.flatMap { categories.forType(it) }.distinct().sorted()
 
-    val filtered = rows.filter { row ->
-        (typeFilter == null || row.type == typeFilter) &&
-            (categoryFilter.isBlank() || categoryFilter == "All" || row.category == categoryFilter) &&
-            (search.isBlank() || row.description.contains(search, ignoreCase = true))
-    }
+    val filtered = TransactionUiLogic.filterTransactions(
+        transactions = rows,
+        selectedMonthKey = selectedMonthKey,
+        categoryFilter = categoryFilter,
+        typeFilter = typeFilter,
+        searchText = search,
+    )
 
     Column(
         modifier = Modifier
@@ -53,6 +63,18 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Transactions", style = MaterialTheme.typography.headlineMedium)
+        CategoryDropdown(
+            label = "Month",
+            selected = monthLabels[selectedMonthKey] ?: TransactionUiLogic.monthLabel(TransactionUiLogic.ALL_MONTHS_KEY),
+            categories = monthOptions.map { monthLabels.getValue(it) },
+            onSelected = { selectedMonthKey = monthLabelToKey.getValue(it) },
+        )
+        CategoryDropdown(
+            label = "Category",
+            selected = categoryFilter.ifBlank { "All" },
+            categories = categoryOptions,
+            onSelected = { categoryFilter = it },
+        )
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             FilterChip(selected = typeFilter == null, onClick = { typeFilter = null }, label = { Text("All") })
             TransactionType.entries.forEach { item ->
@@ -63,12 +85,6 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
                 )
             }
         }
-        CategoryDropdown(
-            label = "Category",
-            selected = categoryFilter.ifBlank { "All" },
-            categories = categoryOptions,
-            onSelected = { categoryFilter = it },
-        )
         OutlinedTextField(
             value = search,
             onValueChange = { search = it },
@@ -95,7 +111,21 @@ private fun TransactionRow(transaction: FinanceTransaction, onDelete: () -> Unit
         ) {
             Column(Modifier.weight(1f)) {
                 Text(transaction.description.ifBlank { transaction.category }, style = MaterialTheme.typography.titleMedium)
-                Text("${transaction.date} - ${transaction.type.label} - ${transaction.category}")
+                val dateText = transaction.behaviorDate?.takeIf { it.isNotBlank() }?.let {
+                    "Booked: ${transaction.date} \u00B7 Spent: $it"
+                } ?: "${transaction.date} - ${transaction.type.label} - ${transaction.category}"
+                Text(
+                    dateText,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                if (!transaction.behaviorDate.isNullOrBlank()) {
+                    Text(
+                        "${transaction.type.label} - ${transaction.category}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
             Column {
                 Text(money(transaction.amount), style = MaterialTheme.typography.labelLarge)

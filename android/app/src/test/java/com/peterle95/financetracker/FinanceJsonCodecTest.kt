@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -46,7 +47,32 @@ class FinanceJsonCodecTest {
         assertEquals("root", root["unexpected_root"]!!.jsonPrimitive.content)
         assertEquals(42.0, root["budget_settings"]!!.jsonObject["bank_account_balance"]!!.jsonPrimitive.content.toDouble(), 0.0)
         assertEquals("kept", root["expenses"]!!.jsonArray[0].jsonObject["note"]!!.jsonPrimitive.content)
-        assertEquals("android-uuid", root["expenses"]!!.jsonArray[1].jsonObject["id"]!!.jsonPrimitive.content)
+        val added = root["expenses"]!!.jsonArray[1].jsonObject
+        assertEquals("android-uuid", added["id"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-12", added["date"]!!.jsonPrimitive.content)
+        assertFalse(added.containsKey("behavior_date"))
+    }
+
+    @Test
+    fun addingBnplTransactionWritesBehaviorDateAndPreservesUnknownFields() {
+        val document = FinanceJsonCodec.parse(sampleJson)
+        val updated = FinanceJsonCodec.addTransaction(
+            document = document,
+            type = TransactionType.Expense,
+            date = "2026-07-01",
+            amount = 48.0,
+            category = "Shopping",
+            description = "Pay next month",
+            behaviorDate = "2026-06-16",
+            id = "android-bnpl",
+        )
+        val root = Json.parseToJsonElement(FinanceJsonCodec.encode(updated)).jsonObject
+        val added = root["expenses"]!!.jsonArray[1].jsonObject
+
+        assertEquals("root", root["unexpected_root"]!!.jsonPrimitive.content)
+        assertEquals("kept", root["expenses"]!!.jsonArray[0].jsonObject["note"]!!.jsonPrimitive.content)
+        assertEquals("2026-07-01", added["date"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-16", added["behavior_date"]!!.jsonPrimitive.content)
     }
 
     @Test

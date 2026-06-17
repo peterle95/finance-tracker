@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Button
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -18,6 +19,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.peterle95.financetracker.domain.TransactionType
@@ -34,10 +36,12 @@ fun AddTransactionScreen(viewModel: FinanceViewModel) {
     var category by remember { mutableStateOf(categories.forType(type).firstOrNull().orEmpty()) }
     var description by remember { mutableStateOf("") }
     var date by remember { mutableStateOf(todayIsoDate()) }
+    var isBnpl by remember { mutableStateOf(false) }
     val currentCategories = categories.forType(type)
 
     LaunchedEffect(type, categories) {
         if (category !in currentCategories) category = currentCategories.firstOrNull().orEmpty()
+        if (type != TransactionType.Expense) isBnpl = false
     }
 
     Column(
@@ -83,11 +87,29 @@ fun AddTransactionScreen(viewModel: FinanceViewModel) {
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
+        if (type == TransactionType.Expense) {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Checkbox(
+                    checked = isBnpl,
+                    onCheckedChange = { isBnpl = it },
+                )
+                Text("BNPL / Pay next month", style = MaterialTheme.typography.labelLarge)
+            }
+            Text(
+                "Books this expense on the 1st of next month while keeping the original spending date.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
         Button(
             onClick = {
-                viewModel.addTransaction(type, amount, category, description, date)
+                viewModel.addTransaction(type, amount, category, description, date, isBnpl)
                 amount = ""
                 description = ""
+                isBnpl = false
             },
             enabled = syncStatus.isConnected,
             modifier = Modifier.fillMaxWidth(),

@@ -87,6 +87,7 @@ class FinanceRepository(context: Context) {
         amount: Double,
         category: String,
         description: String,
+        behaviorDate: String? = null,
     ) = mutateConnectedFile {
         FinanceJsonCodec.addTransaction(
             document = it,
@@ -95,6 +96,7 @@ class FinanceRepository(context: Context) {
             amount = amount,
             category = category,
             description = description,
+            behaviorDate = behaviorDate,
         )
     }
 
