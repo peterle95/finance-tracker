@@ -7,6 +7,7 @@ Manages the application state, including data loading, saving, and transaction m
 from pathlib import Path
 from datetime import datetime
 import json
+import os
 
 DEFAULT_EXPENSE_CATEGORIES = [
     "Food", "Transportation", "Entertainment", "Utilities",
@@ -15,8 +16,10 @@ DEFAULT_EXPENSE_CATEGORIES = [
 DEFAULT_INCOME_CATEGORIES = ["Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other"]
 
 class AppState:
-    def __init__(self, data_file: Path = Path("finance_data.json")):
-        self.data_file = data_file
+    def __init__(self, data_file=None):
+        if data_file is None:
+            data_file = os.environ.get("FINANCE_DATA_FILE", "finance_data.json")
+        self.data_file = Path(data_file)
         self.expenses = []
         self.incomes = []
         self.budget_settings = {}
