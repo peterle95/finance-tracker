@@ -2,6 +2,7 @@ package com.peterle95.financetracker
 
 import com.peterle95.financetracker.data.FinanceJsonCodec
 import com.peterle95.financetracker.data.FinanceJsonFileStore
+import com.peterle95.financetracker.domain.AssetBalances
 import com.peterle95.financetracker.domain.CategoryDefaults
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.runBlocking
@@ -100,6 +101,101 @@ class FinanceJsonCodecTest {
     }
 
     @Test
+    fun typedBudgetSettingsReadLegacyMonthlyIncome() {
+        val document = FinanceJsonCodec.parse(
+            """
+            {
+              "expenses": [],
+              "incomes": [],
+              "budget_settings": {
+                "monthly_income": 1234,
+                "fixed_costs": []
+              },
+              "categories": {}
+            }
+            """.trimIndent(),
+        )
+
+        assertEquals(1234.0, document.budgetSettingsModel.monthlyIncome.single().amount, 0.0)
+        assertEquals("Base Income", document.budgetSettingsModel.monthlyIncome.single().description)
+    }
+
+    @Test
+    fun budgetMutationPreservesDesktopOnlyFieldsAndUnknownNestedFields() {
+        val document = FinanceJsonCodec.parse(budgetSettingsJson)
+        val updated = FinanceJsonCodec.updateBalances(
+            document,
+            AssetBalances(
+                bankAccount = 10.0,
+                wallet = 20.0,
+                savings = 30.0,
+                investments = 40.0,
+                moneyLent = 50.0,
+                hasAnyBalanceField = true,
+            ),
+        )
+        val root = Json.parseToJsonElement(FinanceJsonCodec.encode(updated)).jsonObject
+        val budget = root["budget_settings"]!!.jsonObject
+
+        assertEquals("root", root["unexpected_root"]!!.jsonPrimitive.content)
+        assertEquals("keep-me", budget["desktop_only"]!!.jsonPrimitive.content)
+        assertTrue(budget["ai_settings"]!!.jsonObject.containsKey("api_key"))
+        assertEquals("monthly", budget["fixed_costs"]!!.jsonArray[0].jsonObject["cadence"]!!.jsonPrimitive.content)
+        assertEquals("kept", root["expenses"]!!.jsonArray[0].jsonObject["note"]!!.jsonPrimitive.content)
+        assertEquals(10.0, budget["bank_account_balance"]!!.jsonPrimitive.content.toDouble(), 0.0)
+    }
+
+    @Test
+    fun updatingRecurringBudgetRowsPreservesUnknownRowFields() {
+        val document = FinanceJsonCodec.parse(budgetSettingsJson)
+        val income = document.budgetSettingsModel.monthlyIncome.single()
+        val fixedCost = document.budgetSettingsModel.fixedCosts.single()
+        val updatedIncome = FinanceJsonCodec.updateIncomeSource(
+            document,
+            income.key,
+            income.copy(amount = 2600.0, description = "Updated Salary"),
+        )
+        val updatedCost = FinanceJsonCodec.updateFixedCost(
+            updatedIncome,
+            fixedCost.key,
+            fixedCost.copy(amount = 950.0, description = "Updated Rent"),
+        )
+        val budget = Json.parseToJsonElement(FinanceJsonCodec.encode(updatedCost))
+            .jsonObject["budget_settings"]!!
+            .jsonObject
+
+        assertEquals(
+            "kept",
+            budget["monthly_income"]!!.jsonArray[0].jsonObject["payroll_id"]!!.jsonPrimitive.content,
+        )
+        assertEquals(
+            "monthly",
+            budget["fixed_costs"]!!.jsonArray[0].jsonObject["cadence"]!!.jsonPrimitive.content,
+        )
+    }
+
+    @Test
+    fun recordAssetSnapshotWritesDesktopCompatibleShape() {
+        val document = FinanceJsonCodec.parse(budgetSettingsJson)
+        val updated = FinanceJsonCodec.recordAssetSnapshot(document, "2026-06-18", "Android")
+        val snapshot = Json.parseToJsonElement(FinanceJsonCodec.encode(updated))
+            .jsonObject["budget_settings"]!!
+            .jsonObject["asset_snapshots"]!!
+            .jsonArray
+            .last()
+            .jsonObject
+
+        assertEquals("2026-06-18", snapshot["date"]!!.jsonPrimitive.content)
+        assertEquals("Android", snapshot["note"]!!.jsonPrimitive.content)
+        assertTrue(snapshot.containsKey("bank_balance"))
+        assertTrue(snapshot.containsKey("wallet_balance"))
+        assertTrue(snapshot.containsKey("savings_balance"))
+        assertTrue(snapshot.containsKey("investment_balance"))
+        assertTrue(snapshot.containsKey("money_lent_balance"))
+        assertTrue(snapshot.containsKey("net_worth"))
+    }
+
+    @Test
     fun fileStoreReloadsLatestText() = runBlocking {
         var fileText = sampleJson
         val store = FinanceJsonFileStore(
@@ -149,6 +245,56 @@ class FinanceJsonCodecTest {
             }
           ],
           "budget_settings": { "bank_account_balance": 42 },
+          "unexpected_root": "root"
+        }
+    """.trimIndent()
+
+    private val budgetSettingsJson = """
+        {
+          "expenses": [
+            {
+              "date": "2026-06-10",
+              "amount": 12.5,
+              "category": "Food",
+              "description": "Lunch",
+              "note": "kept"
+            }
+          ],
+          "incomes": [],
+          "budget_settings": {
+            "monthly_income": [
+              {
+                "amount": 2500,
+                "description": "Salary",
+                "start_date": "2026-01-01",
+                "end_date": null,
+                "payroll_id": "kept"
+              }
+            ],
+            "fixed_costs": [
+              {
+                "amount": 900,
+                "desc": "Rent",
+                "start_date": "2026-01-01",
+                "end_date": null,
+                "cadence": "monthly"
+              }
+            ],
+            "bank_account_balance": 1,
+            "wallet_balance": 2,
+            "savings_balance": 3,
+            "investment_balance": 4,
+            "money_lent_balance": 5,
+            "daily_savings_goal": 10,
+            "category_budgets": {
+              "Expense": { "Food": 40 },
+              "Income": {},
+              "Custom": { "kept": true }
+            },
+            "asset_snapshots": [],
+            "ai_settings": { "api_key": "secret" },
+            "desktop_only": "keep-me"
+          },
           "unexpected_root": "root"
         }
     """.trimIndent()

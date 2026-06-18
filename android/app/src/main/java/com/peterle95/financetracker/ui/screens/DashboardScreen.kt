@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -81,7 +82,12 @@ private val chartColors = listOf(
 )
 
 @Composable
-fun DashboardScreen(viewModel: FinanceViewModel) {
+fun DashboardScreen(
+    viewModel: FinanceViewModel,
+    onOpenBudget: () -> Unit = {},
+    onOpenNetWorth: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+) {
     val dashboard by viewModel.dashboard.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
     val budgetSettings by viewModel.budgetSettings.collectAsState()
@@ -136,7 +142,55 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MetricCard("Net", money(dashboard.net), Modifier.weight(1f))
                 dashboard.balanceEstimate?.let {
-                    MetricCard("Balance", money(it), Modifier.weight(1f))
+                    MetricCard("Net Worth", money(it), Modifier.weight(1f))
+                } ?: MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
+                MetricCard("Top Categories", dashboard.topExpenseCategories.size.toString(), Modifier.weight(1f))
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("Shortcuts", style = MaterialTheme.typography.titleLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onOpenBudget, modifier = Modifier.weight(1f)) {
+                            Text("Budget")
+                        }
+                        Button(onClick = onOpenNetWorth, modifier = Modifier.weight(1f)) {
+                            Text("Net Worth")
+                        }
+                    }
+                    OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+                        Text("Settings")
+                    }
+                }
+            }
+        }
+        if (dashboard.topExpenseCategories.isNotEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("Top Expense Categories", style = MaterialTheme.typography.titleLarge)
+                        dashboard.topExpenseCategories.forEach { (category, amount) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(category)
+                                Text(money(amount), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
                 }
             }
         }

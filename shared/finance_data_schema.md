@@ -67,13 +67,59 @@ Salary, Side Gig, Bonus, Gift, Investment, Other
 
 ## Budget Settings Used By Android
 
-Android reads a small subset of `budget_settings` for dashboard calculations:
+Android reads and writes the budget and net-worth subset of `budget_settings` while preserving unknown fields:
 
 - `monthly_income`: either the legacy number format or the newer list of `{ amount, description, start_date, end_date }`.
-- `fixed_costs`: list of `{ amount, description|desc, start_date, end_date }`.
+- `fixed_costs`: list of `{ amount, description|desc, start_date, end_date }`. Android writes the desktop-friendly `desc` key.
 - `bank_account_balance`, `wallet_balance`, `savings_balance`, `investment_balance`, `money_lent_balance`: summed for the dashboard balance estimate.
+- `daily_savings_goal`: per-day savings target used by the daily budget report.
+- `category_budgets.Expense`: percent limits by expense category.
+- `asset_snapshots`: net-worth snapshots.
 
-All other budget settings remain desktop-owned and are preserved.
+Unknown budget settings fields remain desktop-owned and are preserved by Android mutations.
+
+### Income Source
+
+```json
+{
+  "amount": 2500,
+  "description": "Salary",
+  "start_date": "2026-01-01",
+  "end_date": null
+}
+```
+
+An income source is active for a month when its date range overlaps that month. Legacy numeric `monthly_income` is still read as an always-active base income; Android may rewrite it to the list format when budget settings are edited.
+
+### Fixed Cost
+
+```json
+{
+  "amount": 900,
+  "desc": "Rent",
+  "start_date": "2026-01-01",
+  "end_date": null
+}
+```
+
+A fixed cost is active for a month when its date range overlaps that month. Archiving sets `end_date`; deleting removes the row.
+
+### Asset Snapshot
+
+```json
+{
+  "date": "2026-06-18",
+  "bank_balance": 1000,
+  "wallet_balance": 50,
+  "savings_balance": 5000,
+  "investment_balance": 2500,
+  "money_lent_balance": 0,
+  "note": "Month end",
+  "net_worth": 8550
+}
+```
+
+Snapshots are keyed by `date` in Android. Recording a snapshot for an existing date updates that entry and keeps the list sorted by date.
 
 ## Syncthing Compatibility
 

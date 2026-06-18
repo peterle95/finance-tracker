@@ -5,8 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
+import com.peterle95.financetracker.domain.AssetBalances
+import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.CategoryState
 import com.peterle95.financetracker.domain.FinanceTransaction
+import com.peterle95.financetracker.domain.FixedCost
+import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,6 +42,9 @@ class FinanceRepository(context: Context) {
 
     val budgetSettings: Flow<JsonObject> =
         fileStore.document.map { it.budgetSettings }
+
+    val budgetSettingsModel: Flow<BudgetSettings> =
+        fileStore.document.map { it.budgetSettingsModel }
 
     val syncStatus: Flow<SyncedFileStatus> = _syncStatus
 
@@ -106,6 +113,74 @@ class FinanceRepository(context: Context) {
 
     suspend fun setCategories(type: TransactionType, categories: List<String>) = mutateConnectedFile {
         FinanceJsonCodec.updateCategories(it, type, categories)
+    }
+
+    suspend fun updateBalances(
+        bank: Double,
+        wallet: Double,
+        savings: Double,
+        investments: Double,
+        moneyLent: Double,
+    ) = mutateConnectedFile {
+        FinanceJsonCodec.updateBalances(
+            it,
+            AssetBalances(
+                bankAccount = bank,
+                wallet = wallet,
+                savings = savings,
+                investments = investments,
+                moneyLent = moneyLent,
+                hasAnyBalanceField = true,
+            ),
+        )
+    }
+
+    suspend fun setDailySavingsGoal(amount: Double) = mutateConnectedFile {
+        FinanceJsonCodec.setDailySavingsGoal(it, amount)
+    }
+
+    suspend fun addIncomeSource(source: IncomeSource) = mutateConnectedFile {
+        FinanceJsonCodec.addIncomeSource(it, source)
+    }
+
+    suspend fun updateIncomeSource(key: String, source: IncomeSource) = mutateConnectedFile {
+        FinanceJsonCodec.updateIncomeSource(it, key, source)
+    }
+
+    suspend fun archiveIncomeSource(key: String, endDate: String) = mutateConnectedFile {
+        FinanceJsonCodec.archiveIncomeSource(it, key, endDate)
+    }
+
+    suspend fun deleteIncomeSource(key: String) = mutateConnectedFile {
+        FinanceJsonCodec.deleteIncomeSource(it, key)
+    }
+
+    suspend fun addFixedCost(cost: FixedCost) = mutateConnectedFile {
+        FinanceJsonCodec.addFixedCost(it, cost)
+    }
+
+    suspend fun updateFixedCost(key: String, cost: FixedCost) = mutateConnectedFile {
+        FinanceJsonCodec.updateFixedCost(it, key, cost)
+    }
+
+    suspend fun archiveFixedCost(key: String, endDate: String) = mutateConnectedFile {
+        FinanceJsonCodec.archiveFixedCost(it, key, endDate)
+    }
+
+    suspend fun deleteFixedCost(key: String) = mutateConnectedFile {
+        FinanceJsonCodec.deleteFixedCost(it, key)
+    }
+
+    suspend fun setCategoryBudget(type: TransactionType, category: String, percent: Double) = mutateConnectedFile {
+        FinanceJsonCodec.setCategoryBudget(it, type, category, percent)
+    }
+
+    suspend fun recordAssetSnapshot(date: String, note: String) = mutateConnectedFile {
+        FinanceJsonCodec.recordAssetSnapshot(it, date, note)
+    }
+
+    suspend fun deleteAssetSnapshot(date: String) = mutateConnectedFile {
+        FinanceJsonCodec.deleteAssetSnapshot(it, date)
     }
 
     private suspend fun mutateConnectedFile(transform: (FinanceDocument) -> FinanceDocument) = mutex.withLock {
