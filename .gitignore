@@ -24,3 +24,8 @@ android/local.properties
 android/**/build/
 android/**/.cxx/
 android/captures/
+
+# Syncthing files
+.stfolder/
+.stignore
+.stversions/
