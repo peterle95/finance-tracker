@@ -51,6 +51,7 @@ import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
+import com.peterle95.financetracker.domain.formatAmountField
 import com.peterle95.financetracker.domain.todayIsoDate
 import com.peterle95.financetracker.ui.FinanceViewModel
 import com.peterle95.financetracker.ui.components.MetricCard
@@ -769,7 +770,7 @@ private fun MoneyField(
 }
 
 private fun Double.toFieldText(): String =
-    if (this == 0.0) "0" else "%.2f".format(this)
+    formatAmountField(this)
 
 private fun DrawScope.drawAxisText(
     text: String,

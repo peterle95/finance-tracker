@@ -16,6 +16,7 @@ import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.TransactionUiLogic
 import com.peterle95.financetracker.domain.TransactionType
+import com.peterle95.financetracker.domain.parseAmountText
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -403,9 +404,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     }
 
     private fun parseAmount(value: String, label: String): Double {
-        val normalized = value.trim().replace(",", "")
-        if (normalized.isBlank()) return 0.0
-        return normalized.toDoubleOrNull() ?: error("$label must be a number.")
+        return parseAmountText(value) ?: error("$label must be a number.")
     }
 
     private fun requireIsoDate(value: String, label: String): String {
