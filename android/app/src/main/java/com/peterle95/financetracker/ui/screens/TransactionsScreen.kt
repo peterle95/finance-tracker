@@ -56,46 +56,51 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
         searchText = search,
     )
 
-    Column(
+    LazyColumn(
         modifier = Modifier
             .fillMaxSize()
             .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text("Transactions", style = MaterialTheme.typography.headlineMedium)
-        CategoryDropdown(
-            label = "Month",
-            selected = monthLabels[selectedMonthKey] ?: TransactionUiLogic.monthLabel(TransactionUiLogic.ALL_MONTHS_KEY),
-            categories = monthOptions.map { monthLabels.getValue(it) },
-            onSelected = { selectedMonthKey = monthLabelToKey.getValue(it) },
-        )
-        CategoryDropdown(
-            label = "Category",
-            selected = categoryFilter.ifBlank { "All" },
-            categories = categoryOptions,
-            onSelected = { categoryFilter = it },
-        )
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            FilterChip(selected = typeFilter == null, onClick = { typeFilter = null }, label = { Text("All") })
-            TransactionType.entries.forEach { item ->
-                FilterChip(
-                    selected = typeFilter == item,
-                    onClick = { typeFilter = item },
-                    label = { Text(item.label) },
+        item {
+            Column(
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Transactions", style = MaterialTheme.typography.headlineMedium)
+                CategoryDropdown(
+                    label = "Month",
+                    selected = monthLabels[selectedMonthKey]
+                        ?: TransactionUiLogic.monthLabel(TransactionUiLogic.ALL_MONTHS_KEY),
+                    categories = monthOptions.map { monthLabels.getValue(it) },
+                    onSelected = { selectedMonthKey = monthLabelToKey.getValue(it) },
+                )
+                CategoryDropdown(
+                    label = "Category",
+                    selected = categoryFilter.ifBlank { "All" },
+                    categories = categoryOptions,
+                    onSelected = { categoryFilter = it },
+                )
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    FilterChip(selected = typeFilter == null, onClick = { typeFilter = null }, label = { Text("All") })
+                    TransactionType.entries.forEach { item ->
+                        FilterChip(
+                            selected = typeFilter == item,
+                            onClick = { typeFilter = item },
+                            label = { Text(item.label) },
+                        )
+                    }
+                }
+                OutlinedTextField(
+                    value = search,
+                    onValueChange = { search = it },
+                    label = { Text("Search description") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
-        OutlinedTextField(
-            value = search,
-            onValueChange = { search = it },
-            label = { Text("Search description") },
-            singleLine = true,
-            modifier = Modifier.fillMaxWidth(),
-        )
-        LazyColumn(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            items(filtered, key = { it.uiKey }) { transaction ->
-                TransactionRow(transaction = transaction, onDelete = { viewModel.deleteTransaction(transaction.exportId) })
-            }
+        items(filtered, key = { it.uiKey }) { transaction ->
+            TransactionRow(transaction = transaction, onDelete = { viewModel.deleteTransaction(transaction.exportId) })
         }
     }
 }

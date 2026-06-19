@@ -16,7 +16,7 @@ The MVP uses Jetpack Compose, Material 3, DataStore, Android's Storage Access Fr
 
 ## Screens
 
-- Dashboard: current-month income, expenses, net, top expense categories, and balance estimate from preserved desktop balances.
+- Dashboard: current-month income, expenses, net, daily budget, balance estimate, and desktop-style interactive charts.
 - Add Transaction: Expense/Income toggle, amount, category, description, ISO date input, optional BNPL / pay-next-month expense toggle, and synced JSON write.
 - Transactions: list with month/category/type/search filters and delete action.
 - Settings: connect synced file, reload synced file, connection status, and category editing.

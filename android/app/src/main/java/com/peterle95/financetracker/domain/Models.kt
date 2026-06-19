@@ -71,7 +71,6 @@ data class DashboardSummary(
     val income: Double,
     val expenses: Double,
     val net: Double,
-    val topExpenseCategories: List<Pair<String, Double>>,
     val balanceEstimate: Double?,
     val remainingDailyBudget: Double = 0.0,
 )

@@ -79,11 +79,6 @@ object FinanceAggregator {
             income = summary.totals.income,
             expenses = summary.totals.expenses,
             net = summary.totals.net,
-            topExpenseCategories = summary.expenseCategories
-                .filterKeys { !it.startsWith("Fixed: ") }
-                .toList()
-                .sortedByDescending { it.second }
-                .take(5),
             balanceEstimate = settings.balances.netWorth.takeIf { settings.balances.hasAnyBalanceField },
             remainingDailyBudget = report.adjustedDailyTarget,
         )

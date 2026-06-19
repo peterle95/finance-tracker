@@ -4,6 +4,7 @@ import android.graphics.Paint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,6 +40,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.unit.dp
 import com.peterle95.financetracker.domain.BarBreakdownMode
 import com.peterle95.financetracker.domain.ChartDisplayMode
@@ -169,31 +171,9 @@ fun DashboardScreen(
                 } ?: MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
             }
         }
-        item {
-            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
-                MetricCard("Top Categories", dashboard.topExpenseCategories.size.toString(), Modifier.weight(1f))
-            }
-        }
-        if (dashboard.topExpenseCategories.isNotEmpty()) {
+        if (dashboard.balanceEstimate != null) {
             item {
-                Card(modifier = Modifier.fillMaxWidth()) {
-                    Column(
-                        modifier = Modifier.padding(14.dp),
-                        verticalArrangement = Arrangement.spacedBy(6.dp),
-                    ) {
-                        Text("Top Expense Categories", style = MaterialTheme.typography.titleLarge)
-                        dashboard.topExpenseCategories.forEach { (category, amount) ->
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(category)
-                                Text(money(amount), style = MaterialTheme.typography.labelLarge)
-                            }
-                        }
-                    }
-                }
+                MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.fillMaxWidth())
             }
         }
         item {
@@ -305,7 +285,21 @@ fun DashboardScreen(
                                         dateMode = reportDateMode,
                                     )
                                 },
-                            ) { BarChart(it, barBreakdownMode, showBarLabels) }
+                            ) {
+                                BarChart(
+                                    model = it,
+                                    breakdownMode = barBreakdownMode,
+                                    showLabels = showBarLabels,
+                                    onCycleBreakdown = {
+                                        barBreakdownMode = barBreakdownMode.next()
+                                    },
+                                    onToggleDisplayMode = {
+                                        if (barBreakdownMode != BarBreakdownMode.Total) {
+                                            barDisplayMode = barDisplayMode.toggled()
+                                        }
+                                    },
+                                )
+                            }
                         }
 
                         DashboardChartStyle.Line -> {
@@ -449,13 +443,7 @@ private fun BarControls(
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         OutlinedButton(
             onClick = {
-                val next = when (breakdownMode) {
-                    BarBreakdownMode.Total -> BarBreakdownMode.Categories
-                    BarBreakdownMode.Categories -> BarBreakdownMode.Flexible
-                    BarBreakdownMode.Flexible -> BarBreakdownMode.OverUnder
-                    BarBreakdownMode.OverUnder -> BarBreakdownMode.Total
-                }
-                onBreakdownModeChange(next)
+                onBreakdownModeChange(breakdownMode.next())
             },
             colors = ButtonDefaults.outlinedButtonColors(contentColor = chartViolet),
             border = BorderStroke(1.dp, chartViolet),
@@ -464,9 +452,7 @@ private fun BarControls(
         }
         OutlinedButton(
             onClick = {
-                onDisplayModeChange(
-                    if (displayMode == ChartDisplayMode.Value) ChartDisplayMode.Percentage else ChartDisplayMode.Value,
-                )
+                onDisplayModeChange(displayMode.toggled())
             },
             colors = ButtonDefaults.outlinedButtonColors(contentColor = chartViolet),
             border = BorderStroke(1.dp, chartViolet),
@@ -636,7 +622,13 @@ private fun PieChart(model: PieChartModel, displayMode: ChartDisplayMode) {
 }
 
 @Composable
-private fun BarChart(model: HistoricalBarChartModel, breakdownMode: BarBreakdownMode, showLabels: Boolean) {
+private fun BarChart(
+    model: HistoricalBarChartModel,
+    breakdownMode: BarBreakdownMode,
+    showLabels: Boolean,
+    onCycleBreakdown: () -> Unit,
+    onToggleDisplayMode: () -> Unit,
+) {
     if (model.series.isEmpty() || model.series.all { series -> series.values.all { it == 0.0 } }) {
         Text("No data for the selected period.")
         return
@@ -645,7 +637,13 @@ private fun BarChart(model: HistoricalBarChartModel, breakdownMode: BarBreakdown
     Canvas(
         modifier = Modifier
             .fillMaxWidth()
-            .height(280.dp),
+            .height(280.dp)
+            .pointerInput(breakdownMode, model.displayMode) {
+                detectTapGestures(
+                    onTap = { onCycleBreakdown() },
+                    onLongPress = { onToggleDisplayMode() },
+                )
+            },
     ) {
         drawBarSeries(
             labels = model.labels,
@@ -656,7 +654,22 @@ private fun BarChart(model: HistoricalBarChartModel, breakdownMode: BarBreakdown
         )
     }
     SeriesLegend(model.series)
+    Text(
+        "Tap the chart to change view. Press and hold to switch between value and percentage.",
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
 }
+
+private fun BarBreakdownMode.next(): BarBreakdownMode = when (this) {
+    BarBreakdownMode.Total -> BarBreakdownMode.Categories
+    BarBreakdownMode.Categories -> BarBreakdownMode.Flexible
+    BarBreakdownMode.Flexible -> BarBreakdownMode.OverUnder
+    BarBreakdownMode.OverUnder -> BarBreakdownMode.Total
+}
+
+private fun ChartDisplayMode.toggled(): ChartDisplayMode =
+    if (this == ChartDisplayMode.Value) ChartDisplayMode.Percentage else ChartDisplayMode.Value
 
 @Composable
 private fun LineChart(model: LineChartModel) {

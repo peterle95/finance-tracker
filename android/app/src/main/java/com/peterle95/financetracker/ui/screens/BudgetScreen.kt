@@ -236,9 +236,13 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
 
 @Composable
 private fun BudgetSectionButton(title: String, expanded: Boolean, onClick: () -> Unit) {
-    BudgetOutlinedButton(
+    Button(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
+        colors = ButtonDefaults.buttonColors(
+            containerColor = budgetGreen,
+            contentColor = Color.White,
+        ),
     ) {
         Row(
             modifier = Modifier.fillMaxWidth(),
