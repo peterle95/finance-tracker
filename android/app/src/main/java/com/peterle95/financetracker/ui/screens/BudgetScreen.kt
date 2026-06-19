@@ -15,6 +15,8 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material.icons.outlined.KeyboardArrowDown
+import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
@@ -58,7 +60,15 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
     val context = LocalContext.current
     var month by remember { mutableStateOf(YearMonth.now().toString()) }
     var includeCarryover by remember { mutableStateOf(false) }
-    var showTextReport by remember { mutableStateOf(false) }
+    var showDailyBreakdown by remember { mutableStateOf(false) }
+    var showOverviewSection by remember { mutableStateOf(false) }
+    var showReportSection by remember { mutableStateOf(false) }
+    var showChartSection by remember { mutableStateOf(false) }
+    var showBalancesSection by remember { mutableStateOf(false) }
+    var showSavingsSection by remember { mutableStateOf(false) }
+    var showIncomeSection by remember { mutableStateOf(false) }
+    var showFixedCostsSection by remember { mutableStateOf(false) }
+    var showCategorySection by remember { mutableStateOf(false) }
     val report = remember(settings, transactions, month, includeCarryover) {
         BudgetMath.generateDailyBudgetReport(
             settings = settings,
@@ -101,83 +111,148 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
                 }
             }
         }
-        item { BudgetOverview(report) }
         item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text("Daily Budget Report", style = MaterialTheme.typography.titleLarge)
-                    Text(report.statusTitle, style = MaterialTheme.typography.titleMedium)
-                    Text(report.statusDetail, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = { showTextReport = !showTextReport }) {
-                            Text(if (showTextReport) "Hide Text" else "Show Text")
+            BudgetSectionButton(
+                title = "Overview",
+                expanded = showOverviewSection,
+                onClick = { showOverviewSection = !showOverviewSection },
+            )
+        }
+        if (showOverviewSection) {
+            item { BudgetOverview(report) }
+        }
+        item {
+            BudgetSectionButton(
+                title = "Daily Budget Report",
+                expanded = showReportSection,
+                onClick = { showReportSection = !showReportSection },
+            )
+        }
+        if (showReportSection) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                    ) {
+                        Text("Daily Budget Report", style = MaterialTheme.typography.titleLarge)
+                        Text(report.statusTitle, style = MaterialTheme.typography.titleMedium)
+                        Text(report.statusDetail, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Button(onClick = { showDailyBreakdown = !showDailyBreakdown }) {
+                                Text(if (showDailyBreakdown) "Hide Daily Breakdown" else "Show Daily Breakdown")
+                            }
+                            OutlinedButton(
+                                onClick = {
+                                    val intent = Intent(Intent.ACTION_SEND).apply {
+                                        type = "text/plain"
+                                        putExtra(Intent.EXTRA_SUBJECT, "Budget report ${report.month}")
+                                        putExtra(Intent.EXTRA_TEXT, report.textReport)
+                                    }
+                                    context.startActivity(Intent.createChooser(intent, "Share budget report"))
+                                },
+                            ) {
+                                Text("Share")
+                            }
                         }
-                        OutlinedButton(
-                            onClick = {
-                                val intent = Intent(Intent.ACTION_SEND).apply {
-                                    type = "text/plain"
-                                    putExtra(Intent.EXTRA_SUBJECT, "Budget report ${report.month}")
-                                    putExtra(Intent.EXTRA_TEXT, report.textReport)
-                                }
-                                context.startActivity(Intent.createChooser(intent, "Share budget report"))
-                            },
-                        ) {
-                            Text("Share")
+                        if (showDailyBreakdown) {
+                            Text(
+                                report.textReport,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier.horizontalScroll(rememberScrollState()),
+                            )
                         }
-                    }
-                    if (showTextReport) {
-                        Text(
-                            report.textReport,
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.horizontalScroll(rememberScrollState()),
-                        )
                     }
                 }
             }
         }
-        item { BudgetDepletionChart(report) }
         item {
-            Text("Daily Breakdown", style = MaterialTheme.typography.titleLarge)
+            BudgetSectionButton(
+                title = "Budget Depletion",
+                expanded = showChartSection,
+                onClick = { showChartSection = !showChartSection },
+            )
         }
-        items(report.days, key = { it.date }) { day ->
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                        Text(day.date, style = MaterialTheme.typography.titleMedium)
-                        Text(day.status, style = MaterialTheme.typography.labelLarge)
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Target ${money(day.target)}", modifier = Modifier.weight(1f))
-                        Text("Spent ${money(day.spent)}", modifier = Modifier.weight(1f))
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text("Daily ${money(day.dailyDelta)}", modifier = Modifier.weight(1f))
-                        Text("Left ${money(day.cumulativeFlexibleBalance)}", modifier = Modifier.weight(1f))
-                    }
-                }
+        if (showChartSection) {
+            item { BudgetDepletionChart(report) }
+        }
+        item {
+            BudgetSectionButton(
+                title = "Balances",
+                expanded = showBalancesSection,
+                onClick = { showBalancesSection = !showBalancesSection },
+            )
+        }
+        if (showBalancesSection) {
+            item { BalanceEditor(settings.balances, viewModel) }
+        }
+        item {
+            BudgetSectionButton(
+                title = "Daily Savings Goal",
+                expanded = showSavingsSection,
+                onClick = { showSavingsSection = !showSavingsSection },
+            )
+        }
+        if (showSavingsSection) {
+            item { DailySavingsEditor(settings.dailySavingsGoal, viewModel) }
+        }
+        item {
+            BudgetSectionButton(
+                title = "Income Sources",
+                expanded = showIncomeSection,
+                onClick = { showIncomeSection = !showIncomeSection },
+            )
+        }
+        if (showIncomeSection) {
+            item { IncomeSourceEditor(viewModel) }
+            items(settings.monthlyIncome, key = { it.key }) { source ->
+                IncomeSourceRow(source, viewModel)
             }
         }
-        item { BalanceEditor(settings.balances, viewModel) }
-        item { DailySavingsEditor(settings.dailySavingsGoal, viewModel) }
-        item { IncomeSourceEditor(viewModel) }
-        items(settings.monthlyIncome, key = { it.key }) { source ->
-            IncomeSourceRow(source, viewModel)
+        item {
+            BudgetSectionButton(
+                title = "Fixed Costs",
+                expanded = showFixedCostsSection,
+                onClick = { showFixedCostsSection = !showFixedCostsSection },
+            )
         }
-        item { FixedCostEditor(viewModel) }
-        items(settings.fixedCosts, key = { it.key }) { cost ->
-            FixedCostRow(cost, viewModel)
+        if (showFixedCostsSection) {
+            item { FixedCostEditor(viewModel) }
+            items(settings.fixedCosts, key = { it.key }) { cost ->
+                FixedCostRow(cost, viewModel)
+            }
         }
         item {
-            Text("Category Budget Limits", style = MaterialTheme.typography.titleLarge)
+            BudgetSectionButton(
+                title = "Category Budget Limits",
+                expanded = showCategorySection,
+                onClick = { showCategorySection = !showCategorySection },
+            )
         }
-        items(categoryStatuses, key = { it.category }) { status ->
-            CategoryBudgetRow(status, viewModel)
+        if (showCategorySection) {
+            items(categoryStatuses, key = { it.category }) { status ->
+                CategoryBudgetRow(status, viewModel)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BudgetSectionButton(title: String, expanded: Boolean, onClick: () -> Unit) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(title, modifier = Modifier.weight(1f))
+            Icon(
+                imageVector = if (expanded) Icons.Outlined.KeyboardArrowUp else Icons.Outlined.KeyboardArrowDown,
+                contentDescription = if (expanded) "Collapse" else "Expand",
+            )
         }
     }
 }

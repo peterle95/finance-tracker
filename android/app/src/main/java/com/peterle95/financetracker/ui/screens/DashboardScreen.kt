@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -80,6 +81,8 @@ private val chartColors = listOf(
     Color(0xFF9333EA),
     Color(0xFFEA580C),
 )
+
+private val chartSelectedGreen = Color(0xFF16A34A)
 
 @Composable
 fun DashboardScreen(
@@ -497,6 +500,7 @@ private fun LineControls(
             FilterChip(
                 selected = category in selectedCategories,
                 onClick = { onToggleCategory(category) },
+                colors = chartFilterChipColors(),
                 label = { Text(category) },
             )
         }
@@ -536,12 +540,19 @@ private fun <T> ChipRow(
                 FilterChip(
                     selected = option == selected,
                     onClick = { onSelected(option) },
+                    colors = chartFilterChipColors(),
                     label = { Text(labelFor(option)) },
                 )
             }
         }
     }
 }
+
+@Composable
+private fun chartFilterChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = chartSelectedGreen,
+    selectedLabelColor = Color.White,
+)
 
 @Composable
 private fun BooleanOption(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {

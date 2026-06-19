@@ -1,6 +1,7 @@
 package com.peterle95.financetracker.ui
 
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.List
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.AccountBalance
@@ -21,7 +22,11 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -58,6 +63,37 @@ private val destinations = listOf(
 fun FinanceApp(viewModel: FinanceViewModel) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    val currentBackStackEntry by navController.currentBackStackEntryAsState()
+    val currentRoute = currentBackStackEntry?.destination?.route
+    var settingsReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
+
+    fun navigateToTopLevel(route: String) {
+        if (currentRoute == "settings" && route == settingsReturnRoute && navController.popBackStack()) {
+            return
+        }
+        navController.navigate(route) {
+            popUpTo(navController.graph.findStartDestination().id) {
+                saveState = true
+            }
+            launchSingleTop = true
+            restoreState = true
+        }
+    }
+
+    fun openSettings() {
+        settingsReturnRoute = currentRoute
+            ?.takeIf { route -> destinations.any { it.route == route } }
+            ?: settingsReturnRoute
+        navController.navigate("settings") {
+            launchSingleTop = true
+        }
+    }
+
+    fun closeSettings() {
+        if (!navController.popBackStack()) {
+            navigateToTopLevel(settingsReturnRoute)
+        }
+    }
 
     LaunchedEffect(viewModel) {
         viewModel.messages.collectLatest { snackbarHostState.showSnackbar(it) }
@@ -78,9 +114,18 @@ fun FinanceApp(viewModel: FinanceViewModel) {
         topBar = {
             TopAppBar(
                 title = { Text("Finance Tracker") },
+                navigationIcon = {
+                    if (currentRoute == "settings") {
+                        IconButton(onClick = { closeSettings() }) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                        }
+                    }
+                },
                 actions = {
-                    IconButton(onClick = { navController.navigate("settings") }) {
-                        Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+                    if (currentRoute != "settings") {
+                        IconButton(onClick = { openSettings() }) {
+                            Icon(Icons.Outlined.Settings, contentDescription = "Settings")
+                        }
                     }
                 },
             )
@@ -88,19 +133,12 @@ fun FinanceApp(viewModel: FinanceViewModel) {
         snackbarHost = { SnackbarHost(snackbarHostState) },
         bottomBar = {
             NavigationBar {
-                val currentRoute = navController.currentBackStackEntryAsState().value?.destination?.route
                 destinations.forEach { destination ->
+                    val selected = currentRoute == destination.route ||
+                        (currentRoute == "settings" && settingsReturnRoute == destination.route)
                     NavigationBarItem(
-                        selected = currentRoute == destination.route,
-                        onClick = {
-                            navController.navigate(destination.route) {
-                                popUpTo(navController.graph.findStartDestination().id) {
-                                    saveState = true
-                                }
-                                launchSingleTop = true
-                                restoreState = true
-                            }
-                        },
+                        selected = selected,
+                        onClick = { navigateToTopLevel(destination.route) },
                         icon = destination.icon,
                         label = { Text(destination.label) },
                     )
@@ -116,9 +154,9 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             composable("dashboard") {
                 DashboardScreen(
                     viewModel = viewModel,
-                    onOpenBudget = { navController.navigate("budget") },
-                    onOpenNetWorth = { navController.navigate("net_worth") },
-                    onOpenSettings = { navController.navigate("settings") },
+                    onOpenBudget = { navigateToTopLevel("budget") },
+                    onOpenNetWorth = { navigateToTopLevel("net_worth") },
+                    onOpenSettings = { openSettings() },
                 )
             }
             composable("add") { AddTransactionScreen(viewModel) }
