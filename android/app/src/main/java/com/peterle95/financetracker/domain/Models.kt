@@ -125,6 +125,16 @@ data class AssetBalances(
         get() = bankAccount + wallet + savings + investments + moneyLent
 }
 
+data class Loan(
+    val key: String = "",
+    val id: String = "",
+    val borrower: String = "",
+    val amount: Double = 0.0,
+    val description: String = "",
+    val date: String = "",
+    val extraJson: JsonObject = buildJsonObject {},
+)
+
 data class AssetSnapshot(
     val key: String = "",
     val date: String,
@@ -193,14 +203,6 @@ data class BudgetReport(
     }
 }
 
-data class CategoryBudgetStatus(
-    val category: String,
-    val percentLimit: Double,
-    val euroLimit: Double,
-    val spent: Double,
-    val remaining: Double,
-)
-
 data class NetWorthChange(
     val months: Int,
     val current: Double,
@@ -232,6 +234,7 @@ data class BudgetSettings(
     val balances: AssetBalances = AssetBalances(),
     val dailySavingsGoal: Double = 0.0,
     val categoryBudgets: CategoryBudgets = CategoryBudgets(),
+    val loans: List<Loan> = emptyList(),
     val assetSnapshots: List<AssetSnapshot> = emptyList(),
     val extraJson: JsonObject = buildJsonObject {},
 ) {
@@ -252,6 +255,7 @@ data class BudgetSettings(
             put("money_lent_balance", balances.moneyLent)
             put("daily_savings_goal", dailySavingsGoal)
             put("category_budgets", categoryBudgets.toJsonObject(raw["category_budgets"] as? JsonObject))
+            put("loans", JsonArray(loans.map { it.toJsonObject() }))
             put("asset_snapshots", JsonArray(assetSnapshots.map { it.toJsonObject() }))
         }
 
@@ -299,6 +303,9 @@ data class BudgetSettings(
                 ?.mapNotNullIndexed { index, element -> (element as? JsonObject)?.toAssetSnapshot(index) }
                 ?.sortedBy { it.date }
                 ?: emptyList()
+            val loans = (json["loans"] as? JsonArray)
+                ?.mapNotNullIndexed { index, element -> (element as? JsonObject)?.toLoan(index) }
+                ?: emptyList()
 
             return BudgetSettings(
                 monthlyIncome = monthlyIncome,
@@ -314,6 +321,7 @@ data class BudgetSettings(
                 ),
                 dailySavingsGoal = json.numberValue("daily_savings_goal"),
                 categoryBudgets = CategoryBudgets.fromJson(json["category_budgets"] as? JsonObject),
+                loans = loans,
                 assetSnapshots = snapshots,
                 extraJson = JsonObject(json.filterKeys { it !in budgetSettingsKeys }),
             )
@@ -329,6 +337,7 @@ data class BudgetSettings(
             "money_lent_balance",
             "daily_savings_goal",
             "category_budgets",
+            "loans",
             "asset_snapshots",
         )
     }
@@ -338,6 +347,7 @@ fun todayIsoDate(): String = LocalDate.now().toString()
 
 private val incomeSourceKeys = setOf("amount", "description", "start_date", "end_date")
 private val fixedCostKeys = setOf("amount", "description", "desc", "start_date", "end_date")
+private val loanKeys = setOf("id", "borrower", "amount", "description", "date")
 private val assetSnapshotKeys = setOf(
     "date",
     "bank_balance",
@@ -376,6 +386,23 @@ private fun JsonObject.toFixedCost(index: Int): FixedCost {
         startDate = startDate,
         endDate = endDate,
         extraJson = JsonObject(filterKeys { it !in fixedCostKeys }),
+    )
+}
+
+private fun JsonObject.toLoan(index: Int): Loan {
+    val amount = numberValue("amount")
+    val borrower = stringValue("borrower") ?: ""
+    val description = stringValue("description") ?: ""
+    val date = stringValue("date") ?: ""
+    val id = stringValue("id") ?: stableKey("loan", index, amount, borrower, date, description)
+    return Loan(
+        key = id,
+        id = id,
+        borrower = borrower,
+        amount = amount,
+        description = description,
+        date = date,
+        extraJson = JsonObject(filterKeys { it !in loanKeys }),
     )
 }
 
@@ -422,6 +449,18 @@ private fun FixedCost.toJsonObject(): JsonObject =
         put("desc", description)
         put("start_date", startDate)
         putNullableString("end_date", endDate)
+    }
+
+private fun Loan.toJsonObject(): JsonObject =
+    buildJsonObject {
+        extraJson.forEach { (key, value) ->
+            if (key !in loanKeys) put(key, value)
+        }
+        put("id", id)
+        put("borrower", borrower)
+        put("amount", amount)
+        put("description", description)
+        put("date", date)
     }
 
 private fun AssetSnapshot.toJsonObject(): JsonObject =

@@ -45,6 +45,7 @@ import com.peterle95.financetracker.domain.ChartEntry
 import com.peterle95.financetracker.domain.ChartSeries
 import com.peterle95.financetracker.domain.DashboardCharts
 import com.peterle95.financetracker.domain.DayOfWeekChartModel
+import com.peterle95.financetracker.domain.FinanceAggregator
 import com.peterle95.financetracker.domain.HistoricalBarChartModel
 import com.peterle95.financetracker.domain.LineChartModel
 import com.peterle95.financetracker.domain.PieChartModel
@@ -91,13 +92,17 @@ fun DashboardScreen(
     onOpenNetWorth: () -> Unit = {},
     onOpenSettings: () -> Unit = {},
 ) {
-    val dashboard by viewModel.dashboard.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
     val budgetSettings by viewModel.budgetSettings.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val nowMonth = remember { YearMonth.now() }
     val currentMonth = nowMonth.toString()
     val defaultStartMonth = remember { nowMonth.minusMonths(3).toString() }
+    var dashboardMonth by remember { mutableStateOf(currentMonth) }
+    val dashboard = remember(transactions, budgetSettings, dashboardMonth) {
+        val parsedMonth = runCatching { YearMonth.parse(dashboardMonth) }.getOrDefault(nowMonth)
+        FinanceAggregator.buildDashboardSummary(transactions, budgetSettings, parsedMonth)
+    }
 
     var chartStyle by remember { mutableStateOf(DashboardChartStyle.Pie) }
     var reportDateMode by remember { mutableStateOf(ReportDateMode.BNPL) }
@@ -132,8 +137,25 @@ fun DashboardScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("Dashboard", style = MaterialTheme.typography.headlineMedium)
-            Text(dashboard.currentMonth, style = MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Dashboard", style = MaterialTheme.typography.headlineMedium)
+                Text(dashboard.currentMonth, style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = dashboardMonth,
+                        onValueChange = { dashboardMonth = it },
+                        label = { Text("Month") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(onClick = { runCatching { YearMonth.parse(dashboardMonth).minusMonths(1).toString() }.onSuccess { dashboardMonth = it } }) {
+                        Text("Prev")
+                    }
+                    OutlinedButton(onClick = { runCatching { YearMonth.parse(dashboardMonth).plusMonths(1).toString() }.onSuccess { dashboardMonth = it } }) {
+                        Text("Next")
+                    }
+                }
+            }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {

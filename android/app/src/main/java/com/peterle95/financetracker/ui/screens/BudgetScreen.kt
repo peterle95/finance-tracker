@@ -1,7 +1,9 @@
 package com.peterle95.financetracker.ui.screens
 
 import android.content.Intent
+import android.graphics.Paint
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -19,6 +21,7 @@ import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -37,13 +40,17 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.peterle95.financetracker.domain.BudgetMath
 import com.peterle95.financetracker.domain.BudgetReport
-import com.peterle95.financetracker.domain.CategoryBudgetStatus
+import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
+import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.todayIsoDate
 import com.peterle95.financetracker.ui.FinanceViewModel
 import com.peterle95.financetracker.ui.components.MetricCard
@@ -56,7 +63,6 @@ import kotlin.math.min
 fun BudgetScreen(viewModel: FinanceViewModel) {
     val settings by viewModel.budgetSettingsModel.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
-    val categories by viewModel.categories.collectAsState()
     val context = LocalContext.current
     var month by remember { mutableStateOf(YearMonth.now().toString()) }
     var includeCarryover by remember { mutableStateOf(false) }
@@ -68,7 +74,6 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
     var showSavingsSection by remember { mutableStateOf(false) }
     var showIncomeSection by remember { mutableStateOf(false) }
     var showFixedCostsSection by remember { mutableStateOf(false) }
-    var showCategorySection by remember { mutableStateOf(false) }
     val report = remember(settings, transactions, month, includeCarryover) {
         BudgetMath.generateDailyBudgetReport(
             settings = settings,
@@ -76,9 +81,6 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
             month = month,
             includeNegativeCarryover = includeCarryover,
         )
-    }
-    val categoryStatuses = remember(settings, transactions, categories, month) {
-        BudgetMath.categoryBudgetStatuses(settings, transactions, categories.expenses, month)
     }
 
     LazyColumn(
@@ -184,7 +186,7 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
             )
         }
         if (showBalancesSection) {
-            item { BalanceEditor(settings.balances, viewModel) }
+            item { BalanceEditor(settings, viewModel) }
         }
         item {
             BudgetSectionButton(
@@ -220,18 +222,6 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
             item { FixedCostEditor(viewModel) }
             items(settings.fixedCosts, key = { it.key }) { cost ->
                 FixedCostRow(cost, viewModel)
-            }
-        }
-        item {
-            BudgetSectionButton(
-                title = "Category Budget Limits",
-                expanded = showCategorySection,
-                onClick = { showCategorySection = !showCategorySection },
-            )
-        }
-        if (showCategorySection) {
-            items(categoryStatuses, key = { it.category }) { status ->
-                CategoryBudgetRow(status, viewModel)
             }
         }
     }
@@ -295,17 +285,37 @@ private fun BudgetDepletionChart(report: BudgetReport) {
                     val minValue = min(0.0, values.minOrNull() ?: 0.0)
                     val maxValue = max(0.0, values.maxOrNull() ?: 1.0)
                     val range = (maxValue - minValue).takeIf { it > 0.0 } ?: 1.0
-                    val left = 18f
+                    val left = 70f
                     val right = size.width - 18f
-                    val top = 18f
-                    val bottom = size.height - 18f
+                    val top = 28f
+                    val bottom = size.height - 52f
                     fun x(index: Int): Float =
                         if (report.days.size <= 1) (left + right) / 2f else left + (index.toFloat() / (report.days.size - 1)) * (right - left)
                     fun y(value: Double): Float =
                         top + ((maxValue - value) / range).toFloat() * (bottom - top)
 
                     val zeroY = y(0.0)
+                    val axisColor = Color(0xFF9CA3AF)
+                    val labelColor = Color(0xFF6B7280)
+                    drawLine(axisColor, Offset(left, top), Offset(left, bottom), strokeWidth = 1.5f)
+                    drawLine(axisColor, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.5f)
                     drawLine(Color(0xFF9CA3AF), Offset(left, zeroY), Offset(right, zeroY), strokeWidth = 2f)
+                    drawAxisText("Amount (EUR)", 4f, 16f, labelColor, 20f, Paint.Align.LEFT)
+                    drawAxisText(money(maxValue), 4f, top + 8f, labelColor, 22f, Paint.Align.LEFT)
+                    if (minValue < 0.0) {
+                        drawAxisText(money(minValue), 4f, bottom, labelColor, 22f, Paint.Align.LEFT)
+                    }
+                    drawAxisText(money(0.0), 4f, zeroY + 8f, labelColor, 22f, Paint.Align.LEFT)
+                    val labelIndices = listOf(
+                        0,
+                        report.days.lastIndex / 2,
+                        report.days.lastIndex,
+                    ).distinct()
+                    labelIndices.forEach { index ->
+                        val label = report.days[index].date.drop(5)
+                        drawAxisText(label, x(index), size.height - 22f, labelColor, 22f, Paint.Align.CENTER)
+                    }
+                    drawAxisText("Time", right, size.height - 4f, labelColor, 20f, Paint.Align.RIGHT)
                     report.days.indices.drop(1).forEach { index ->
                         drawLine(
                             color = Color(0xFF2563EB),
@@ -328,42 +338,204 @@ private fun BudgetDepletionChart(report: BudgetReport) {
 }
 
 @Composable
-private fun BalanceEditor(balances: com.peterle95.financetracker.domain.AssetBalances, viewModel: FinanceViewModel) {
+private fun BalanceEditor(settings: BudgetSettings, viewModel: FinanceViewModel) {
+    val balances = settings.balances
     var bank by remember { mutableStateOf(balances.bankAccount.toFieldText()) }
     var wallet by remember { mutableStateOf(balances.wallet.toFieldText()) }
     var savings by remember { mutableStateOf(balances.savings.toFieldText()) }
     var investments by remember { mutableStateOf(balances.investments.toFieldText()) }
-    var moneyLent by remember { mutableStateOf(balances.moneyLent.toFieldText()) }
+    var showLendingManager by remember { mutableStateOf(false) }
 
     LaunchedEffect(balances) {
         bank = balances.bankAccount.toFieldText()
         wallet = balances.wallet.toFieldText()
         savings = balances.savings.toFieldText()
         investments = balances.investments.toFieldText()
-        moneyLent = balances.moneyLent.toFieldText()
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+        Card(modifier = Modifier.fillMaxWidth()) {
+            Column(
+                modifier = Modifier.padding(14.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Balances", style = MaterialTheme.typography.titleLarge)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MoneyField("Bank", bank, { bank = it }, Modifier.weight(1f))
+                    MoneyField("Wallet", wallet, { wallet = it }, Modifier.weight(1f))
+                }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    MoneyField("Savings", savings, { savings = it }, Modifier.weight(1f))
+                    MoneyField("Investments", investments, { investments = it }, Modifier.weight(1f))
+                }
+                OutlinedButton(
+                    onClick = { showLendingManager = !showLendingManager },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Money Lent: ${money(balances.moneyLent)}")
+                }
+                Button(
+                    onClick = { viewModel.updateBalances(bank, wallet, savings, investments) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Save Balances")
+                }
+            }
+        }
+        if (showLendingManager) {
+            LendingManager(
+                loans = settings.loans,
+                totalMoneyLent = balances.moneyLent,
+                viewModel = viewModel,
+            )
+        }
+    }
+}
+
+@Composable
+private fun LendingManager(
+    loans: List<Loan>,
+    totalMoneyLent: Double,
+    viewModel: FinanceViewModel,
+) {
+    var selectedLoanKey by remember { mutableStateOf<String?>(null) }
+    var borrower by remember { mutableStateOf("") }
+    var amount by remember { mutableStateOf("") }
+    var description by remember { mutableStateOf("") }
+    val selectedLoan = loans.firstOrNull { it.key == selectedLoanKey }
+
+    LaunchedEffect(selectedLoanKey, loans) {
+        if (selectedLoan != null) {
+            borrower = selectedLoan.borrower
+            amount = selectedLoan.amount.toFieldText()
+            description = selectedLoan.description
+        } else if (selectedLoanKey != null) {
+            selectedLoanKey = null
+            borrower = ""
+            amount = ""
+            description = ""
+        }
+    }
+
+    fun clearForm() {
+        selectedLoanKey = null
+        borrower = ""
+        amount = ""
+        description = ""
     }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
             modifier = Modifier.padding(14.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Text("Balances", style = MaterialTheme.typography.titleLarge)
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MoneyField("Bank", bank, { bank = it }, Modifier.weight(1f))
-                MoneyField("Wallet", wallet, { wallet = it }, Modifier.weight(1f))
+            Text("Money Lent", style = MaterialTheme.typography.titleLarge)
+            Text("Total Money Lent: ${money(totalMoneyLent)}", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Positive = lent to others, negative = borrowed from others.",
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall,
+            )
+
+            if (loans.isEmpty()) {
+                Text("No active lending records.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+            } else {
+                loans.forEach { loan ->
+                    LoanRow(
+                        loan = loan,
+                        selected = loan.key == selectedLoanKey,
+                        onClick = { selectedLoanKey = loan.key },
+                    )
+                }
             }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                MoneyField("Savings", savings, { savings = it }, Modifier.weight(1f))
-                MoneyField("Investments", investments, { investments = it }, Modifier.weight(1f))
-            }
-            MoneyField("Money Lent", moneyLent, { moneyLent = it })
-            Button(
-                onClick = { viewModel.updateBalances(bank, wallet, savings, investments, moneyLent) },
+
+            Text(
+                if (selectedLoan == null) "Add Loan" else "Edit Loan",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            OutlinedTextField(
+                value = borrower,
+                onValueChange = { borrower = it },
+                label = { Text("Borrower") },
+                singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Save Balances")
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                MoneyField("Amount", amount, { amount = it }, Modifier.weight(1f))
+                OutlinedTextField(
+                    value = selectedLoan?.date ?: todayIsoDate(),
+                    onValueChange = {},
+                    label = { Text("Date") },
+                    readOnly = true,
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
             }
+            OutlinedTextField(
+                value = description,
+                onValueChange = { description = it },
+                label = { Text("Description") },
+                singleLine = true,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Button(
+                    onClick = {
+                        if (selectedLoan == null) {
+                            viewModel.addLoan(borrower, amount, description)
+                        } else {
+                            viewModel.updateLoan(selectedLoan.key, borrower, amount, description)
+                        }
+                        clearForm()
+                    },
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text(if (selectedLoan == null) "Add Loan" else "Update")
+                }
+                OutlinedButton(
+                    onClick = {
+                        selectedLoan?.let { viewModel.returnLoan(it.key) }
+                        clearForm()
+                    },
+                    enabled = selectedLoan != null,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Text("Returned")
+                }
+            }
+            if (selectedLoan != null) {
+                OutlinedButton(onClick = { clearForm() }, modifier = Modifier.fillMaxWidth()) {
+                    Text("Clear Selection")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun LoanRow(loan: Loan, selected: Boolean, onClick: () -> Unit) {
+    Card(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surface
+            },
+        ),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
+                Text(loan.borrower.ifBlank { "Unnamed" }, style = MaterialTheme.typography.titleMedium)
+                Text(money(loan.amount), style = MaterialTheme.typography.labelLarge)
+            }
+            Text(loan.description.ifBlank { "No description" }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(loan.date.ifBlank { "No date" }, style = MaterialTheme.typography.bodySmall)
         }
     }
 }
@@ -581,44 +753,6 @@ private fun EntryEditorCard(
 }
 
 @Composable
-private fun CategoryBudgetRow(status: CategoryBudgetStatus, viewModel: FinanceViewModel) {
-    var percent by remember(status.category) { mutableStateOf(status.percentLimit.toFieldText()) }
-    LaunchedEffect(status.percentLimit) {
-        percent = status.percentLimit.toFieldText()
-    }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(
-            modifier = Modifier.padding(12.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Row(horizontalArrangement = Arrangement.SpaceBetween, modifier = Modifier.fillMaxWidth()) {
-                Text(status.category, style = MaterialTheme.typography.titleMedium)
-                Text(
-                    if (status.remaining >= 0.0) "${money(status.remaining)} left" else "${money(-status.remaining)} over",
-                    color = if (status.remaining >= 0.0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                OutlinedTextField(
-                    value = percent,
-                    onValueChange = { percent = it },
-                    label = { Text("Percent") },
-                    singleLine = true,
-                    modifier = Modifier.weight(1f),
-                )
-                Button(onClick = { viewModel.setCategoryBudget(status.category, percent) }) {
-                    Text("Save")
-                }
-            }
-            Text(
-                "Limit ${money(status.euroLimit)} · Spent ${money(status.spent)}",
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-    }
-}
-
-@Composable
 private fun MoneyField(
     label: String,
     value: String,
@@ -636,3 +770,24 @@ private fun MoneyField(
 
 private fun Double.toFieldText(): String =
     if (this == 0.0) "0" else "%.2f".format(this)
+
+private fun DrawScope.drawAxisText(
+    text: String,
+    x: Float,
+    y: Float,
+    color: Color,
+    textSize: Float,
+    align: Paint.Align,
+) {
+    drawContext.canvas.nativeCanvas.drawText(
+        text,
+        x,
+        y,
+        Paint().apply {
+            this.color = color.toArgb()
+            this.textSize = textSize
+            this.textAlign = align
+            isAntiAlias = true
+        },
+    )
+}

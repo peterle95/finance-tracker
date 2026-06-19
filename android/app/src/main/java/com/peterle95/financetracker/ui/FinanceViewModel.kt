@@ -13,6 +13,7 @@ import com.peterle95.financetracker.domain.FinanceAggregator
 import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
+import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.TransactionUiLogic
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -137,7 +138,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         wallet: String,
         savings: String,
         investments: String,
-        moneyLent: String,
     ) {
         viewModelScope.launch {
             runCatching {
@@ -146,7 +146,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
                     wallet = parseAmount(wallet, "Wallet balance"),
                     savings = parseAmount(savings, "Savings balance"),
                     investments = parseAmount(investments, "Investment balance"),
-                    moneyLent = parseAmount(moneyLent, "Money lent balance"),
                 )
             }.onSuccess {
                 messages.emit("Balances updated.")
@@ -266,15 +265,40 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun setCategoryBudget(category: String, percent: String) {
+    fun addLoan(borrower: String, amount: String, description: String) {
         viewModelScope.launch {
             runCatching {
-                require(category.isNotBlank()) { "Choose a category." }
-                repository.setCategoryBudget(TransactionType.Expense, category, parseAmount(percent, "Budget percentage"))
+                repository.addLoan(loanFromInput(borrower, amount, description))
             }.onSuccess {
-                messages.emit("Category budget updated.")
+                messages.emit("Loan recorded.")
             }.onFailure {
-                messages.emit(it.message ?: "Could not update category budget.")
+                messages.emit(it.message ?: "Could not record loan.")
+            }
+        }
+    }
+
+    fun updateLoan(key: String, borrower: String, amount: String, description: String) {
+        viewModelScope.launch {
+            runCatching {
+                require(key.isNotBlank()) { "Select a loan to update." }
+                repository.updateLoan(key, loanFromInput(borrower, amount, description))
+            }.onSuccess {
+                messages.emit("Loan updated.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not update loan.")
+            }
+        }
+    }
+
+    fun returnLoan(key: String) {
+        viewModelScope.launch {
+            runCatching {
+                require(key.isNotBlank()) { "Select a loan to mark as returned." }
+                repository.returnLoan(key)
+            }.onSuccess {
+                messages.emit("Loan marked as returned.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not return loan.")
             }
         }
     }
@@ -358,6 +382,23 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             description = trimmedDescription,
             startDate = requireIsoDate(startDate, "Fixed cost start date"),
             endDate = optionalIsoDate(endDate, "Fixed cost end date"),
+        )
+    }
+
+    private fun loanFromInput(
+        borrower: String,
+        amount: String,
+        description: String,
+    ): Loan {
+        val trimmedBorrower = borrower.trim()
+        require(trimmedBorrower.isNotBlank()) { "Borrower cannot be empty." }
+        val parsedAmount = parseAmount(amount, "Loan amount")
+        require(parsedAmount != 0.0) { "Loan amount cannot be zero." }
+        return Loan(
+            amount = parsedAmount,
+            borrower = trimmedBorrower,
+            description = description.trim(),
+            date = LocalDate.now().toString(),
         )
     }
 

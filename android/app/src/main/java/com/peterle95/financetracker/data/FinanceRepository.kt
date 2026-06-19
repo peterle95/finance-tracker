@@ -5,12 +5,12 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import android.provider.OpenableColumns
-import com.peterle95.financetracker.domain.AssetBalances
 import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.CategoryState
 import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
+import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -120,16 +120,15 @@ class FinanceRepository(context: Context) {
         wallet: Double,
         savings: Double,
         investments: Double,
-        moneyLent: Double,
     ) = mutateConnectedFile {
+        val latestBalances = it.budgetSettingsModel.balances
         FinanceJsonCodec.updateBalances(
             it,
-            AssetBalances(
+            latestBalances.copy(
                 bankAccount = bank,
                 wallet = wallet,
                 savings = savings,
                 investments = investments,
-                moneyLent = moneyLent,
                 hasAnyBalanceField = true,
             ),
         )
@@ -171,8 +170,16 @@ class FinanceRepository(context: Context) {
         FinanceJsonCodec.deleteFixedCost(it, key)
     }
 
-    suspend fun setCategoryBudget(type: TransactionType, category: String, percent: Double) = mutateConnectedFile {
-        FinanceJsonCodec.setCategoryBudget(it, type, category, percent)
+    suspend fun addLoan(loan: Loan) = mutateConnectedFile {
+        FinanceJsonCodec.addLoan(it, loan)
+    }
+
+    suspend fun updateLoan(key: String, loan: Loan) = mutateConnectedFile {
+        FinanceJsonCodec.updateLoan(it, key, loan)
+    }
+
+    suspend fun returnLoan(key: String) = mutateConnectedFile {
+        FinanceJsonCodec.returnLoan(it, key)
     }
 
     suspend fun recordAssetSnapshot(date: String, note: String) = mutateConnectedFile {

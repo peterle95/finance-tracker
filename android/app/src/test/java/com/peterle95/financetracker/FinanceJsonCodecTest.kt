@@ -4,6 +4,7 @@ import com.peterle95.financetracker.data.FinanceJsonCodec
 import com.peterle95.financetracker.data.FinanceJsonFileStore
 import com.peterle95.financetracker.domain.AssetBalances
 import com.peterle95.financetracker.domain.CategoryDefaults
+import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -196,6 +197,34 @@ class FinanceJsonCodecTest {
     }
 
     @Test
+    fun loanMutationsPreserveDesktopShapeAndAdjustBalanceByDelta() {
+        val document = FinanceJsonCodec.parse(budgetSettingsJson)
+
+        val updatedExisting = FinanceJsonCodec.updateLoan(
+            document,
+            "loan-1",
+            Loan(borrower = "Ana Maria", amount = 7.0, description = "Updated lunch", date = "ignored"),
+        )
+        val added = FinanceJsonCodec.addLoan(
+            updatedExisting,
+            Loan(id = "loan-2", borrower = "Bob", amount = 20.0, description = "Train", date = "2026-06-19"),
+        )
+        val returned = FinanceJsonCodec.returnLoan(added, "loan-2")
+        val budget = Json.parseToJsonElement(FinanceJsonCodec.encode(returned))
+            .jsonObject["budget_settings"]!!
+            .jsonObject
+        val loans = budget["loans"]!!.jsonArray
+
+        assertEquals(7.0, budget["money_lent_balance"]!!.jsonPrimitive.content.toDouble(), 0.0)
+        assertEquals(1, loans.size)
+        assertEquals("loan-1", loans[0].jsonObject["id"]!!.jsonPrimitive.content)
+        assertEquals("Ana Maria", loans[0].jsonObject["borrower"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-01", loans[0].jsonObject["date"]!!.jsonPrimitive.content)
+        assertEquals("desktop", loans[0].jsonObject["source"]!!.jsonPrimitive.content)
+        assertTrue(budget["category_budgets"]!!.jsonObject.containsKey("Custom"))
+    }
+
+    @Test
     fun fileStoreReloadsLatestText() = runBlocking {
         var fileText = sampleJson
         val store = FinanceJsonFileStore(
@@ -291,6 +320,16 @@ class FinanceJsonCodecTest {
               "Income": {},
               "Custom": { "kept": true }
             },
+            "loans": [
+              {
+                "id": "loan-1",
+                "borrower": "Ana",
+                "amount": 5,
+                "description": "Lunch",
+                "date": "2026-06-01",
+                "source": "desktop"
+              }
+            ],
             "asset_snapshots": [],
             "ai_settings": { "api_key": "secret" },
             "desktop_only": "keep-me"

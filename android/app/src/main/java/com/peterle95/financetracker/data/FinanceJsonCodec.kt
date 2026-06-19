@@ -7,6 +7,7 @@ import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
+import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.NetWorthMath
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.serialization.json.Json
@@ -230,21 +231,48 @@ object FinanceJsonCodec {
             settings.copy(fixedCosts = updated)
         }
 
-    fun setCategoryBudget(
-        document: FinanceDocument,
-        type: TransactionType,
-        category: String,
-        percent: Double,
-    ): FinanceDocument =
+    fun addLoan(document: FinanceDocument, loan: Loan): FinanceDocument =
         updateBudgetSettings(document) { settings ->
-            val normalizedPercent = percent.coerceIn(0.0, 100.0)
-            val budgets = settings.categoryBudgets
-            val updatedBudgets = if (type == TransactionType.Expense) {
-                budgets.copy(expense = budgets.expense + (category to normalizedPercent))
-            } else {
-                budgets.copy(income = budgets.income + (category to normalizedPercent))
+            val id = loan.id.ifBlank { UUID.randomUUID().toString() }
+            settings
+                .copy(loans = settings.loans + loan.copy(key = id, id = id))
+                .withMoneyLentDelta(loan.amount)
+        }
+
+    fun updateLoan(document: FinanceDocument, key: String, replacement: Loan): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var previousAmount = 0.0
+            var found = false
+            val updatedLoans = settings.loans.map { loan ->
+                if (loan.key == key || loan.id == key) {
+                    previousAmount = loan.amount
+                    found = true
+                    replacement.copy(
+                        key = loan.key,
+                        id = loan.id,
+                        date = loan.date,
+                        extraJson = loan.extraJson,
+                    )
+                } else {
+                    loan
+                }
             }
-            settings.copy(categoryBudgets = updatedBudgets)
+            require(found) { "Loan not found." }
+            settings.copy(loans = updatedLoans)
+                .withMoneyLentDelta(replacement.amount - previousAmount)
+        }
+
+    fun returnLoan(document: FinanceDocument, key: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var returnedAmount = 0.0
+            val updatedLoans = settings.loans.filterNot { loan ->
+                val matches = loan.key == key || loan.id == key
+                if (matches) returnedAmount = loan.amount
+                matches
+            }
+            require(updatedLoans.size != settings.loans.size) { "Loan not found." }
+            settings.copy(loans = updatedLoans)
+                .withMoneyLentDelta(-returnedAmount)
         }
 
     fun recordAssetSnapshot(document: FinanceDocument, date: String, note: String): FinanceDocument =
@@ -266,6 +294,14 @@ object FinanceJsonCodec {
             budgetSettings = updated.toJsonObjectPreserving(document.budgetSettings),
         )
     }
+
+    private fun BudgetSettings.withMoneyLentDelta(delta: Double): BudgetSettings =
+        copy(
+            balances = balances.copy(
+                moneyLent = balances.moneyLent + delta,
+                hasAnyBalanceField = true,
+            ),
+        )
 
     private fun JsonObject.toRecord(type: TransactionType, index: Int): FinanceRecord {
         val extra = JsonObject(filterKeys { it !in transactionKeys })

@@ -178,36 +178,6 @@ object BudgetMath {
         return reportWithoutText.copy(textReport = buildTextReport(reportWithoutText, yearMonth, today))
     }
 
-    fun categoryBudgetStatuses(
-        settings: BudgetSettings,
-        transactions: List<FinanceTransaction>,
-        categories: List<String>,
-        month: String,
-    ): List<CategoryBudgetStatus> {
-        val monthText = parseMonth(month)?.toString() ?: return emptyList()
-        val netAvailable = computeNetAvailableForSpending(settings, transactions, monthText)
-        val spentByCategory = transactions
-            .filter { it.type == TransactionType.Expense && it.date.take(7) == monthText }
-            .groupBy { it.category.ifBlank { "Uncategorized" } }
-            .mapValues { (_, rows) -> rows.sumOf { it.amount } }
-        val allCategories = (categories + settings.categoryBudgets.expense.keys + spentByCategory.keys)
-            .distinct()
-            .sortedBy { it.lowercase() }
-
-        return allCategories.map { category ->
-            val percent = settings.categoryBudgets.expense[category] ?: 0.0
-            val limit = netAvailable * (percent / 100.0)
-            val spent = spentByCategory[category] ?: 0.0
-            CategoryBudgetStatus(
-                category = category,
-                percentLimit = percent,
-                euroLimit = limit,
-                spent = spent,
-                remaining = limit - spent,
-            )
-        }
-    }
-
     private fun buildTextReport(report: BudgetReport, yearMonth: YearMonth, today: LocalDate): String {
         val previousMonthLabel = previousMonth(report.month) ?: "N/A"
         return buildString {
