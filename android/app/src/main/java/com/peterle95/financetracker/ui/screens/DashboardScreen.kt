@@ -15,9 +15,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -43,6 +45,7 @@ import com.peterle95.financetracker.domain.ChartEntry
 import com.peterle95.financetracker.domain.ChartSeries
 import com.peterle95.financetracker.domain.DashboardCharts
 import com.peterle95.financetracker.domain.DayOfWeekChartModel
+import com.peterle95.financetracker.domain.FinanceAggregator
 import com.peterle95.financetracker.domain.HistoricalBarChartModel
 import com.peterle95.financetracker.domain.LineChartModel
 import com.peterle95.financetracker.domain.PieChartModel
@@ -80,15 +83,26 @@ private val chartColors = listOf(
     Color(0xFFEA580C),
 )
 
+private val chartSelectedGreen = Color(0xFF16A34A)
+
 @Composable
-fun DashboardScreen(viewModel: FinanceViewModel) {
-    val dashboard by viewModel.dashboard.collectAsState()
+fun DashboardScreen(
+    viewModel: FinanceViewModel,
+    onOpenBudget: () -> Unit = {},
+    onOpenNetWorth: () -> Unit = {},
+    onOpenSettings: () -> Unit = {},
+) {
     val transactions by viewModel.transactions.collectAsState()
     val budgetSettings by viewModel.budgetSettings.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val nowMonth = remember { YearMonth.now() }
     val currentMonth = nowMonth.toString()
     val defaultStartMonth = remember { nowMonth.minusMonths(3).toString() }
+    var dashboardMonth by remember { mutableStateOf(currentMonth) }
+    val dashboard = remember(transactions, budgetSettings, dashboardMonth) {
+        val parsedMonth = runCatching { YearMonth.parse(dashboardMonth) }.getOrDefault(nowMonth)
+        FinanceAggregator.buildDashboardSummary(transactions, budgetSettings, parsedMonth)
+    }
 
     var chartStyle by remember { mutableStateOf(DashboardChartStyle.Pie) }
     var reportDateMode by remember { mutableStateOf(ReportDateMode.BNPL) }
@@ -123,8 +137,25 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         item {
-            Text("Dashboard", style = MaterialTheme.typography.headlineMedium)
-            Text(dashboard.currentMonth, style = MaterialTheme.typography.titleMedium)
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("Dashboard", style = MaterialTheme.typography.headlineMedium)
+                Text(dashboard.currentMonth, style = MaterialTheme.typography.titleMedium)
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedTextField(
+                        value = dashboardMonth,
+                        onValueChange = { dashboardMonth = it },
+                        label = { Text("Month") },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(onClick = { runCatching { YearMonth.parse(dashboardMonth).minusMonths(1).toString() }.onSuccess { dashboardMonth = it } }) {
+                        Text("Prev")
+                    }
+                    OutlinedButton(onClick = { runCatching { YearMonth.parse(dashboardMonth).plusMonths(1).toString() }.onSuccess { dashboardMonth = it } }) {
+                        Text("Next")
+                    }
+                }
+            }
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
@@ -136,7 +167,55 @@ fun DashboardScreen(viewModel: FinanceViewModel) {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MetricCard("Net", money(dashboard.net), Modifier.weight(1f))
                 dashboard.balanceEstimate?.let {
-                    MetricCard("Balance", money(it), Modifier.weight(1f))
+                    MetricCard("Net Worth", money(it), Modifier.weight(1f))
+                } ?: MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
+            }
+        }
+        item {
+            Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
+                MetricCard("Top Categories", dashboard.topExpenseCategories.size.toString(), Modifier.weight(1f))
+            }
+        }
+        item {
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("Shortcuts", style = MaterialTheme.typography.titleLarge)
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Button(onClick = onOpenBudget, modifier = Modifier.weight(1f)) {
+                            Text("Budget")
+                        }
+                        Button(onClick = onOpenNetWorth, modifier = Modifier.weight(1f)) {
+                            Text("Net Worth")
+                        }
+                    }
+                    OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
+                        Text("Settings")
+                    }
+                }
+            }
+        }
+        if (dashboard.topExpenseCategories.isNotEmpty()) {
+            item {
+                Card(modifier = Modifier.fillMaxWidth()) {
+                    Column(
+                        modifier = Modifier.padding(14.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
+                    ) {
+                        Text("Top Expense Categories", style = MaterialTheme.typography.titleLarge)
+                        dashboard.topExpenseCategories.forEach { (category, amount) ->
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                            ) {
+                                Text(category)
+                                Text(money(amount), style = MaterialTheme.typography.labelLarge)
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -443,6 +522,7 @@ private fun LineControls(
             FilterChip(
                 selected = category in selectedCategories,
                 onClick = { onToggleCategory(category) },
+                colors = chartFilterChipColors(),
                 label = { Text(category) },
             )
         }
@@ -482,12 +562,19 @@ private fun <T> ChipRow(
                 FilterChip(
                     selected = option == selected,
                     onClick = { onSelected(option) },
+                    colors = chartFilterChipColors(),
                     label = { Text(labelFor(option)) },
                 )
             }
         }
     }
 }
+
+@Composable
+private fun chartFilterChipColors() = FilterChipDefaults.filterChipColors(
+    selectedContainerColor = chartSelectedGreen,
+    selectedLabelColor = Color.White,
+)
 
 @Composable
 private fun BooleanOption(label: String, checked: Boolean, onCheckedChange: (Boolean) -> Unit) {

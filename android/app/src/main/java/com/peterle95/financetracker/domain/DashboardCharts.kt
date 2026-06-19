@@ -1,18 +1,9 @@
 package com.peterle95.financetracker.domain
 
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.doubleOrNull
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import java.time.DayOfWeek
 import java.time.LocalDate
 import java.time.YearMonth
-import java.time.format.DateTimeParseException
 import java.time.temporal.ChronoUnit
 
 enum class ReportDateMode(val label: String) {
@@ -89,6 +80,7 @@ object DashboardCharts {
         sortByValue: Boolean,
         dateMode: ReportDateMode,
     ): PieChartModel {
+        val settings = BudgetSettings.fromJson(budgetSettings)
         val months = if (rangeEndMonth.isNullOrBlank()) {
             listOf(month)
         } else {
@@ -97,11 +89,11 @@ object DashboardCharts {
         val totals = linkedMapOf<String, Double>()
 
         if (type == TransactionType.Expense && includeFixedCosts) {
-            val totalFixed = months.sumOf { activeFixedCosts(budgetSettings, it).sumOf { row -> row.numberValue("amount") } }
+            val totalFixed = months.sumOf { BudgetMath.activeFixedCosts(settings, it).sumOf { row -> row.amount } }
             if (totalFixed > 0.0) totals["Fixed Costs"] = totalFixed
         }
         if (type == TransactionType.Income && includeBaseIncome) {
-            val totalBase = months.sumOf { activeMonthlyIncome(budgetSettings, it) }
+            val totalBase = months.sumOf { BudgetMath.activeMonthlyIncome(settings, it) }
             if (totalBase > 0.0) totals["Base Income"] = totalBase
         }
 
@@ -129,7 +121,7 @@ object DashboardCharts {
             rangeEndMonth.isNullOrBlank() &&
             type == TransactionType.Expense
         ) {
-            buildBudgetStatus(entries, budgetSettings, transactions, month, dateMode)
+            buildBudgetStatus(entries, settings, transactions, month, dateMode)
         } else {
             emptyList()
         }
@@ -265,11 +257,12 @@ object DashboardCharts {
         today: LocalDate,
         dateMode: ReportDateMode,
     ): SpendingPaceChartModel {
+        val settings = BudgetSettings.fromJson(budgetSettings)
         val yearMonth = YearMonth.parse(month)
         val daysInMonth = yearMonth.lengthOfMonth()
-        val dailySavingsGoal = budgetSettings.numberValue("daily_savings_goal")
-        val monthlyBudget = activeMonthlyIncome(budgetSettings, month) -
-            activeFixedCosts(budgetSettings, month).sumOf { it.numberValue("amount") } -
+        val dailySavingsGoal = settings.dailySavingsGoal
+        val monthlyBudget = BudgetMath.activeMonthlyIncome(settings, month) -
+            BudgetMath.activeFixedCosts(settings, month).sumOf { it.amount } -
             (dailySavingsGoal * daysInMonth)
         val dailySpend = mutableMapOf<Int, Double>()
 
@@ -302,30 +295,19 @@ object DashboardCharts {
         )
     }
 
-    fun activeFixedCosts(budgetSettings: JsonObject, month: String): List<JsonObject> {
-        val costs = budgetSettings["fixed_costs"] as? JsonArray ?: return emptyList()
-        return costs.mapNotNull { it as? JsonObject }
-            .filter { isActiveForMonth(it, month) }
-    }
+    fun activeFixedCosts(budgetSettings: JsonObject, month: String): List<FixedCost> =
+        BudgetMath.activeFixedCosts(BudgetSettings.fromJson(budgetSettings), month)
 
-    fun activeMonthlyIncome(budgetSettings: JsonObject, month: String): Double {
-        val income = budgetSettings["monthly_income"] ?: return 0.0
-        income.jsonPrimitiveOrNull()?.doubleOrNull?.let { return it }
-        val rows = income as? JsonArray ?: return 0.0
-        return rows.mapNotNull { it as? JsonObject }
-            .filter { isActiveForMonth(it, month) }
-            .sumOf { it.numberValue("amount") }
-    }
+    fun activeMonthlyIncome(budgetSettings: JsonObject, month: String): Double =
+        BudgetMath.activeMonthlyIncome(BudgetSettings.fromJson(budgetSettings), month)
 
     fun computeNetAvailableForSpending(budgetSettings: JsonObject, transactions: List<FinanceTransaction>, month: String, dateMode: ReportDateMode): Double {
-        val baseIncome = activeMonthlyIncome(budgetSettings, month)
-        val flexibleIncome = transactions
-            .filter { it.type == TransactionType.Income && it.reportMonth(dateMode) == month }
-            .sumOf { it.amount }
-        val fixedCosts = activeFixedCosts(budgetSettings, month).sumOf { it.numberValue("amount") }
-        val dailySavingsGoal = budgetSettings.numberValue("daily_savings_goal")
-        val daysInMonth = runCatching { YearMonth.parse(month).lengthOfMonth() }.getOrDefault(30)
-        return maxOf(baseIncome + flexibleIncome - fixedCosts - (dailySavingsGoal * daysInMonth), 0.0)
+        return BudgetMath.computeNetAvailableForSpending(
+            settings = BudgetSettings.fromJson(budgetSettings),
+            transactions = transactions,
+            month = month,
+            dateMode = dateMode,
+        )
     }
 
     private fun categorySeries(
@@ -352,7 +334,7 @@ object DashboardCharts {
 
         if (type == TransactionType.Expense && includeFixedCosts) {
             valuesByCategory["Fixed Costs"] = months.map {
-                activeFixedCosts(budgetSettings, it).sumOf { row -> row.numberValue("amount") }
+                activeFixedCosts(budgetSettings, it).sumOf { row -> row.amount }
             }.toMutableList()
         }
         if (type == TransactionType.Income && includeBaseIncome) {
@@ -414,7 +396,7 @@ object DashboardCharts {
                 transactions.filter { it.type == TransactionType.Income && it.reportMonth(dateMode) == month }.sumOf { it.amount }
         }
         val totalExpenses = months.map { month ->
-            activeFixedCosts(budgetSettings, month).sumOf { it.numberValue("amount") } +
+            activeFixedCosts(budgetSettings, month).sumOf { it.amount } +
                 transactions.filter { it.type == TransactionType.Expense && it.reportMonth(dateMode) == month }.sumOf { it.amount }
         }
         return if (displayMode == ChartDisplayMode.Percentage) {
@@ -429,21 +411,17 @@ object DashboardCharts {
 
     private fun buildBudgetStatus(
         entries: List<ChartEntry>,
-        budgetSettings: JsonObject,
+        settings: BudgetSettings,
         transactions: List<FinanceTransaction>,
         month: String,
         dateMode: ReportDateMode,
     ): List<String> {
-        val expenseBudgets = budgetSettings["category_budgets"]
-            ?.jsonObjectOrNull()
-            ?.get("Expense")
-            ?.jsonObjectOrNull()
-            ?: return emptyList()
-        val nav = computeNetAvailableForSpending(budgetSettings, transactions, month, dateMode)
+        val expenseBudgets = settings.categoryBudgets.expense
+        val nav = BudgetMath.computeNetAvailableForSpending(settings, transactions, month, dateMode)
         if (nav <= 0.0) return emptyList()
 
         return entries.mapNotNull { entry ->
-            val percentLimit = expenseBudgets[entry.label]?.jsonPrimitiveOrNull()?.doubleOrNull ?: 0.0
+            val percentLimit = expenseBudgets[entry.label] ?: 0.0
             if (percentLimit <= 0.0) return@mapNotNull null
             val budgetAmount = (percentLimit / 100.0) * nav
             val usedPercent = if (budgetAmount > 0.0) (entry.value / budgetAmount) * 100.0 else 0.0
@@ -460,7 +438,7 @@ object DashboardCharts {
         includeBaseIncome: Boolean,
     ): Double =
         when {
-            type == TransactionType.Expense && includeFixedCosts -> activeFixedCosts(budgetSettings, month).sumOf { it.numberValue("amount") }
+            type == TransactionType.Expense && includeFixedCosts -> activeFixedCosts(budgetSettings, month).sumOf { it.amount }
             type == TransactionType.Income && includeBaseIncome -> activeMonthlyIncome(budgetSettings, month)
             else -> 0.0
         }
@@ -484,34 +462,9 @@ object DashboardCharts {
     private fun FinanceTransaction.reportMonth(mode: ReportDateMode): String =
         reportDate(mode).take(7)
 
-    private fun isActiveForMonth(row: JsonObject, month: String): Boolean {
-        val yearMonth = try {
-            YearMonth.parse(month)
-        } catch (_: DateTimeParseException) {
-            return true
-        }
-        val monthStart = yearMonth.atDay(1)
-        val monthEnd = yearMonth.atEndOfMonth()
-        val start = row.stringValue("start_date")?.parseIsoDateOrNull() ?: LocalDate.of(2000, 1, 1)
-        val end = row["end_date"].stringOrNull()?.parseIsoDateOrNull()
-        return !start.isAfter(monthEnd) && (end == null || !end.isBefore(monthStart))
-    }
-
     private fun DayOfWeek.mondayIndex(): Int =
         (value + 6) % 7
 
     private fun String.parseIsoDateOrNull(): LocalDate? =
         runCatching { LocalDate.parse(this) }.getOrNull()
-
-    private fun JsonObject.numberValue(key: String): Double =
-        this[key]?.jsonPrimitiveOrNull()?.doubleOrNull ?: 0.0
-
-    private fun JsonObject.stringValue(key: String): String? = this[key].stringOrNull()
-
-    private fun JsonElement?.stringOrNull(): String? =
-        if (this == null || this is JsonNull) null else jsonPrimitiveOrNull()?.contentOrNull
-
-    private fun JsonElement.jsonPrimitiveOrNull() = runCatching { jsonPrimitive }.getOrNull()
-
-    private fun JsonElement.jsonObjectOrNull() = runCatching { jsonObject }.getOrNull()
 }

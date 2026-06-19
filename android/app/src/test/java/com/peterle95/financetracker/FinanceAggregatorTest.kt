@@ -48,4 +48,38 @@ class FinanceAggregatorTest {
         assertEquals(2, summary.transactionCounts.flexibleExpenses)
         assertEquals(1, summary.transactionCounts.flexibleIncomes)
     }
+
+    @Test
+    fun dashboardSummaryUsesProvidedMonth() {
+        val budgetSettings = Json.parseToJsonElement(
+            """
+            {
+              "monthly_income": [
+                { "amount": 1000, "description": "Base", "start_date": "2026-01-01", "end_date": null }
+              ],
+              "fixed_costs": []
+            }
+            """.trimIndent(),
+        ).jsonObject
+        val transactions = listOf(
+            FinanceTransaction("jan", "jan", TransactionType.Expense, "2026-01-10", 10.0, "Food", "January", null),
+            FinanceTransaction("feb", "feb", TransactionType.Expense, "2026-02-10", 20.0, "Food", "February", null),
+        )
+
+        val january = FinanceAggregator.buildDashboardSummary(
+            transactions = transactions,
+            budgetSettings = budgetSettings,
+            currentMonth = YearMonth.of(2026, 1),
+        )
+        val february = FinanceAggregator.buildDashboardSummary(
+            transactions = transactions,
+            budgetSettings = budgetSettings,
+            currentMonth = YearMonth.of(2026, 2),
+        )
+
+        assertEquals("2026-01", january.currentMonth)
+        assertEquals(10.0, january.expenses, 0.0)
+        assertEquals("2026-02", february.currentMonth)
+        assertEquals(20.0, february.expenses, 0.0)
+    }
 }

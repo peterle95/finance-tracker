@@ -2,7 +2,13 @@ package com.peterle95.financetracker.data
 
 import com.peterle95.financetracker.domain.CategoryDefaults
 import com.peterle95.financetracker.domain.CategoryState
+import com.peterle95.financetracker.domain.AssetBalances
+import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.FinanceTransaction
+import com.peterle95.financetracker.domain.FixedCost
+import com.peterle95.financetracker.domain.IncomeSource
+import com.peterle95.financetracker.domain.Loan
+import com.peterle95.financetracker.domain.NetWorthMath
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
@@ -26,6 +32,9 @@ data class FinanceDocument(
     val categories: CategoryState = CategoryState(),
     val topLevelExtra: JsonObject = buildJsonObject {},
 ) {
+    val budgetSettingsModel: BudgetSettings
+        get() = BudgetSettings.fromJson(budgetSettings)
+
     val transactions: List<FinanceTransaction>
         get() = records.map { it.transaction }
 
@@ -143,6 +152,157 @@ object FinanceJsonCodec {
         )
     }
 
+    fun updateBalances(document: FinanceDocument, balances: AssetBalances): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(
+                balances = balances.copy(hasAnyBalanceField = true),
+            )
+        }
+
+    fun setDailySavingsGoal(document: FinanceDocument, amount: Double): FinanceDocument =
+        updateBudgetSettings(document) { it.copy(dailySavingsGoal = amount) }
+
+    fun addIncomeSource(document: FinanceDocument, source: IncomeSource): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(monthlyIncome = settings.monthlyIncome + source.copy(key = ""))
+        }
+
+    fun updateIncomeSource(document: FinanceDocument, key: String, source: IncomeSource): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(
+                monthlyIncome = settings.monthlyIncome.replaceIncomeByKey(key, source),
+            )
+        }
+
+    fun archiveIncomeSource(document: FinanceDocument, key: String, endDate: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var found = false
+            settings.copy(
+                monthlyIncome = settings.monthlyIncome.map {
+                    if (it.key == key) {
+                        found = true
+                        it.copy(endDate = endDate)
+                    } else {
+                        it
+                    }
+                },
+            )
+                .also { require(found) { "Income source not found." } }
+        }
+
+    fun deleteIncomeSource(document: FinanceDocument, key: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            val updated = settings.monthlyIncome.filterNot { it.key == key }
+            require(updated.size != settings.monthlyIncome.size) { "Income source not found." }
+            settings.copy(monthlyIncome = updated)
+        }
+
+    fun addFixedCost(document: FinanceDocument, cost: FixedCost): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(fixedCosts = settings.fixedCosts + cost.copy(key = ""))
+        }
+
+    fun updateFixedCost(document: FinanceDocument, key: String, cost: FixedCost): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(
+                fixedCosts = settings.fixedCosts.replaceFixedCostByKey(key, cost),
+            )
+        }
+
+    fun archiveFixedCost(document: FinanceDocument, key: String, endDate: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var found = false
+            val updated = settings.fixedCosts.map {
+                if (it.key == key) {
+                    found = true
+                    it.copy(endDate = endDate)
+                } else {
+                    it
+                }
+            }
+            require(found) { "Fixed cost not found." }
+            settings.copy(fixedCosts = updated)
+        }
+
+    fun deleteFixedCost(document: FinanceDocument, key: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            val updated = settings.fixedCosts.filterNot { it.key == key }
+            require(updated.size != settings.fixedCosts.size) { "Fixed cost not found." }
+            settings.copy(fixedCosts = updated)
+        }
+
+    fun addLoan(document: FinanceDocument, loan: Loan): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            val id = loan.id.ifBlank { UUID.randomUUID().toString() }
+            settings
+                .copy(loans = settings.loans + loan.copy(key = id, id = id))
+                .withMoneyLentDelta(loan.amount)
+        }
+
+    fun updateLoan(document: FinanceDocument, key: String, replacement: Loan): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var previousAmount = 0.0
+            var found = false
+            val updatedLoans = settings.loans.map { loan ->
+                if (loan.key == key || loan.id == key) {
+                    previousAmount = loan.amount
+                    found = true
+                    replacement.copy(
+                        key = loan.key,
+                        id = loan.id,
+                        date = loan.date,
+                        extraJson = loan.extraJson,
+                    )
+                } else {
+                    loan
+                }
+            }
+            require(found) { "Loan not found." }
+            settings.copy(loans = updatedLoans)
+                .withMoneyLentDelta(replacement.amount - previousAmount)
+        }
+
+    fun returnLoan(document: FinanceDocument, key: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var returnedAmount = 0.0
+            val updatedLoans = settings.loans.filterNot { loan ->
+                val matches = loan.key == key || loan.id == key
+                if (matches) returnedAmount = loan.amount
+                matches
+            }
+            require(updatedLoans.size != settings.loans.size) { "Loan not found." }
+            settings.copy(loans = updatedLoans)
+                .withMoneyLentDelta(-returnedAmount)
+        }
+
+    fun recordAssetSnapshot(document: FinanceDocument, date: String, note: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            NetWorthMath.recordAssetSnapshot(settings, date, note)
+        }
+
+    fun deleteAssetSnapshot(document: FinanceDocument, date: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            NetWorthMath.deleteSnapshot(settings, date)
+        }
+
+    private fun updateBudgetSettings(
+        document: FinanceDocument,
+        transform: (BudgetSettings) -> BudgetSettings,
+    ): FinanceDocument {
+        val updated = transform(document.budgetSettingsModel)
+        return document.copy(
+            budgetSettings = updated.toJsonObjectPreserving(document.budgetSettings),
+        )
+    }
+
+    private fun BudgetSettings.withMoneyLentDelta(delta: Double): BudgetSettings =
+        copy(
+            balances = balances.copy(
+                moneyLent = balances.moneyLent + delta,
+                hasAnyBalanceField = true,
+            ),
+        )
+
     private fun JsonObject.toRecord(type: TransactionType, index: Int): FinanceRecord {
         val extra = JsonObject(filterKeys { it !in transactionKeys })
         val exportId = this["id"]?.jsonPrimitiveOrNull()?.contentOrNull
@@ -210,6 +370,34 @@ object FinanceJsonCodec {
 
     private fun JsonElement.jsonPrimitiveOrNull() =
         runCatching { jsonPrimitive }.getOrNull()
+}
+
+private fun List<IncomeSource>.replaceIncomeByKey(key: String, replacement: IncomeSource): List<IncomeSource> {
+    var found = false
+    val updated = map { item ->
+        if (item.key == key) {
+            found = true
+            replacement.copy(key = "", extraJson = item.extraJson)
+        } else {
+            item
+        }
+    }
+    require(found) { "Item not found." }
+    return updated
+}
+
+private fun List<FixedCost>.replaceFixedCostByKey(key: String, replacement: FixedCost): List<FixedCost> {
+    var found = false
+    val updated = map { item ->
+        if (item.key == key) {
+            found = true
+            replacement.copy(key = "", extraJson = item.extraJson)
+        } else {
+            item
+        }
+    }
+    require(found) { "Item not found." }
+    return updated
 }
 
 private inline fun <T, R : Any> Iterable<T>.mapNotNullIndexed(transform: (Int, T) -> R?): List<R> {
