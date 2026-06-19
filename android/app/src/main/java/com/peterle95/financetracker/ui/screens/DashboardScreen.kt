@@ -1,6 +1,7 @@
 package com.peterle95.financetracker.ui.screens
 
 import android.graphics.Paint
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.horizontalScroll
@@ -15,7 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.FilterChip
@@ -83,14 +84,11 @@ private val chartColors = listOf(
     Color(0xFFEA580C),
 )
 
-private val chartSelectedGreen = Color(0xFF16A34A)
+private val chartViolet = Color(0xFF8250C4)
 
 @Composable
 fun DashboardScreen(
     viewModel: FinanceViewModel,
-    onOpenBudget: () -> Unit = {},
-    onOpenNetWorth: () -> Unit = {},
-    onOpenSettings: () -> Unit = {},
 ) {
     val transactions by viewModel.transactions.collectAsState()
     val budgetSettings by viewModel.budgetSettings.collectAsState()
@@ -177,27 +175,6 @@ fun DashboardScreen(
                 MetricCard("Top Categories", dashboard.topExpenseCategories.size.toString(), Modifier.weight(1f))
             }
         }
-        item {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.padding(14.dp),
-                    verticalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Text("Shortcuts", style = MaterialTheme.typography.titleLarge)
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Button(onClick = onOpenBudget, modifier = Modifier.weight(1f)) {
-                            Text("Budget")
-                        }
-                        Button(onClick = onOpenNetWorth, modifier = Modifier.weight(1f)) {
-                            Text("Net Worth")
-                        }
-                    }
-                    OutlinedButton(onClick = onOpenSettings, modifier = Modifier.fillMaxWidth()) {
-                        Text("Settings")
-                    }
-                }
-            }
-        }
         if (dashboard.topExpenseCategories.isNotEmpty()) {
             item {
                 Card(modifier = Modifier.fillMaxWidth()) {
@@ -226,14 +203,18 @@ fun DashboardScreen(
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text("Charts", style = MaterialTheme.typography.titleLarge)
-                    CategoryDropdown(
-                        label = "Chart Style",
-                        selected = chartStyle.label,
-                        categories = DashboardChartStyle.entries.map { it.label },
-                        onSelected = { selected ->
-                            chartStyle = DashboardChartStyle.entries.first { it.label == selected }
-                        },
-                    )
+                    MaterialTheme(
+                        colorScheme = MaterialTheme.colorScheme.copy(primary = chartViolet),
+                    ) {
+                        CategoryDropdown(
+                            label = "Chart Style",
+                            selected = chartStyle.label,
+                            categories = DashboardChartStyle.entries.map { it.label },
+                            onSelected = { selected ->
+                                chartStyle = DashboardChartStyle.entries.first { it.label == selected }
+                            },
+                        )
+                    }
                     ChipRow(
                         label = "Transaction Filter",
                         options = ReportDateMode.entries.toList(),
@@ -476,6 +457,8 @@ private fun BarControls(
                 }
                 onBreakdownModeChange(next)
             },
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = chartViolet),
+            border = BorderStroke(1.dp, chartViolet),
         ) {
             Text("View: ${breakdownMode.label}")
         }
@@ -485,6 +468,8 @@ private fun BarControls(
                     if (displayMode == ChartDisplayMode.Value) ChartDisplayMode.Percentage else ChartDisplayMode.Value,
                 )
             },
+            colors = ButtonDefaults.outlinedButtonColors(contentColor = chartViolet),
+            border = BorderStroke(1.dp, chartViolet),
         ) {
             Text("Display: ${displayMode.label}")
         }
@@ -572,7 +557,8 @@ private fun <T> ChipRow(
 
 @Composable
 private fun chartFilterChipColors() = FilterChipDefaults.filterChipColors(
-    selectedContainerColor = chartSelectedGreen,
+    labelColor = chartViolet,
+    selectedContainerColor = chartViolet,
     selectedLabelColor = Color.White,
 )
 

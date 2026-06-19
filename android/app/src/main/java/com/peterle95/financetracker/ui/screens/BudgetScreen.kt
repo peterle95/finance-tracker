@@ -2,12 +2,14 @@ package com.peterle95.financetracker.ui.screens
 
 import android.content.Intent
 import android.graphics.Paint
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -20,6 +22,7 @@ import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material.icons.outlined.KeyboardArrowDown
 import androidx.compose.material.icons.outlined.KeyboardArrowUp
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
@@ -40,6 +43,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -59,6 +63,8 @@ import com.peterle95.financetracker.ui.components.money
 import java.time.YearMonth
 import kotlin.math.max
 import kotlin.math.min
+
+private val budgetGreen = Color(0xFF536F18)
 
 @Composable
 fun BudgetScreen(viewModel: FinanceViewModel) {
@@ -101,10 +107,10 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
                         singleLine = true,
                         modifier = Modifier.weight(1f),
                     )
-                    OutlinedButton(onClick = { runCatching { YearMonth.parse(month).minusMonths(1).toString() }.onSuccess { month = it } }) {
+                    BudgetOutlinedButton(onClick = { runCatching { YearMonth.parse(month).minusMonths(1).toString() }.onSuccess { month = it } }) {
                         Text("Prev")
                     }
-                    OutlinedButton(onClick = { runCatching { YearMonth.parse(month).plusMonths(1).toString() }.onSuccess { month = it } }) {
+                    BudgetOutlinedButton(onClick = { runCatching { YearMonth.parse(month).plusMonths(1).toString() }.onSuccess { month = it } }) {
                         Text("Next")
                     }
                 }
@@ -142,10 +148,10 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
                         Text(report.statusTitle, style = MaterialTheme.typography.titleMedium)
                         Text(report.statusDetail, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Button(onClick = { showDailyBreakdown = !showDailyBreakdown }) {
+                            BudgetButton(onClick = { showDailyBreakdown = !showDailyBreakdown }) {
                                 Text(if (showDailyBreakdown) "Hide Daily Breakdown" else "Show Daily Breakdown")
                             }
-                            OutlinedButton(
+                            BudgetOutlinedButton(
                                 onClick = {
                                     val intent = Intent(Intent.ACTION_SEND).apply {
                                         type = "text/plain"
@@ -230,7 +236,7 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
 
 @Composable
 private fun BudgetSectionButton(title: String, expanded: Boolean, onClick: () -> Unit) {
-    OutlinedButton(
+    BudgetOutlinedButton(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
     ) {
@@ -286,7 +292,7 @@ private fun BudgetDepletionChart(report: BudgetReport) {
                     val minValue = min(0.0, values.minOrNull() ?: 0.0)
                     val maxValue = max(0.0, values.maxOrNull() ?: 1.0)
                     val range = (maxValue - minValue).takeIf { it > 0.0 } ?: 1.0
-                    val left = 70f
+                    val left = 132f
                     val right = size.width - 18f
                     val top = 28f
                     val bottom = size.height - 52f
@@ -295,18 +301,44 @@ private fun BudgetDepletionChart(report: BudgetReport) {
                     fun y(value: Double): Float =
                         top + ((maxValue - value) / range).toFloat() * (bottom - top)
 
-                    val zeroY = y(0.0)
                     val axisColor = Color(0xFF9CA3AF)
                     val labelColor = Color(0xFF6B7280)
+                    val gridColor = axisColor.copy(alpha = 0.55f)
+                    val gridPathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+                    val yTickCount = 5
+                    (0..yTickCount).forEach { tick ->
+                        val value = minValue + (range * tick / yTickCount)
+                        val tickY = y(value)
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(left, tickY),
+                            end = Offset(right, tickY),
+                            strokeWidth = 1.5f,
+                            pathEffect = gridPathEffect,
+                        )
+                        drawAxisText(
+                            text = money(value),
+                            x = left - 10f,
+                            y = tickY + 8f,
+                            color = labelColor,
+                            textSize = 22f,
+                            align = Paint.Align.RIGHT,
+                        )
+                    }
+                    if (minValue < 0.0 && maxValue > 0.0) {
+                        val zeroY = y(0.0)
+                        drawLine(
+                            color = gridColor,
+                            start = Offset(left, zeroY),
+                            end = Offset(right, zeroY),
+                            strokeWidth = 1.5f,
+                            pathEffect = gridPathEffect,
+                        )
+                        drawAxisText(money(0.0), left - 10f, zeroY + 8f, labelColor, 22f, Paint.Align.RIGHT)
+                    }
                     drawLine(axisColor, Offset(left, top), Offset(left, bottom), strokeWidth = 1.5f)
                     drawLine(axisColor, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.5f)
-                    drawLine(Color(0xFF9CA3AF), Offset(left, zeroY), Offset(right, zeroY), strokeWidth = 2f)
                     drawAxisText("Amount (EUR)", 4f, 16f, labelColor, 20f, Paint.Align.LEFT)
-                    drawAxisText(money(maxValue), 4f, top + 8f, labelColor, 22f, Paint.Align.LEFT)
-                    if (minValue < 0.0) {
-                        drawAxisText(money(minValue), 4f, bottom, labelColor, 22f, Paint.Align.LEFT)
-                    }
-                    drawAxisText(money(0.0), 4f, zeroY + 8f, labelColor, 22f, Paint.Align.LEFT)
                     val labelIndices = listOf(
                         0,
                         report.days.lastIndex / 2,
@@ -369,13 +401,13 @@ private fun BalanceEditor(settings: BudgetSettings, viewModel: FinanceViewModel)
                     MoneyField("Savings", savings, { savings = it }, Modifier.weight(1f))
                     MoneyField("Investments", investments, { investments = it }, Modifier.weight(1f))
                 }
-                OutlinedButton(
+                BudgetOutlinedButton(
                     onClick = { showLendingManager = !showLendingManager },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Money Lent: ${money(balances.moneyLent)}")
                 }
-                Button(
+                BudgetButton(
                     onClick = { viewModel.updateBalances(bank, wallet, savings, investments) },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -480,7 +512,7 @@ private fun LendingManager(
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(
+                BudgetButton(
                     onClick = {
                         if (selectedLoan == null) {
                             viewModel.addLoan(borrower, amount, description)
@@ -493,7 +525,7 @@ private fun LendingManager(
                 ) {
                     Text(if (selectedLoan == null) "Add Loan" else "Update")
                 }
-                OutlinedButton(
+                BudgetOutlinedButton(
                     onClick = {
                         selectedLoan?.let { viewModel.returnLoan(it.key) }
                         clearForm()
@@ -505,7 +537,7 @@ private fun LendingManager(
                 }
             }
             if (selectedLoan != null) {
-                OutlinedButton(onClick = { clearForm() }, modifier = Modifier.fillMaxWidth()) {
+                BudgetOutlinedButton(onClick = { clearForm() }, modifier = Modifier.fillMaxWidth()) {
                     Text("Clear Selection")
                 }
             }
@@ -554,7 +586,7 @@ private fun DailySavingsEditor(value: Double, viewModel: FinanceViewModel) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             MoneyField("Daily Savings Goal", amount, { amount = it }, Modifier.weight(1f))
-            Button(onClick = { viewModel.setDailySavingsGoal(amount) }) {
+            BudgetButton(onClick = { viewModel.setDailySavingsGoal(amount) }) {
                 Text("Save")
             }
         }
@@ -688,10 +720,10 @@ private fun EditableRecurringRow(
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Button(onClick = { onSave(amount, description, startDate, endDate) }) {
+                BudgetButton(onClick = { onSave(amount, description, startDate, endDate) }) {
                     Text("Save")
                 }
-                OutlinedButton(onClick = onArchive) {
+                BudgetOutlinedButton(onClick = onArchive) {
                     Text("Archive")
                 }
                 IconButton(onClick = onDelete) {
@@ -746,7 +778,7 @@ private fun EntryEditorCard(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Button(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
+            BudgetButton(onClick = onAction, modifier = Modifier.fillMaxWidth()) {
                 Text(actionLabel)
             }
         }
@@ -790,5 +822,39 @@ private fun DrawScope.drawAxisText(
             this.textAlign = align
             isAntiAlias = true
         },
+    )
+}
+
+@Composable
+private fun BudgetButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable RowScope.() -> Unit,
+) {
+    Button(
+        onClick = onClick,
+        modifier = modifier,
+        colors = ButtonDefaults.buttonColors(
+            containerColor = budgetGreen,
+            contentColor = Color.White,
+        ),
+        content = content,
+    )
+}
+
+@Composable
+private fun BudgetOutlinedButton(
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    enabled: Boolean = true,
+    content: @Composable RowScope.() -> Unit,
+) {
+    OutlinedButton(
+        onClick = onClick,
+        modifier = modifier,
+        enabled = enabled,
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = budgetGreen),
+        border = BorderStroke(1.dp, budgetGreen.copy(alpha = if (enabled) 1f else 0.38f)),
+        content = content,
     )
 }

@@ -152,12 +152,7 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             modifier = Modifier.padding(padding),
         ) {
             composable("dashboard") {
-                DashboardScreen(
-                    viewModel = viewModel,
-                    onOpenBudget = { navigateToTopLevel("budget") },
-                    onOpenNetWorth = { navigateToTopLevel("net_worth") },
-                    onOpenSettings = { openSettings() },
-                )
+                DashboardScreen(viewModel = viewModel)
             }
             composable("add") { AddTransactionScreen(viewModel) }
             composable("transactions") { TransactionsScreen(viewModel) }

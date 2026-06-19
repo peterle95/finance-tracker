@@ -38,6 +38,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
@@ -329,7 +330,7 @@ private fun SimpleLineChart(labels: List<String>, series: List<Pair<String, List
         val minValue = min(0.0, values.minOrNull() ?: 0.0)
         val maxValue = max(0.0, values.maxOrNull() ?: 1.0)
         val range = (maxValue - minValue).takeIf { it > 0.0 } ?: 1.0
-        val left = 88f
+        val left = 132f
         val right = size.width - 18f
         val top = 30f
         val bottom = size.height - 44f
@@ -338,19 +339,45 @@ private fun SimpleLineChart(labels: List<String>, series: List<Pair<String, List
         fun y(value: Double): Float =
             top + ((maxValue - value) / range).toFloat() * (bottom - top)
 
-        val zeroY = y(0.0)
         val axisColor = Color(0xFF9CA3AF)
         val labelColor = Color(0xFF6B7280)
+        val gridColor = axisColor.copy(alpha = 0.55f)
+        val gridPathEffect = PathEffect.dashPathEffect(floatArrayOf(8f, 8f))
+        val yTickCount = 5
+        (0..yTickCount).forEach { tick ->
+            val value = minValue + (range * tick / yTickCount)
+            val tickY = y(value)
+            drawLine(
+                color = gridColor,
+                start = Offset(left, tickY),
+                end = Offset(right, tickY),
+                strokeWidth = 1.5f,
+                pathEffect = gridPathEffect,
+            )
+            drawAxisText(
+                text = money(value),
+                x = left - 10f,
+                y = tickY + 7f,
+                color = labelColor,
+                textSize = 20f,
+                align = Paint.Align.RIGHT,
+            )
+        }
+        if (minValue < 0.0 && maxValue > 0.0) {
+            val zeroY = y(0.0)
+            drawLine(
+                color = gridColor,
+                start = Offset(left, zeroY),
+                end = Offset(right, zeroY),
+                strokeWidth = 1.5f,
+                pathEffect = gridPathEffect,
+            )
+            drawAxisText(money(0.0), left - 10f, zeroY + 7f, labelColor, 20f, Paint.Align.RIGHT)
+        }
         drawLine(axisColor, Offset(left, top), Offset(left, bottom), strokeWidth = 1.5f)
         drawLine(axisColor, Offset(left, bottom), Offset(right, bottom), strokeWidth = 1.5f)
-        drawLine(axisColor, Offset(left, zeroY), Offset(right, zeroY), strokeWidth = 1.5f)
         drawAxisText("Amount (EUR)", 4f, 16f, labelColor, 20f, Paint.Align.LEFT)
         drawAxisText("Time", right, size.height - 4f, labelColor, 20f, Paint.Align.RIGHT)
-        drawAxisText(money(maxValue), 4f, top + 8f, labelColor, 20f, Paint.Align.LEFT)
-        drawAxisText(money(0.0), 4f, zeroY + 7f, labelColor, 20f, Paint.Align.LEFT)
-        if (minValue < 0.0) {
-            drawAxisText(money(minValue), 4f, bottom, labelColor, 20f, Paint.Align.LEFT)
-        }
 
         val labelStep = (labels.size / 4).coerceAtLeast(1)
         labels.forEachIndexed { index, label ->
