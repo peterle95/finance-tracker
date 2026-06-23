@@ -111,6 +111,27 @@ class FinanceRepository(context: Context) {
         FinanceJsonCodec.deleteTransactionByExportId(it, exportId)
     }
 
+    suspend fun updateTransaction(
+        exportId: String,
+        type: TransactionType,
+        date: String,
+        amount: Double,
+        category: String,
+        description: String,
+        behaviorDate: String?,
+    ) = mutateConnectedFile {
+        FinanceJsonCodec.updateTransactionByExportId(
+            document = it,
+            exportId = exportId,
+            type = type,
+            date = date,
+            amount = amount,
+            category = category,
+            description = description,
+            behaviorDate = behaviorDate,
+        )
+    }
+
     suspend fun setCategories(type: TransactionType, categories: List<String>) = mutateConnectedFile {
         FinanceJsonCodec.updateCategories(it, type, categories)
     }

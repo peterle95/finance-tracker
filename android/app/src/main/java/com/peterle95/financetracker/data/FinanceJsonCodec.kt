@@ -135,6 +135,39 @@ object FinanceJsonCodec {
         return document.copy(records = document.records.filterNot { it.transaction.exportId == exportId })
     }
 
+    fun updateTransactionByExportId(
+        document: FinanceDocument,
+        exportId: String,
+        type: TransactionType,
+        date: String,
+        amount: Double,
+        category: String,
+        description: String,
+        behaviorDate: String?,
+    ): FinanceDocument {
+        require(exportId.isNotBlank()) { "This transaction has no JSON id and cannot be modified from Android." }
+        var found = false
+        val updatedRecords = document.records.map { record ->
+            if (record.transaction.exportId == exportId) {
+                found = true
+                record.copy(
+                    transaction = record.transaction.copy(
+                        type = type,
+                        date = date,
+                        amount = amount,
+                        category = category,
+                        description = description,
+                        behaviorDate = behaviorDate,
+                    ),
+                )
+            } else {
+                record
+            }
+        }
+        require(found) { "Transaction not found." }
+        return document.copy(records = updatedRecords)
+    }
+
     fun updateCategories(
         document: FinanceDocument,
         type: TransactionType,
