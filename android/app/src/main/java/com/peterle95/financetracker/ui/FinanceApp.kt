@@ -9,6 +9,7 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.PieChart
 import androidx.compose.material.icons.outlined.Settings
+import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -40,6 +41,7 @@ import com.peterle95.financetracker.ui.screens.AddTransactionScreen
 import com.peterle95.financetracker.ui.screens.BudgetScreen
 import com.peterle95.financetracker.ui.screens.DashboardScreen
 import com.peterle95.financetracker.ui.screens.NetWorthScreen
+import com.peterle95.financetracker.ui.screens.ProjectionScreen
 import com.peterle95.financetracker.ui.screens.SettingsScreen
 import com.peterle95.financetracker.ui.screens.TransactionsScreen
 import kotlinx.coroutines.flow.collectLatest
@@ -66,10 +68,17 @@ fun FinanceApp(viewModel: FinanceViewModel) {
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     var settingsReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
+    var projectionReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
 
     fun navigateToTopLevel(route: String) {
         if (currentRoute == "settings" && route == settingsReturnRoute && navController.popBackStack()) {
             return
+        }
+        if (currentRoute == "projection") {
+            if (route == projectionReturnRoute && navController.popBackStack()) {
+                return
+            }
+            navController.popBackStack()
         }
         navController.navigate(route) {
             popUpTo(navController.graph.findStartDestination().id) {
@@ -92,6 +101,21 @@ fun FinanceApp(viewModel: FinanceViewModel) {
     fun closeSettings() {
         if (!navController.popBackStack()) {
             navigateToTopLevel(settingsReturnRoute)
+        }
+    }
+
+    fun openProjection() {
+        projectionReturnRoute = currentRoute
+            ?.takeIf { route -> destinations.any { it.route == route } }
+            ?: projectionReturnRoute
+        navController.navigate("projection") {
+            launchSingleTop = true
+        }
+    }
+
+    fun closeProjection() {
+        if (!navController.popBackStack()) {
+            navigateToTopLevel(projectionReturnRoute)
         }
     }
 
@@ -119,10 +143,17 @@ fun FinanceApp(viewModel: FinanceViewModel) {
                         IconButton(onClick = { closeSettings() }) {
                             Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
                         }
+                    } else if (currentRoute == "projection") {
+                        IconButton(onClick = { closeProjection() }) {
+                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                        }
                     }
                 },
                 actions = {
-                    if (currentRoute != "settings") {
+                    if (currentRoute != "settings" && currentRoute != "projection") {
+                        IconButton(onClick = { openProjection() }) {
+                            Icon(Icons.Outlined.TrendingUp, contentDescription = "Projections")
+                        }
                         IconButton(onClick = { openSettings() }) {
                             Icon(Icons.Outlined.Settings, contentDescription = "Settings")
                         }
@@ -159,6 +190,7 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             composable("budget") { BudgetScreen(viewModel) }
             composable("net_worth") { NetWorthScreen(viewModel) }
             composable("settings") { SettingsScreen(viewModel) }
+            composable("projection") { ProjectionScreen(viewModel) }
         }
     }
 }
