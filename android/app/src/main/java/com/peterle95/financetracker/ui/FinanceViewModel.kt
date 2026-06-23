@@ -122,6 +122,42 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun updateTransaction(
+        exportId: String?,
+        type: TransactionType,
+        amountText: String,
+        category: String,
+        description: String,
+        date: String,
+        behaviorDate: String?,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                require(!exportId.isNullOrBlank()) {
+                    "This transaction has no JSON id and cannot be modified from Android."
+                }
+                val amount = parseAmount(amountText, "Amount")
+                require(amount > 0.0) { "Amount must be greater than zero." }
+                val parsedDate = requireIsoDate(date, "Date")
+                val parsedBehaviorDate = optionalIsoDate(behaviorDate.orEmpty(), "Behavior date")
+                require(category.isNotBlank()) { "Choose a category." }
+                repository.updateTransaction(
+                    exportId = exportId,
+                    type = type,
+                    date = parsedDate,
+                    amount = amount,
+                    category = category,
+                    description = description.trim(),
+                    behaviorDate = parsedBehaviorDate,
+                )
+            }.onSuccess {
+                messages.emit("Transaction updated.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not update transaction.")
+            }
+        }
+    }
+
     fun setCategories(type: TransactionType, categories: List<String>) {
         viewModelScope.launch {
             runCatching {

@@ -254,12 +254,18 @@ fun DashboardScreen(
                         }
 
                         DashboardChartStyle.HistoricalBar -> {
+                            val effectiveBarBreakdownMode =
+                                if (barBreakdownMode == BarBreakdownMode.Categories) {
+                                    BarBreakdownMode.Total
+                                } else {
+                                    barBreakdownMode
+                                }
                             BarControls(
                                 months = barMonths,
                                 onMonthsChange = { barMonths = it },
                                 showLabels = showBarLabels,
                                 onShowLabelsChange = { showBarLabels = it },
-                                breakdownMode = barBreakdownMode,
+                                breakdownMode = effectiveBarBreakdownMode,
                                 onBreakdownModeChange = { barBreakdownMode = it },
                                 displayMode = barDisplayMode,
                                 onDisplayModeChange = { barDisplayMode = it },
@@ -280,7 +286,7 @@ fun DashboardScreen(
                                         type = dataType,
                                         includeFixedCosts = includeFixedCosts,
                                         includeBaseIncome = includeBaseIncome,
-                                        breakdownMode = barBreakdownMode,
+                                        breakdownMode = effectiveBarBreakdownMode,
                                         displayMode = barDisplayMode,
                                         dateMode = reportDateMode,
                                     )
@@ -288,13 +294,13 @@ fun DashboardScreen(
                             ) {
                                 BarChart(
                                     model = it,
-                                    breakdownMode = barBreakdownMode,
+                                    breakdownMode = effectiveBarBreakdownMode,
                                     showLabels = showBarLabels,
                                     onCycleBreakdown = {
-                                        barBreakdownMode = barBreakdownMode.next()
+                                        barBreakdownMode = effectiveBarBreakdownMode.next()
                                     },
                                     onToggleDisplayMode = {
-                                        if (barBreakdownMode != BarBreakdownMode.Total) {
+                                        if (effectiveBarBreakdownMode != BarBreakdownMode.Total) {
                                             barDisplayMode = barDisplayMode.toggled()
                                         }
                                     },
@@ -662,10 +668,10 @@ private fun BarChart(
 }
 
 private fun BarBreakdownMode.next(): BarBreakdownMode = when (this) {
-    BarBreakdownMode.Total -> BarBreakdownMode.Categories
-    BarBreakdownMode.Categories -> BarBreakdownMode.Flexible
+    BarBreakdownMode.Total -> BarBreakdownMode.Flexible
     BarBreakdownMode.Flexible -> BarBreakdownMode.OverUnder
     BarBreakdownMode.OverUnder -> BarBreakdownMode.Total
+    BarBreakdownMode.Categories -> BarBreakdownMode.Flexible
 }
 
 private fun ChartDisplayMode.toggled(): ChartDisplayMode =

@@ -88,6 +88,53 @@ class FinanceJsonCodecTest {
     }
 
     @Test
+    fun updatingTransactionByExportIdPreservesIdAndExtraFields() {
+        val document = FinanceJsonCodec.parse(sampleJson)
+        val updated = FinanceJsonCodec.updateTransactionByExportId(
+            document = document,
+            exportId = "income-1",
+            type = TransactionType.Income,
+            date = "2026-06-02",
+            amount = 1100.0,
+            category = "Salary",
+            description = "Updated pay",
+            behaviorDate = null,
+        )
+        val root = Json.parseToJsonElement(FinanceJsonCodec.encode(updated)).jsonObject
+        val income = root["incomes"]!!.jsonArray.single().jsonObject
+
+        assertEquals("income-1", income["id"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-02", income["date"]!!.jsonPrimitive.content)
+        assertEquals(1100.0, income["amount"]!!.jsonPrimitive.content.toDouble(), 0.0)
+        assertEquals("Updated pay", income["description"]!!.jsonPrimitive.content)
+        assertFalse(income.containsKey("behavior_date"))
+        assertEquals("kept", root["expenses"]!!.jsonArray[0].jsonObject["note"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun updatingTransactionTypeMovesRecordBetweenArrays() {
+        val document = FinanceJsonCodec.parse(sampleJson)
+        val updated = FinanceJsonCodec.updateTransactionByExportId(
+            document = document,
+            exportId = "income-1",
+            type = TransactionType.Expense,
+            date = "2026-06-03",
+            amount = 50.0,
+            category = "Food",
+            description = "Moved to expense",
+            behaviorDate = "2026-06-02",
+        )
+        val root = Json.parseToJsonElement(FinanceJsonCodec.encode(updated)).jsonObject
+
+        assertEquals(0, root["incomes"]!!.jsonArray.size)
+        assertEquals(2, root["expenses"]!!.jsonArray.size)
+        val moved = root["expenses"]!!.jsonArray[1].jsonObject
+        assertEquals("income-1", moved["id"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-03", moved["date"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-02", moved["behavior_date"]!!.jsonPrimitive.content)
+    }
+
+    @Test
     fun editingCategoriesWritesThemBackToJson() {
         val document = FinanceJsonCodec.parse(sampleJson)
         val updated = FinanceJsonCodec.updateCategories(
