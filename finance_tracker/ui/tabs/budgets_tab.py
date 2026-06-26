@@ -33,7 +33,7 @@ class BudgetsTab:
         self._create_widgets(group)
 
     def _create_widgets(self, parent):
-        parent.rowconfigure(3, weight=1)
+        parent.rowconfigure(2, weight=1)
         parent.columnconfigure(0, weight=1)
 
         self.cat_type_var = tk.StringVar(value="Expense")
@@ -57,8 +57,22 @@ class BudgetsTab:
         self.remove_cat_combo.pack(side='left')
         ttk.Button(manage, text="Remove", command=self.remove_category).pack(side='left', padx=5)
 
-        self.sliders_frame = ttk.Frame(parent)
-        self.sliders_frame.grid(row=2, column=0, sticky='nsew', pady=5)
+        sliders_container = ttk.Frame(parent)
+        sliders_container.grid(row=2, column=0, sticky='nsew', pady=5)
+        sliders_container.rowconfigure(0, weight=1)
+        sliders_container.columnconfigure(0, weight=1)
+
+        self.sliders_canvas = tk.Canvas(sliders_container, highlightthickness=0)
+        sliders_scrollbar = ttk.Scrollbar(sliders_container, orient='vertical', command=self.sliders_canvas.yview)
+        self.sliders_canvas.configure(yscrollcommand=sliders_scrollbar.set)
+        self.sliders_canvas.grid(row=0, column=0, sticky='nsew')
+        sliders_scrollbar.grid(row=0, column=1, sticky='ns')
+
+        self.sliders_frame = ttk.Frame(self.sliders_canvas)
+        self.sliders_canvas_window = self.sliders_canvas.create_window((0, 0), window=self.sliders_frame, anchor='nw')
+        self.sliders_frame.bind('<Configure>', self._on_sliders_frame_configure)
+        self.sliders_canvas.bind('<Configure>', self._on_sliders_canvas_configure)
+        self._bind_mouse_wheel(self.sliders_canvas)
 
         btns = ttk.Frame(parent)
         btns.grid(row=3, column=0, sticky='ew', pady=5)
@@ -84,6 +98,25 @@ class BudgetsTab:
         self._update_button_visibility()
 
         self._create_budget_sliders()
+
+    def _on_sliders_frame_configure(self, event=None):
+        self.sliders_canvas.configure(scrollregion=self.sliders_canvas.bbox('all'))
+
+    def _on_sliders_canvas_configure(self, event):
+        self.sliders_canvas.itemconfig(self.sliders_canvas_window, width=event.width)
+
+    def _on_mouse_wheel(self, event):
+        if event.num == 5 or event.delta < 0:
+            self.sliders_canvas.yview_scroll(1, "units")
+        elif event.num == 4 or event.delta > 0:
+            self.sliders_canvas.yview_scroll(-1, "units")
+
+    def _bind_mouse_wheel(self, widget):
+        widget.bind("<MouseWheel>", self._on_mouse_wheel)
+        widget.bind("<Button-4>", self._on_mouse_wheel)
+        widget.bind("<Button-5>", self._on_mouse_wheel)
+        for child in widget.winfo_children():
+            self._bind_mouse_wheel(child)
 
     def _on_category_type_changed(self):
         """Handle category type change (Expense/Income)"""
@@ -144,6 +177,7 @@ class BudgetsTab:
                 ttk.Label(frame, text=c, width=50, anchor='w').pack(side='left', padx=5)
                 self.budget_sliders[c] = {'var': tk.DoubleVar(value=0), 'slider': None, 'label': None, 'amount_label': None}
 
+        self._bind_mouse_wheel(self.sliders_frame)
         self._update_monetary_labels()
         self._update_total_percentage_label()
 
