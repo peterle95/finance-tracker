@@ -9,7 +9,10 @@ import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.NetWorthMath
+import com.peterle95.financetracker.domain.SavingsGoal
+import com.peterle95.financetracker.domain.SavingsGoals
 import com.peterle95.financetracker.domain.TransactionType
+import com.peterle95.financetracker.domain.todayIsoDate
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
@@ -306,6 +309,78 @@ object FinanceJsonCodec {
             require(updatedLoans.size != settings.loans.size) { "Loan not found." }
             settings.copy(loans = updatedLoans)
                 .withMoneyLentDelta(-returnedAmount)
+        }
+
+    fun addSavingsGoal(document: FinanceDocument, goal: SavingsGoal): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(savingsGoals = settings.savingsGoals + goal.copy(key = "", completionDate = null))
+        }
+
+    fun updateSavingsGoal(document: FinanceDocument, key: String, replacement: SavingsGoal): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            var found = false
+            val updatedGoals = settings.savingsGoals.map { goal ->
+                if (goal.key == key) {
+                    found = true
+                    val wasComplete = goal.allocatedAmount >= goal.targetAmount
+                    val isComplete = goal.allocatedAmount >= replacement.targetAmount
+                    replacement.copy(
+                        key = goal.key,
+                        allocatedAmount = goal.allocatedAmount,
+                        createdDate = goal.createdDate,
+                        completionDate = when {
+                            isComplete && !wasComplete -> todayIsoDate()
+                            !isComplete -> null
+                            else -> goal.completionDate
+                        },
+                        extraJson = goal.extraJson,
+                    )
+                } else {
+                    goal
+                }
+            }
+            require(found) { "Goal not found." }
+            settings.copy(savingsGoals = updatedGoals)
+        }
+
+    fun allocateSavingsGoal(document: FinanceDocument, key: String, amount: Double): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            require(amount >= 0.0) { "Allocation cannot be negative." }
+            val available = SavingsGoals.availableForGoal(settings, key)
+            require(amount <= available) { "Insufficient savings. Available: ${"%.2f".format(available)}" }
+
+            var found = false
+            val updatedGoals = settings.savingsGoals.map { goal ->
+                if (goal.key == key) {
+                    found = true
+                    val wasComplete = goal.allocatedAmount >= goal.targetAmount
+                    val isComplete = amount >= goal.targetAmount
+                    goal.copy(
+                        allocatedAmount = amount,
+                        completionDate = when {
+                            isComplete && !wasComplete -> todayIsoDate()
+                            !isComplete -> null
+                            else -> goal.completionDate
+                        },
+                    )
+                } else {
+                    goal
+                }
+            }
+            require(found) { "Goal not found." }
+            settings.copy(savingsGoals = updatedGoals)
+        }
+
+    fun deleteSavingsGoal(document: FinanceDocument, key: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            val updatedGoals = settings.savingsGoals.filterNot { it.key == key }
+            require(updatedGoals.size != settings.savingsGoals.size) { "Goal not found." }
+            settings.copy(savingsGoals = updatedGoals)
+        }
+
+    fun autoDistributeSavings(document: FinanceDocument): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            SavingsGoals.autoDistribute(settings)
         }
 
     fun recordAssetSnapshot(document: FinanceDocument, date: String, note: String): FinanceDocument =

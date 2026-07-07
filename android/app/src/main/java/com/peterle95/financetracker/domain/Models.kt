@@ -134,6 +134,19 @@ data class Loan(
     val extraJson: JsonObject = buildJsonObject {},
 )
 
+data class SavingsGoal(
+    val key: String = "",
+    val name: String = "",
+    val description: String = "",
+    val targetAmount: Double = 0.0,
+    val allocatedAmount: Double = 0.0,
+    val priority: String = "Medium",
+    val targetDate: String? = null,
+    val createdDate: String = todayIsoDate(),
+    val completionDate: String? = null,
+    val extraJson: JsonObject = buildJsonObject {},
+)
+
 data class AssetSnapshot(
     val key: String = "",
     val date: String,
@@ -234,6 +247,7 @@ data class BudgetSettings(
     val dailySavingsGoal: Double = 0.0,
     val categoryBudgets: CategoryBudgets = CategoryBudgets(),
     val loans: List<Loan> = emptyList(),
+    val savingsGoals: List<SavingsGoal> = emptyList(),
     val assetSnapshots: List<AssetSnapshot> = emptyList(),
     val extraJson: JsonObject = buildJsonObject {},
 ) {
@@ -255,6 +269,7 @@ data class BudgetSettings(
             put("daily_savings_goal", dailySavingsGoal)
             put("category_budgets", categoryBudgets.toJsonObject(raw["category_budgets"] as? JsonObject))
             put("loans", JsonArray(loans.map { it.toJsonObject() }))
+            put("savings_goals", JsonArray(savingsGoals.map { it.toJsonObject() }))
             put("asset_snapshots", JsonArray(assetSnapshots.map { it.toJsonObject() }))
         }
 
@@ -305,6 +320,9 @@ data class BudgetSettings(
             val loans = (json["loans"] as? JsonArray)
                 ?.mapNotNullIndexed { index, element -> (element as? JsonObject)?.toLoan(index) }
                 ?: emptyList()
+            val savingsGoals = (json["savings_goals"] as? JsonArray)
+                ?.mapNotNullIndexed { index, element -> (element as? JsonObject)?.toSavingsGoal(index) }
+                ?: emptyList()
 
             return BudgetSettings(
                 monthlyIncome = monthlyIncome,
@@ -321,6 +339,7 @@ data class BudgetSettings(
                 dailySavingsGoal = json.numberValue("daily_savings_goal"),
                 categoryBudgets = CategoryBudgets.fromJson(json["category_budgets"] as? JsonObject),
                 loans = loans,
+                savingsGoals = savingsGoals,
                 assetSnapshots = snapshots,
                 extraJson = JsonObject(json.filterKeys { it !in budgetSettingsKeys }),
             )
@@ -337,6 +356,7 @@ data class BudgetSettings(
             "daily_savings_goal",
             "category_budgets",
             "loans",
+            "savings_goals",
             "asset_snapshots",
         )
     }
@@ -347,6 +367,17 @@ fun todayIsoDate(): String = LocalDate.now().toString()
 private val incomeSourceKeys = setOf("amount", "description", "start_date", "end_date")
 private val fixedCostKeys = setOf("amount", "description", "desc", "start_date", "end_date")
 private val loanKeys = setOf("id", "borrower", "amount", "description", "date")
+private val savingsGoalKeys = setOf(
+    "name",
+    "description",
+    "target_amount",
+    "allocated_amount",
+    "current_amount",
+    "priority",
+    "target_date",
+    "created_date",
+    "completion_date",
+)
 private val assetSnapshotKeys = setOf(
     "date",
     "bank_balance",
@@ -405,6 +436,30 @@ private fun JsonObject.toLoan(index: Int): Loan {
     )
 }
 
+private fun JsonObject.toSavingsGoal(index: Int): SavingsGoal {
+    val name = stringValue("name") ?: "Untitled Goal"
+    val description = stringValue("description") ?: ""
+    val targetAmount = numberValue("target_amount")
+    val allocatedAmount = this["allocated_amount"]?.jsonPrimitiveOrNull()?.doubleOrNull
+        ?: numberValue("current_amount")
+    val priority = stringValue("priority") ?: "Medium"
+    val targetDate = nullableStringValue("target_date")
+    val createdDate = stringValue("created_date") ?: todayIsoDate()
+    val completionDate = nullableStringValue("completion_date")
+    return SavingsGoal(
+        key = stableKey("goal", index, targetAmount, "$name:$description", createdDate, targetDate),
+        name = name,
+        description = description,
+        targetAmount = targetAmount,
+        allocatedAmount = allocatedAmount,
+        priority = priority,
+        targetDate = targetDate,
+        createdDate = createdDate,
+        completionDate = completionDate,
+        extraJson = JsonObject(filterKeys { it !in savingsGoalKeys }),
+    )
+}
+
 private fun JsonObject.toAssetSnapshot(index: Int): AssetSnapshot {
     val bank = numberValue("bank_balance")
     val wallet = numberValue("wallet_balance")
@@ -460,6 +515,21 @@ private fun Loan.toJsonObject(): JsonObject =
         put("amount", amount)
         put("description", description)
         put("date", date)
+    }
+
+private fun SavingsGoal.toJsonObject(): JsonObject =
+    buildJsonObject {
+        extraJson.forEach { (key, value) ->
+            if (key !in savingsGoalKeys) put(key, value)
+        }
+        put("name", name)
+        put("description", description)
+        put("target_amount", targetAmount)
+        put("allocated_amount", allocatedAmount)
+        put("priority", priority)
+        putNullableString("target_date", targetDate)
+        put("created_date", createdDate)
+        putNullableString("completion_date", completionDate)
     }
 
 private fun AssetSnapshot.toJsonObject(): JsonObject =

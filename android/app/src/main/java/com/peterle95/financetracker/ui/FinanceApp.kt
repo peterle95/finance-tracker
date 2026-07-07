@@ -8,6 +8,7 @@ import androidx.compose.material.icons.outlined.AccountBalance
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Dashboard
 import androidx.compose.material.icons.outlined.PieChart
+import androidx.compose.material.icons.outlined.Savings
 import androidx.compose.material.icons.outlined.Settings
 import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -42,6 +43,7 @@ import com.peterle95.financetracker.ui.screens.BudgetScreen
 import com.peterle95.financetracker.ui.screens.DashboardScreen
 import com.peterle95.financetracker.ui.screens.NetWorthScreen
 import com.peterle95.financetracker.ui.screens.ProjectionScreen
+import com.peterle95.financetracker.ui.screens.SavingsGoalsScreen
 import com.peterle95.financetracker.ui.screens.SettingsScreen
 import com.peterle95.financetracker.ui.screens.TransactionsScreen
 import kotlinx.coroutines.flow.collectLatest
@@ -69,6 +71,7 @@ fun FinanceApp(viewModel: FinanceViewModel) {
     val currentRoute = currentBackStackEntry?.destination?.route
     var settingsReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
     var projectionReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
+    var savingsGoalsReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
 
     fun navigateToTopLevel(route: String) {
         if (currentRoute == "settings" && route == settingsReturnRoute && navController.popBackStack()) {
@@ -76,6 +79,12 @@ fun FinanceApp(viewModel: FinanceViewModel) {
         }
         if (currentRoute == "projection") {
             if (route == projectionReturnRoute && navController.popBackStack()) {
+                return
+            }
+            navController.popBackStack()
+        }
+        if (currentRoute == "savings_goals") {
+            if (route == savingsGoalsReturnRoute && navController.popBackStack()) {
                 return
             }
             navController.popBackStack()
@@ -119,6 +128,21 @@ fun FinanceApp(viewModel: FinanceViewModel) {
         }
     }
 
+    fun openSavingsGoals() {
+        savingsGoalsReturnRoute = currentRoute
+            ?.takeIf { route -> destinations.any { it.route == route } }
+            ?: savingsGoalsReturnRoute
+        navController.navigate("savings_goals") {
+            launchSingleTop = true
+        }
+    }
+
+    fun closeSavingsGoals() {
+        if (!navController.popBackStack()) {
+            navigateToTopLevel(savingsGoalsReturnRoute)
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.messages.collectLatest { snackbarHostState.showSnackbar(it) }
     }
@@ -139,20 +163,31 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             TopAppBar(
                 title = { Text("Finance Tracker") },
                 navigationIcon = {
-                    if (currentRoute == "settings") {
-                        IconButton(onClick = { closeSettings() }) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                    when (currentRoute) {
+                        "settings" -> {
+                            IconButton(onClick = { closeSettings() }) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                            }
                         }
-                    } else if (currentRoute == "projection") {
-                        IconButton(onClick = { closeProjection() }) {
-                            Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                        "projection" -> {
+                            IconButton(onClick = { closeProjection() }) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                            }
+                        }
+                        "savings_goals" -> {
+                            IconButton(onClick = { closeSavingsGoals() }) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                            }
                         }
                     }
                 },
                 actions = {
-                    if (currentRoute != "settings" && currentRoute != "projection") {
+                    if (currentRoute != "settings" && currentRoute != "projection" && currentRoute != "savings_goals") {
                         IconButton(onClick = { openProjection() }) {
                             Icon(Icons.Outlined.TrendingUp, contentDescription = "Projections")
+                        }
+                        IconButton(onClick = { openSavingsGoals() }) {
+                            Icon(Icons.Outlined.Savings, contentDescription = "Savings Goals")
                         }
                         IconButton(onClick = { openSettings() }) {
                             Icon(Icons.Outlined.Settings, contentDescription = "Settings")
@@ -166,7 +201,9 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             NavigationBar {
                 destinations.forEach { destination ->
                     val selected = currentRoute == destination.route ||
-                        (currentRoute == "settings" && settingsReturnRoute == destination.route)
+                        (currentRoute == "settings" && settingsReturnRoute == destination.route) ||
+                        (currentRoute == "projection" && projectionReturnRoute == destination.route) ||
+                        (currentRoute == "savings_goals" && savingsGoalsReturnRoute == destination.route)
                     NavigationBarItem(
                         selected = selected,
                         onClick = { navigateToTopLevel(destination.route) },
@@ -191,6 +228,7 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             composable("net_worth") { NetWorthScreen(viewModel) }
             composable("settings") { SettingsScreen(viewModel) }
             composable("projection") { ProjectionScreen(viewModel) }
+            composable("savings_goals") { SavingsGoalsScreen(viewModel) }
         }
     }
 }

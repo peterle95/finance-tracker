@@ -11,6 +11,7 @@ import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
+import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -201,6 +202,26 @@ class FinanceRepository(context: Context) {
 
     suspend fun returnLoan(key: String) = mutateConnectedFile {
         FinanceJsonCodec.returnLoan(it, key)
+    }
+
+    suspend fun addSavingsGoal(goal: SavingsGoal) = mutateConnectedFile {
+        FinanceJsonCodec.addSavingsGoal(it, goal)
+    }
+
+    suspend fun updateSavingsGoal(key: String, goal: SavingsGoal) = mutateConnectedFile {
+        FinanceJsonCodec.updateSavingsGoal(it, key, goal)
+    }
+
+    suspend fun allocateSavingsGoal(key: String, amount: Double) = mutateConnectedFile {
+        FinanceJsonCodec.allocateSavingsGoal(it, key, amount)
+    }
+
+    suspend fun deleteSavingsGoal(key: String) = mutateConnectedFile {
+        FinanceJsonCodec.deleteSavingsGoal(it, key)
+    }
+
+    suspend fun autoDistributeSavings() = mutateConnectedFile {
+        FinanceJsonCodec.autoDistributeSavings(it)
     }
 
     suspend fun recordAssetSnapshot(date: String, note: String) = mutateConnectedFile {
