@@ -5,6 +5,7 @@ import com.peterle95.financetracker.data.FinanceJsonFileStore
 import com.peterle95.financetracker.domain.AssetBalances
 import com.peterle95.financetracker.domain.CategoryDefaults
 import com.peterle95.financetracker.domain.Loan
+import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.Json
@@ -272,6 +273,46 @@ class FinanceJsonCodecTest {
     }
 
     @Test
+    fun savingsGoalMutationsPreserveDesktopShapeAndMigrateCurrentAmount() {
+        val document = FinanceJsonCodec.parse(savingsGoalsJson)
+        val existing = document.budgetSettingsModel.savingsGoals.single()
+
+        assertEquals(20.0, existing.allocatedAmount, 0.0)
+
+        val added = FinanceJsonCodec.addSavingsGoal(
+            document,
+            SavingsGoal(
+                name = "Laptop",
+                description = "Work machine",
+                targetAmount = 80.0,
+                priority = "Medium",
+                targetDate = "2026-12-31",
+                createdDate = "2026-07-07",
+            ),
+        )
+        val allocated = FinanceJsonCodec.allocateSavingsGoal(added, existing.key, 50.0)
+        val updated = FinanceJsonCodec.updateSavingsGoal(
+            allocated,
+            existing.key,
+            existing.copy(name = "Trip Updated", targetAmount = 75.0),
+        )
+        val budget = Json.parseToJsonElement(FinanceJsonCodec.encode(updated))
+            .jsonObject["budget_settings"]!!
+            .jsonObject
+        val goals = budget["savings_goals"]!!.jsonArray
+        val trip = goals[0].jsonObject
+        val laptop = goals[1].jsonObject
+
+        assertEquals("Trip Updated", trip["name"]!!.jsonPrimitive.content)
+        assertEquals(50.0, trip["allocated_amount"]!!.jsonPrimitive.content.toDouble(), 0.0)
+        assertFalse(trip.containsKey("current_amount"))
+        assertEquals("desktop", trip["source"]!!.jsonPrimitive.content)
+        assertEquals("Laptop", laptop["name"]!!.jsonPrimitive.content)
+        assertEquals("2026-07-07", laptop["created_date"]!!.jsonPrimitive.content)
+        assertTrue(budget["desktop_only"]!!.jsonPrimitive.content == "keep-me")
+    }
+
+    @Test
     fun fileStoreReloadsLatestText() = runBlocking {
         var fileText = sampleJson
         val store = FinanceJsonFileStore(
@@ -382,6 +423,29 @@ class FinanceJsonCodecTest {
             "desktop_only": "keep-me"
           },
           "unexpected_root": "root"
+        }
+    """.trimIndent()
+
+    private val savingsGoalsJson = """
+        {
+          "expenses": [],
+          "incomes": [],
+          "budget_settings": {
+            "savings_balance": 100,
+            "savings_goals": [
+              {
+                "name": "Trip",
+                "description": "Summer",
+                "target_amount": 120,
+                "current_amount": 20,
+                "priority": "High",
+                "target_date": "2026-08-01",
+                "created_date": "2026-06-01",
+                "source": "desktop"
+              }
+            ],
+            "desktop_only": "keep-me"
+          }
         }
     """.trimIndent()
 }

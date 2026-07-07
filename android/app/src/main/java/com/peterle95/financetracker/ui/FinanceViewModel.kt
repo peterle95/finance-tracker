@@ -14,6 +14,7 @@ import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.FixedCost
 import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
+import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionUiLogic
 import com.peterle95.financetracker.domain.TransactionType
 import com.peterle95.financetracker.domain.parseAmountText
@@ -340,6 +341,79 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun addSavingsGoal(name: String, description: String, targetAmount: String, priority: String, targetDate: String) {
+        viewModelScope.launch {
+            runCatching {
+                repository.addSavingsGoal(savingsGoalFromInput(name, description, targetAmount, priority, targetDate))
+            }.onSuccess {
+                messages.emit("Goal added.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not add goal.")
+            }
+        }
+    }
+
+    fun updateSavingsGoal(
+        key: String,
+        name: String,
+        description: String,
+        targetAmount: String,
+        priority: String,
+        targetDate: String,
+    ) {
+        viewModelScope.launch {
+            runCatching {
+                require(key.isNotBlank()) { "Select a goal to update." }
+                repository.updateSavingsGoal(
+                    key = key,
+                    goal = savingsGoalFromInput(name, description, targetAmount, priority, targetDate),
+                )
+            }.onSuccess {
+                messages.emit("Goal updated.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not update goal.")
+            }
+        }
+    }
+
+    fun allocateSavingsGoal(key: String, amount: String) {
+        viewModelScope.launch {
+            runCatching {
+                require(key.isNotBlank()) { "Select a goal to allocate savings." }
+                repository.allocateSavingsGoal(key, parseAmount(amount, "Allocation"))
+            }.onSuccess {
+                messages.emit("Goal allocation updated.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not allocate savings.")
+            }
+        }
+    }
+
+    fun deleteSavingsGoal(key: String) {
+        viewModelScope.launch {
+            runCatching {
+                require(key.isNotBlank()) { "Select a goal to delete." }
+                repository.deleteSavingsGoal(key)
+            }.onSuccess {
+                messages.emit("Goal deleted.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not delete goal.")
+            }
+        }
+    }
+
+    fun autoDistributeSavings() {
+        viewModelScope.launch {
+            runCatching {
+                repository.autoDistributeSavings()
+            }.onSuccess {
+                messages.emit("Savings distributed across goals.")
+            }.onFailure {
+                messages.emit(it.message ?: "Could not distribute savings.")
+            }
+        }
+    }
+
     fun recordAssetSnapshot(date: String, note: String) {
         viewModelScope.launch {
             runCatching {
@@ -436,6 +510,28 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             borrower = trimmedBorrower,
             description = description.trim(),
             date = LocalDate.now().toString(),
+        )
+    }
+
+    private fun savingsGoalFromInput(
+        name: String,
+        description: String,
+        targetAmount: String,
+        priority: String,
+        targetDate: String,
+    ): SavingsGoal {
+        val trimmedName = name.trim()
+        require(trimmedName.isNotBlank()) { "Goal name cannot be empty." }
+        val parsedTarget = parseAmount(targetAmount, "Target amount")
+        require(parsedTarget > 0.0) { "Target amount must be greater than zero." }
+        val normalizedPriority = priority.takeIf { it in setOf("High", "Medium", "Low") } ?: "Medium"
+        return SavingsGoal(
+            name = trimmedName,
+            description = description.trim(),
+            targetAmount = parsedTarget,
+            priority = normalizedPriority,
+            targetDate = optionalIsoDate(targetDate, "Target date"),
+            createdDate = LocalDate.now().toString(),
         )
     }
 
