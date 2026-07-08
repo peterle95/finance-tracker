@@ -38,7 +38,7 @@ fun ProjectionScreen(viewModel: FinanceViewModel) {
 
     var numMonths by remember { mutableStateOf("12") }
     var mode by remember { mutableStateOf(ProjectionMode.TargetSavings) }
-    var historyMonths by remember { mutableStateOf("6") }
+    var historyMonths by remember { mutableStateOf("12") }
     var reportText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -108,7 +108,7 @@ fun ProjectionScreen(viewModel: FinanceViewModel) {
                         budgetSettings = settings,
                         numMonths = months,
                         mode = mode,
-                        historyMonths = hist ?: 6,
+                        historyMonths = hist ?: 12,
                     )
                 },
             ) {

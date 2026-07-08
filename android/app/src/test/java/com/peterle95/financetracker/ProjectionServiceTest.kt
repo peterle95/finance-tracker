@@ -78,4 +78,20 @@ class ProjectionServiceTest {
         assertTrue(result.contains("+€100.00"))
         assertTrue(result.contains("1,400.00"))
     }
+
+    @Test
+    fun netWorthTrendDefaultsToTwelveHistoryMonths() {
+        val settings = BudgetSettings(
+            assetSnapshots = listOf(
+                AssetSnapshot(date = "2025-01-01", bankBalance = 1000.0, netWorth = 1000.0),
+                AssetSnapshot(date = "2025-02-01", bankBalance = 1100.0, netWorth = 1100.0),
+            ),
+        )
+
+        val result = ProjectionService.projectionText(
+            settings, 1, ProjectionMode.NetWorthTrend, today = LocalDate.of(2025, 6, 1),
+        )
+
+        assertTrue(result.contains("Months requested for analysis: 12"))
+    }
 }

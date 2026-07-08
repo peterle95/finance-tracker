@@ -14,7 +14,7 @@ object ProjectionService {
         budgetSettings: BudgetSettings,
         numMonths: Int,
         mode: ProjectionMode = ProjectionMode.TargetSavings,
-        historyMonths: Int = 6,
+        historyMonths: Int = 12,
         today: LocalDate = LocalDate.now(),
     ): String = when (mode) {
         ProjectionMode.TargetSavings -> buildTargetSavingsProjection(budgetSettings, numMonths, today)
