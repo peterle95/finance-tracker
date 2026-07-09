@@ -1,0 +1,497 @@
+{
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/build.gradle.kts": {
+    "mtime": 1781698037.240157,
+    "ast_hash": "b5588bf1926b0db8ea46cb599a04a169",
+    "semantic_hash": "b5588bf1926b0db8ea46cb599a04a169"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/MainActivity.kt": {
+    "mtime": 1781698037.3226798,
+    "ast_hash": "4cf78438c6e9d25885eaaf9048b983fd",
+    "semantic_hash": "4cf78438c6e9d25885eaaf9048b983fd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/data/FinanceJsonCodec.kt": {
+    "mtime": 1783440744.341228,
+    "ast_hash": "06702fbec5ebdcf73ca6c8c6ae9739f9",
+    "semantic_hash": "06702fbec5ebdcf73ca6c8c6ae9739f9"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/data/FinanceJsonFileStore.kt": {
+    "mtime": 1781698037.4052956,
+    "ast_hash": "d73bf7549d6f197d7f60cb4861393135",
+    "semantic_hash": "d73bf7549d6f197d7f60cb4861393135"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/data/FinanceRepository.kt": {
+    "mtime": 1783440744.3802269,
+    "ast_hash": "a1954ddd2f5b54e232c59ba27a9798ac",
+    "semantic_hash": "a1954ddd2f5b54e232c59ba27a9798ac"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/data/SettingsDataStore.kt": {
+    "mtime": 1781698037.448589,
+    "ast_hash": "25505e9e1fb57c498f8550358fdd6dd0",
+    "semantic_hash": "25505e9e1fb57c498f8550358fdd6dd0"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/data/SyncedFileStatus.kt": {
+    "mtime": 1781698037.4645925,
+    "ast_hash": "83981b4290b42e89c1e03968b2950e5a",
+    "semantic_hash": "83981b4290b42e89c1e03968b2950e5a"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/AmountText.kt": {
+    "mtime": 1781871635.2559445,
+    "ast_hash": "3e32a8d3361876ade0091d21b320a847",
+    "semantic_hash": "3e32a8d3361876ade0091d21b320a847"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/BudgetMath.kt": {
+    "mtime": 1781871635.2779872,
+    "ast_hash": "3834bfbacb4955a45753cf1273776dec",
+    "semantic_hash": "3834bfbacb4955a45753cf1273776dec"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/CategoryDefaults.kt": {
+    "mtime": 1781698037.4946828,
+    "ast_hash": "a1e6f17bd94190cc11fd824317512c8d",
+    "semantic_hash": "a1e6f17bd94190cc11fd824317512c8d"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/DashboardCharts.kt": {
+    "mtime": 1781871635.3072965,
+    "ast_hash": "8868260888425a9d6c209dc262bbac55",
+    "semantic_hash": "8868260888425a9d6c209dc262bbac55"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/FinanceAggregator.kt": {
+    "mtime": 1781897560.5265675,
+    "ast_hash": "3963b3f42fa1d6a026276075d2c4f857",
+    "semantic_hash": "3963b3f42fa1d6a026276075d2c4f857"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/InsightsJson.kt": {
+    "mtime": 1781698037.5535166,
+    "ast_hash": "5ce7d92f099ec680884f3c69cdb30caf",
+    "semantic_hash": "5ce7d92f099ec680884f3c69cdb30caf"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/Models.kt": {
+    "mtime": 1783440744.442768,
+    "ast_hash": "552dc01c20c1bd8f025a7c145cedbdf5",
+    "semantic_hash": "552dc01c20c1bd8f025a7c145cedbdf5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/NetWorthMath.kt": {
+    "mtime": 1781871635.3849478,
+    "ast_hash": "ff656d8afba7df5ababc051d124b9f20",
+    "semantic_hash": "ff656d8afba7df5ababc051d124b9f20"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/ProjectionService.kt": {
+    "mtime": 1783446899.139482,
+    "ast_hash": "29d997163bfd422c869fefbc310deabf",
+    "semantic_hash": "29d997163bfd422c869fefbc310deabf"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/SavingsGoals.kt": {
+    "mtime": 1783440744.4717681,
+    "ast_hash": "a2329e2ee62733837a0ea0b75aec8c6a",
+    "semantic_hash": "a2329e2ee62733837a0ea0b75aec8c6a"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/domain/TransactionUiLogic.kt": {
+    "mtime": 1781698037.5887806,
+    "ast_hash": "7c8232cd59e7bb5973682daf225cd80c",
+    "semantic_hash": "7c8232cd59e7bb5973682daf225cd80c"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/FinanceApp.kt": {
+    "mtime": 1783440744.5350542,
+    "ast_hash": "ac67dedd21cca1e32fba9124856b2976",
+    "semantic_hash": "ac67dedd21cca1e32fba9124856b2976"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/FinanceViewModel.kt": {
+    "mtime": 1783440744.5790572,
+    "ast_hash": "93c4be9eaacc155f3c84d7926f9fda42",
+    "semantic_hash": "93c4be9eaacc155f3c84d7926f9fda42"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/components/FinanceComponents.kt": {
+    "mtime": 1781698037.6763136,
+    "ast_hash": "b5f1ed0b09d9a33129c2ca0d576c4013",
+    "semantic_hash": "b5f1ed0b09d9a33129c2ca0d576c4013"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/AddTransactionScreen.kt": {
+    "mtime": 1781698037.7108345,
+    "ast_hash": "2cb730f486d62db3e2ff906acdb1785d",
+    "semantic_hash": "2cb730f486d62db3e2ff906acdb1785d"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/BudgetScreen.kt": {
+    "mtime": 1781897560.5925152,
+    "ast_hash": "43d9137cde1f0760f31071383e6914d5",
+    "semantic_hash": "43d9137cde1f0760f31071383e6914d5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/DashboardScreen.kt": {
+    "mtime": 1782284248.584964,
+    "ast_hash": "9feef6f58f31f386610df54db795c33a",
+    "semantic_hash": "9feef6f58f31f386610df54db795c33a"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/NetWorthScreen.kt": {
+    "mtime": 1781887514.477262,
+    "ast_hash": "c8c3f08df080e74ba47499491c166090",
+    "semantic_hash": "c8c3f08df080e74ba47499491c166090"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/ProjectionScreen.kt": {
+    "mtime": 1783446899.1344824,
+    "ast_hash": "b5fb00ab08f82996b509b209d5d6594e",
+    "semantic_hash": "b5fb00ab08f82996b509b209d5d6594e"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/SavingsGoalsScreen.kt": {
+    "mtime": 1783446899.145484,
+    "ast_hash": "c42c2e4fbbc7604a5915f32dcfea9d22",
+    "semantic_hash": "c42c2e4fbbc7604a5915f32dcfea9d22"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/SettingsScreen.kt": {
+    "mtime": 1781698037.7518382,
+    "ast_hash": "164d853f8bee25a5b05749f3de3d8234",
+    "semantic_hash": "164d853f8bee25a5b05749f3de3d8234"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/screens/TransactionsScreen.kt": {
+    "mtime": 1782284248.618409,
+    "ast_hash": "2c89ea0fd015a8d5dc23d79729fc6569",
+    "semantic_hash": "2c89ea0fd015a8d5dc23d79729fc6569"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/java/com/peterle95/financetracker/ui/theme/Theme.kt": {
+    "mtime": 1781698037.8040822,
+    "ast_hash": "36f333608f3fffb8291d4ded031c5f34",
+    "semantic_hash": "36f333608f3fffb8291d4ded031c5f34"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/AmountTextTest.kt": {
+    "mtime": 1781871635.6154256,
+    "ast_hash": "3f4c1a113b0d59d375437493691b8e04",
+    "semantic_hash": "3f4c1a113b0d59d375437493691b8e04"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/BudgetMathTest.kt": {
+    "mtime": 1781871635.6390061,
+    "ast_hash": "3d03fb2aeabbd1918f25450c9ab42a1b",
+    "semantic_hash": "3d03fb2aeabbd1918f25450c9ab42a1b"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/DashboardChartsTest.kt": {
+    "mtime": 1781698037.9638193,
+    "ast_hash": "3123bdd755d20d4ed47143fef4ad1da4",
+    "semantic_hash": "3123bdd755d20d4ed47143fef4ad1da4"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/FinanceAggregatorTest.kt": {
+    "mtime": 1781871635.6641865,
+    "ast_hash": "2d06e6288d7862caffbb4d43a63e46ca",
+    "semantic_hash": "2d06e6288d7862caffbb4d43a63e46ca"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/FinanceJsonCodecTest.kt": {
+    "mtime": 1783440745.7826993,
+    "ast_hash": "d37d1d206c8d0d5631a0745ca5e15366",
+    "semantic_hash": "d37d1d206c8d0d5631a0745ca5e15366"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/NetWorthMathTest.kt": {
+    "mtime": 1781871635.7081337,
+    "ast_hash": "7abc7d4dd4e6c1ad4f603ebb0a02d0cb",
+    "semantic_hash": "7abc7d4dd4e6c1ad4f603ebb0a02d0cb"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/ProjectionServiceTest.kt": {
+    "mtime": 1783446899.150486,
+    "ast_hash": "8a75c5e2e375406741f5a3121a9bbd67",
+    "semantic_hash": "8a75c5e2e375406741f5a3121a9bbd67"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/test/java/com/peterle95/financetracker/TransactionUiLogicTest.kt": {
+    "mtime": 1781698038.019218,
+    "ast_hash": "a580ac81aebf380b150727928af398e2",
+    "semantic_hash": "a580ac81aebf380b150727928af398e2"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/build.gradle.kts": {
+    "mtime": 1781698038.0262182,
+    "ast_hash": "2f1df9005df7916217db80a27fac621e",
+    "semantic_hash": "2f1df9005df7916217db80a27fac621e"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/gradlew": {
+    "mtime": 1781698038.0712297,
+    "ast_hash": "32760ede3465dbb5eb8fd10a350d6a75",
+    "semantic_hash": "32760ede3465dbb5eb8fd10a350d6a75"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/settings.gradle.kts": {
+    "mtime": 1781698038.0827582,
+    "ast_hash": "8c67c1ab229e59e5bfe6b1cff42d6838",
+    "semantic_hash": "8c67c1ab229e59e5bfe6b1cff42d6838"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/app.py": {
+    "mtime": 1781698038.114758,
+    "ast_hash": "96fc94a3400129d2e0da2604940389a8",
+    "semantic_hash": "96fc94a3400129d2e0da2604940389a8"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/init.py": {
+    "mtime": 1781698038.1207597,
+    "ast_hash": "c6f1a96ffd483b9709338199a5c95350",
+    "semantic_hash": "c6f1a96ffd483b9709338199a5c95350"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/ai_insights_service.py": {
+    "mtime": 1781698038.1317594,
+    "ast_hash": "79aa5320ba2dea8763f5c30d8b3e6332",
+    "semantic_hash": "79aa5320ba2dea8763f5c30d8b3e6332"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/asset_tracking_service.py": {
+    "mtime": 1781698038.1417744,
+    "ast_hash": "f560938da6a27fb97803eae3f5ea1018",
+    "semantic_hash": "f560938da6a27fb97803eae3f5ea1018"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/budget_calculator.py": {
+    "mtime": 1781698038.1497567,
+    "ast_hash": "b1a59806f921b47a0ce70ed89d5ebecd",
+    "semantic_hash": "b1a59806f921b47a0ce70ed89d5ebecd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/currency_service.py": {
+    "mtime": 1781698038.157758,
+    "ast_hash": "db0c09679fb902d46d84fca7bbdc2651",
+    "semantic_hash": "db0c09679fb902d46d84fca7bbdc2651"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/goals_service.py": {
+    "mtime": 1781698038.1657739,
+    "ast_hash": "94877c056d90fb6b6b3855fb09dbdcb1",
+    "semantic_hash": "94877c056d90fb6b6b3855fb09dbdcb1"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/init.py": {
+    "mtime": 1781698038.1747746,
+    "ast_hash": "5c3890eacf153e10f7badede5535e6f4",
+    "semantic_hash": "5c3890eacf153e10f7badede5535e6f4"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/projection_service.py": {
+    "mtime": 1781698038.1833003,
+    "ast_hash": "eb5e23774d07d0d0e136c47a7898676d",
+    "semantic_hash": "eb5e23774d07d0d0e136c47a7898676d"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/reconciliation_service.py": {
+    "mtime": 1781698038.191302,
+    "ast_hash": "be582af2898ed484f3a3b6ab4ae19cbd",
+    "semantic_hash": "be582af2898ed484f3a3b6ab4ae19cbd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/services/report_builder.py": {
+    "mtime": 1781698038.1993027,
+    "ast_hash": "2e9c5e66499fe03e4a2906615dbf15d7",
+    "semantic_hash": "2e9c5e66499fe03e4a2906615dbf15d7"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/state.py": {
+    "mtime": 1781698038.2063012,
+    "ast_hash": "6c56216164dba9715385cb1b71fde8fd",
+    "semantic_hash": "6c56216164dba9715385cb1b71fde8fd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/charts.py": {
+    "mtime": 1781698038.219303,
+    "ast_hash": "6b764334ba5645404202faf150b2ef1c",
+    "semantic_hash": "6b764334ba5645404202faf150b2ef1c"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/help_window.py": {
+    "mtime": 1781698038.2313037,
+    "ast_hash": "ecaf155df0709ba91964b08a5fab3d3e",
+    "semantic_hash": "ecaf155df0709ba91964b08a5fab3d3e"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/init.py": {
+    "mtime": 1781698038.2383032,
+    "ast_hash": "02f7ed9c054665ac66d8e4dd4a55edc8",
+    "semantic_hash": "02f7ed9c054665ac66d8e4dd4a55edc8"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/main_view.py": {
+    "mtime": 1781698038.2443006,
+    "ast_hash": "db1e7b7fc31f53567cfd243afbf28f61",
+    "semantic_hash": "db1e7b7fc31f53567cfd243afbf28f61"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/shortcuts.py": {
+    "mtime": 1781698038.2523048,
+    "ast_hash": "3be5560f7555a0f7a2637605c3a77d4c",
+    "semantic_hash": "3be5560f7555a0f7a2637605c3a77d4c"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/style.py": {
+    "mtime": 1781698038.259302,
+    "ast_hash": "37f119504c0f419e246a91188e118a58",
+    "semantic_hash": "37f119504c0f419e246a91188e118a58"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/add_transaction_tab.py": {
+    "mtime": 1781698038.2773144,
+    "ast_hash": "25bfb7c6ba0dd5de649bf226fe5e4710",
+    "semantic_hash": "25bfb7c6ba0dd5de649bf226fe5e4710"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/ai_insights_tab.py": {
+    "mtime": 1781698038.291841,
+    "ast_hash": "1b20e1a2c7761cb1cc5cd0d56bd38c4c",
+    "semantic_hash": "1b20e1a2c7761cb1cc5cd0d56bd38c4c"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/budgets_tab.py": {
+    "mtime": 1782463258.489958,
+    "ast_hash": "3f2ec2c1b57f3e01be5457320d860e73",
+    "semantic_hash": "3f2ec2c1b57f3e01be5457320d860e73"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/goals_tab.py": {
+    "mtime": 1781698038.3128397,
+    "ast_hash": "db2707338e80b3b009227d0dc0243083",
+    "semantic_hash": "db2707338e80b3b009227d0dc0243083"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/init.py": {
+    "mtime": 1781698038.3228583,
+    "ast_hash": "b36ed09edfaa4bd7ca7f443b6cf214d5",
+    "semantic_hash": "b36ed09edfaa4bd7ca7f443b6cf214d5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/net_worth_tab.py": {
+    "mtime": 1781698038.3338401,
+    "ast_hash": "6e7a136f3d1a1cc242a1c98467934237",
+    "semantic_hash": "6e7a136f3d1a1cc242a1c98467934237"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/projection_tab.py": {
+    "mtime": 1781698038.3428383,
+    "ast_hash": "0a1e4135d784df4d1b87f50d56fe4633",
+    "semantic_hash": "0a1e4135d784df4d1b87f50d56fe4633"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/reconciliation_tab.py": {
+    "mtime": 1781698038.354838,
+    "ast_hash": "88cc687835bb5e907b2413fdd77fc086",
+    "semantic_hash": "88cc687835bb5e907b2413fdd77fc086"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/reports_tab.py": {
+    "mtime": 1781698038.3668518,
+    "ast_hash": "eb09672b1d0090542bd4a85ce94de620",
+    "semantic_hash": "eb09672b1d0090542bd4a85ce94de620"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/settings_tab.py": {
+    "mtime": 1781698038.3813875,
+    "ast_hash": "7b7d49cb761148d64a4f2949f7bbbaa6",
+    "semantic_hash": "7b7d49cb761148d64a4f2949f7bbbaa6"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/tabs/view_transactions_tab.py": {
+    "mtime": 1781698038.3923833,
+    "ast_hash": "adbb4e0d38902134223298dd622717e5",
+    "semantic_hash": "adbb4e0d38902134223298dd622717e5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/finance_tracker/ui/windowing.py": {
+    "mtime": 1781698038.4023852,
+    "ast_hash": "becc19d9d6d708a2b98e5f9f5913f83a",
+    "semantic_hash": "becc19d9d6d708a2b98e5f9f5913f83a"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/reproduce_issue.py": {
+    "mtime": 1781698038.4073856,
+    "ast_hash": "5f4fbaaa0f768094bad773582e0f5555",
+    "semantic_hash": "5f4fbaaa0f768094bad773582e0f5555"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/run.py": {
+    "mtime": 1781698038.4187944,
+    "ast_hash": "684fc3ad757669da9b52d3f9fa58e91f",
+    "semantic_hash": "684fc3ad757669da9b52d3f9fa58e91f"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/.coderabbit.yaml": {
+    "mtime": 1781698037.2121735,
+    "ast_hash": "3720895b5cd472e160d899d96f05bfef",
+    "semantic_hash": "3720895b5cd472e160d899d96f05bfef"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/AGENTS.md": {
+    "mtime": 1782284248.4050803,
+    "ast_hash": "aee3696bdb6d21b1a43c8bc1908e628e",
+    "semantic_hash": "aee3696bdb6d21b1a43c8bc1908e628e"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/CLAUDE.md": {
+    "mtime": 1782284248.4120896,
+    "ast_hash": "9323827c3684b9aa0e935221eb80e1cd",
+    "semantic_hash": "9323827c3684b9aa0e935221eb80e1cd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/GEMINI.md": {
+    "mtime": 1782284248.4219897,
+    "ast_hash": "9609d1f4dadbf1e0a0a1b28d08b4c4c7",
+    "semantic_hash": "9609d1f4dadbf1e0a0a1b28d08b4c4c7"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md": {
+    "mtime": 1781698037.2241628,
+    "ast_hash": "d5e626bf1b7b323b43499f95a0e5b774",
+    "semantic_hash": "d5e626bf1b7b323b43499f95a0e5b774"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/code.txt": {
+    "mtime": 1781698038.0977607,
+    "ast_hash": "2de65de5b01897d11cab8f3850a7e9f7",
+    "semantic_hash": "2de65de5b01897d11cab8f3850a7e9f7"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/docs/android_mvp_plan.md": {
+    "mtime": 1781897560.6518624,
+    "ast_hash": "adc9c3cbde96845ccaa84cf8d0dda062",
+    "semantic_hash": "adc9c3cbde96845ccaa84cf8d0dda062"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/requirements.txt": {
+    "mtime": 1781698038.4140403,
+    "ast_hash": "e17b2bf19bc9f23188cf750a963f6ae5",
+    "semantic_hash": "e17b2bf19bc9f23188cf750a963f6ae5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/test_file.txt": {
+    "mtime": 1781809017.8240545,
+    "ast_hash": "d41d8cd98f00b204e9800998ecf8427e",
+    "semantic_hash": "d41d8cd98f00b204e9800998ecf8427e"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/drawable-nodpi/app_cover.png": {
+    "mtime": 1783440744.8316932,
+    "ast_hash": "ae14d8c9eb487f2152dd33a98d093ce5",
+    "semantic_hash": "ae14d8c9eb487f2152dd33a98d093ce5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-hdpi/ic_launcher.png": {
+    "mtime": 1783440745.019347,
+    "ast_hash": "476913b2de6daca6a9056bb59e6bb455",
+    "semantic_hash": "476913b2de6daca6a9056bb59e6bb455"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-hdpi/ic_launcher_foreground.png": {
+    "mtime": 1783440745.0763512,
+    "ast_hash": "ced76bc00730c5137991b5d0bc7a3f27",
+    "semantic_hash": "ced76bc00730c5137991b5d0bc7a3f27"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-hdpi/ic_launcher_round.png": {
+    "mtime": 1783440745.11353,
+    "ast_hash": "476913b2de6daca6a9056bb59e6bb455",
+    "semantic_hash": "476913b2de6daca6a9056bb59e6bb455"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-mdpi/ic_launcher.png": {
+    "mtime": 1783440745.1728,
+    "ast_hash": "133a80e522121b578cd3ef70fef9ffb5",
+    "semantic_hash": "133a80e522121b578cd3ef70fef9ffb5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-mdpi/ic_launcher_foreground.png": {
+    "mtime": 1783440745.220348,
+    "ast_hash": "7e0419803597a8c1c56b852abd6166fd",
+    "semantic_hash": "7e0419803597a8c1c56b852abd6166fd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-mdpi/ic_launcher_round.png": {
+    "mtime": 1783440745.2553446,
+    "ast_hash": "133a80e522121b578cd3ef70fef9ffb5",
+    "semantic_hash": "133a80e522121b578cd3ef70fef9ffb5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png": {
+    "mtime": 1783440745.3144908,
+    "ast_hash": "3044ede2ea9d2ba5bcf8959ca8f01934",
+    "semantic_hash": "3044ede2ea9d2ba5bcf8959ca8f01934"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xhdpi/ic_launcher_foreground.png": {
+    "mtime": 1783440745.3554904,
+    "ast_hash": "d08c2f47b7a551d79f141022395291fa",
+    "semantic_hash": "d08c2f47b7a551d79f141022395291fa"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xhdpi/ic_launcher_round.png": {
+    "mtime": 1783440745.3885083,
+    "ast_hash": "3044ede2ea9d2ba5bcf8959ca8f01934",
+    "semantic_hash": "3044ede2ea9d2ba5bcf8959ca8f01934"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png": {
+    "mtime": 1783440745.4440453,
+    "ast_hash": "6179d7d7ecf36234b7b74f9c4a92a3e5",
+    "semantic_hash": "6179d7d7ecf36234b7b74f9c4a92a3e5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1783440745.4900613,
+    "ast_hash": "58bcfcc221d04debc57a678502de7224",
+    "semantic_hash": "58bcfcc221d04debc57a678502de7224"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xxhdpi/ic_launcher_round.png": {
+    "mtime": 1783440745.5226057,
+    "ast_hash": "6179d7d7ecf36234b7b74f9c4a92a3e5",
+    "semantic_hash": "6179d7d7ecf36234b7b74f9c4a92a3e5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png": {
+    "mtime": 1783440745.5706046,
+    "ast_hash": "056865c8dd47bd66c808f356bb50e450",
+    "semantic_hash": "056865c8dd47bd66c808f356bb50e450"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_foreground.png": {
+    "mtime": 1783440745.6121476,
+    "ast_hash": "4394189502b3a1104bed9157b67912a1",
+    "semantic_hash": "4394189502b3a1104bed9157b67912a1"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher_round.png": {
+    "mtime": 1783440745.6431482,
+    "ast_hash": "056865c8dd47bd66c808f356bb50e450",
+    "semantic_hash": "056865c8dd47bd66c808f356bb50e450"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/app-cover.png": {
+    "mtime": 1783440745.9620636,
+    "ast_hash": "ae14d8c9eb487f2152dd33a98d093ce5",
+    "semantic_hash": "ae14d8c9eb487f2152dd33a98d093ce5"
+  }
+}
