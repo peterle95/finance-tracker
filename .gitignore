@@ -27,6 +27,13 @@ android/**/build/
 android/**/.cxx/
 android/captures/
 
+# Modern Electron desktop build output
+modern-desktop/node_modules/
+modern-desktop/out/
+modern-desktop/release/
+modern-desktop/playwright-report/
+modern-desktop/test-results/
+
 # Syncthing files
 .stfolder/
 .stignore
