@@ -35,6 +35,8 @@ const emptyCost = (): FixedCost => ({
   end_date: null
 });
 
+const emptyLoan = () => ({ borrower: "", amount: "", description: "", date: isoToday() });
+
 export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetScreenProps) {
   const month = currentMonth();
   const settings = document.budget_settings;
@@ -42,7 +44,8 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
   const [includeCarryover, setIncludeCarryover] = useState(true);
   const [incomeDraft, setIncomeDraft] = useState<IncomeSource>(emptyIncome);
   const [costDraft, setCostDraft] = useState<FixedCost>(emptyCost);
-  const [loanDraft, setLoanDraft] = useState({ borrower: "", amount: "", description: "", date: isoToday() });
+  const [loanDraft, setLoanDraft] = useState(emptyLoan);
+  const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
   const incomeSources = getMonthlyIncomeSources(document, month);
   const fixedCosts = getActiveFixedCosts(document, month);
   const visibleOverview = dailyBudgetOverview(document, month, includeCarryover);
@@ -103,25 +106,38 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
     setCostDraft(emptyCost());
   }
 
-  function addLoan(event: React.FormEvent<HTMLFormElement>) {
+  function saveLoan(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     const amount = roundCurrency(Number(loanDraft.amount));
     if (!loanDraft.borrower || !Number.isFinite(amount) || amount === 0) {
       return;
     }
     const loan: Loan = {
-      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
+      id: editingLoanId ?? (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
       borrower: loanDraft.borrower,
       amount,
       description: loanDraft.description,
       date: loanDraft.date
     };
     updateSettings((next) => {
-      const loans = [...(next.loans ?? []), loan];
+      const loans = editingLoanId
+        ? (next.loans ?? []).map((entry) => entry.id === editingLoanId ? loan : entry)
+        : [...(next.loans ?? []), loan];
       next.loans = loans;
       next.money_lent_balance = moneyLentFromLoans(loans);
     });
-    setLoanDraft({ borrower: "", amount: "", description: "", date: isoToday() });
+    setLoanDraft(emptyLoan());
+    setEditingLoanId(null);
+  }
+
+  function editLoan(loan: Loan) {
+    setEditingLoanId(loan.id);
+    setLoanDraft({
+      borrower: loan.borrower,
+      amount: String(loan.amount),
+      description: loan.description,
+      date: loan.date
+    });
   }
 
   function markLoanReturned(loan: Loan) {
@@ -130,6 +146,10 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
       next.loans = loans;
       next.money_lent_balance = moneyLentFromLoans(loans);
     });
+    if (editingLoanId === loan.id) {
+      setEditingLoanId(null);
+      setLoanDraft(emptyLoan());
+    }
   }
 
   return (
@@ -231,19 +251,28 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
           <div className="card-heading"><div><p className="eyebrow">Lending</p><h2>Money lent and owed</h2></div></div>
           <div className="mini-list">
             {(settings.loans ?? []).length ? (settings.loans ?? []).map((loan) => (
-              <div key={loan.id}>
-                <span><strong>{loan.borrower}</strong><small>{loan.description || loan.date}</small></span>
-                <strong>{formatCurrency(loan.amount)}</strong>
+              <div
+                key={loan.id}
+                className={editingLoanId === loan.id ? "loan-row selected" : "loan-row"}
+              >
+                <button type="button" className="loan-edit-target" aria-label={"Edit loan for " + loan.borrower} onClick={() => editLoan(loan)}>
+                  <span><strong>{loan.borrower}</strong><small>{loan.description || loan.date}</small></span>
+                  <strong>{formatCurrency(loan.amount)}</strong>
+                </button>
                 <Button variant="ghost" onClick={() => markLoanReturned(loan)}>Returned</Button>
               </div>
             )) : <p className="muted-copy">No active loans.</p>}
           </div>
-          <form className="inline-form loan-form" onSubmit={addLoan}>
+          <form className="inline-form loan-form" onSubmit={saveLoan}>
             <input value={loanDraft.borrower} onChange={(event) => setLoanDraft({ ...loanDraft, borrower: event.target.value })} placeholder="Borrower" />
             <input value={loanDraft.amount} onChange={(event) => setLoanDraft({ ...loanDraft, amount: event.target.value })} type="number" step="0.01" placeholder="Amount (negative if owed)" />
             <input value={loanDraft.description} onChange={(event) => setLoanDraft({ ...loanDraft, description: event.target.value })} placeholder="Description" />
             <input value={loanDraft.date} onChange={(event) => setLoanDraft({ ...loanDraft, date: event.target.value })} type="date" />
-            <Button type="submit" variant="secondary"><Plus size={16} /> Add loan</Button>
+            <Button type="submit" variant="secondary"><Plus size={16} /> {editingLoanId ? "Save changes" : "Add loan"}</Button>
+            {editingLoanId ? <Button type="button" variant="ghost" onClick={() => {
+              setEditingLoanId(null);
+              setLoanDraft(emptyLoan());
+            }}>Cancel</Button> : null}
           </form>
         </Card>
     </div>

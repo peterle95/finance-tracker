@@ -5,9 +5,12 @@ import {
   defaultDocument,
   getActiveFixedCosts,
   getActiveMonthlyIncome,
+  historicalBreakdown,
+  historicalTotals,
   makeTransaction,
   mergeDocuments,
   monthTransactions,
+  netWorthTrendProjection,
   negativeCarryover,
   normalizeDocument
 } from "./finance";
@@ -52,6 +55,59 @@ describe("shared finance compatibility", () => {
     expect(monthTransactions(document, "Expense", "2026-06")).toHaveLength(0);
     expect(monthTransactions(document, "Expense", "2026-06", "behavior")).toHaveLength(1);
     expect(monthTransactions(document, "Expense", "2026-07", "behavior")).toHaveLength(0);
+  });
+
+  it("projects net worth from the average recent snapshot change", () => {
+    const document = defaultDocument();
+    document.budget_settings.asset_snapshots = [
+      { date: "2026-01-01", net_worth: 1000, bank_balance: 1000, wallet_balance: 0, savings_balance: 0, investment_balance: 0, money_lent_balance: 0 },
+      { date: "2026-02-01", net_worth: 1200, bank_balance: 1200, wallet_balance: 0, savings_balance: 0, investment_balance: 0, money_lent_balance: 0 },
+      { date: "2026-03-01", net_worth: 900, bank_balance: 900, wallet_balance: 0, savings_balance: 0, investment_balance: 0, money_lent_balance: 0 }
+    ];
+
+    const result = netWorthTrendProjection(document, 2, 6, "2026-07");
+
+    expect(result?.averageMonthlyChange).toBe(-50);
+    expect(result?.intervals).toHaveLength(2);
+    expect(result?.rows).toEqual([
+      { month: "2026-07", change: -50, balance: 850 },
+      { month: "2026-08", change: -50, balance: 800 }
+    ]);
+  });
+
+  it("builds complete historical category and over-under series", () => {
+    const document = defaultDocument();
+    document.budget_settings.monthly_income = 1000;
+    document.budget_settings.fixed_costs = [{ amount: 100, description: "Rent", start_date: "2026-01-01", end_date: null }];
+    document.incomes.push({ date: "2026-06-05", amount: 50, category: "Bonus", description: "Bonus" });
+    document.expenses.push(
+      { date: "2026-06-10", amount: 10, category: "Food", description: "Lunch" },
+      { date: "2026-07-01", behavior_date: "2026-06-16", amount: 25, category: "Shopping", description: "BNPL" }
+    );
+
+    expect(historicalBreakdown(document, "Expense", ["2026-06", "2026-07"], "categories", true, "behavior")).toEqual([
+      { name: "Food", values: [10, 0] },
+      { name: "Shopping", values: [25, 0] },
+      { name: "Fixed Costs", values: [100, 100] }
+    ]);
+    expect(historicalBreakdown(document, "Expense", ["2026-06"], "over-under", false, "behavior")).toEqual([
+      { name: "Total Income", values: [1050] },
+      { name: "Total Expenses", values: [135] }
+    ]);
+    expect(historicalBreakdown(document, "Expense", ["2026-06"], "flexible", false, "behavior")).toEqual([
+      { name: "Flexible Income", values: [50] },
+      { name: "Flexible Costs", values: [35] }
+    ]);
+    expect(historicalTotals(document, "Expense", 1, "2026-06", "behavior", false)[0].value).toBe(35);
+    expect(historicalTotals(document, "Expense", 1, "2026-06", "behavior", true)[0].value).toBe(135);
+  });
+
+  it("requires snapshot history and finite projection inputs", () => {
+    const document = defaultDocument();
+
+    expect(netWorthTrendProjection(document, 12, 6)).toBeNull();
+    expect(netWorthTrendProjection(document, Number.NaN, 6)).toBeNull();
+    expect(historicalTotals(document, "Expense", Number.NaN)).toEqual([]);
   });
 
   it("uses active date windows for income and fixed costs", () => {

@@ -2,12 +2,15 @@ import { Download, PieChart as PieChartIcon } from "lucide-react";
 import { useMemo, useState, type CSSProperties } from "react";
 import {
   Bar,
-  BarChart,
   Cell,
+  ComposedChart,
+  LabelList,
+  Legend,
   Line,
   LineChart,
   Pie,
   PieChart,
+  ReferenceLine,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -18,12 +21,13 @@ import {
   currentMonth,
   dayOfWeekHeatmap,
   formatCurrency,
+  historicalBreakdown,
   historicalTotals,
   monthOffset,
   monthTransactions,
   spendingPace
 } from "../../shared/finance";
-import type { TransactionDateBasis } from "../../shared/finance";
+import type { HistoricalBreakdownMode, TransactionDateBasis } from "../../shared/finance";
 import type { FinanceDocument, TransactionType } from "../../shared/types";
 import { Button, Card, PageHeader } from "./ui";
 
@@ -31,6 +35,24 @@ const COLORS = ["#f5c451", "#2dd4bf", "#7dd3fc", "#8b5cf6", "#fb7185", "#fb923c"
 const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type ChartKind = "pie" | "history" | "line" | "heatmap" | "pace";
+type HistoryMode = "total" | HistoricalBreakdownMode;
+type HistoryDisplay = "value" | "percentage";
+
+function setChartValue(row: Record<string, string | number>, key: string, value: number): void {
+  Object.defineProperty(row, key, { value, enumerable: true, configurable: true, writable: true });
+}
+
+function trendValues(values: number[]): number[] {
+  if (values.length < 2) {
+    return values;
+  }
+  const averageX = (values.length - 1) / 2;
+  const averageY = values.reduce((total, value) => total + value, 0) / values.length;
+  const numerator = values.reduce((total, value, index) => total + (index - averageX) * (value - averageY), 0);
+  const denominator = values.reduce((total, _value, index) => total + (index - averageX) ** 2, 0);
+  const slope = denominator ? numerator / denominator : 0;
+  return values.map((_value, index) => averageY + slope * (index - averageX));
+}
 
 function lineRows(
   document: FinanceDocument,
@@ -44,9 +66,9 @@ function lineRows(
   while (month <= end) {
     const row: Record<string, string | number> = { month };
     categories.forEach((category) => {
-      row[category] = monthTransactions(document, "Expense", month, dateBasis)
+      setChartValue(row, category, monthTransactions(document, "Expense", month, dateBasis)
         .filter((transaction) => transaction.category === category)
-        .reduce((total, transaction) => total + transaction.amount, 0);
+        .reduce((total, transaction) => total + transaction.amount, 0));
     });
     rows.push(row);
     month = monthOffset(month, 1);
@@ -69,22 +91,72 @@ export function ReportsScreen({
   const [selectedCategories, setSelectedCategories] = useState<string[]>(document.categories.Expense.slice(0, 3));
   const [historyMonths, setHistoryMonths] = useState(6);
   const [dateBasis, setDateBasis] = useState<TransactionDateBasis>("transaction");
+  const [historyMode, setHistoryMode] = useState<HistoryMode>("total");
+  const [historyDisplay, setHistoryDisplay] = useState<HistoryDisplay>("value");
+  const [includeRecurring, setIncludeRecurring] = useState(false);
+  const [showHistoryLabels, setShowHistoryLabels] = useState(false);
   const pieData = categoryTotals(document, type, month, month, true, dateBasis);
-  const historyData = historicalTotals(document, type, historyMonths, currentMonth(), dateBasis);
+  const historyData = historicalTotals(document, type, historyMonths, currentMonth(), dateBasis, includeRecurring);
+  const historyMonthLabels = historyData.map((entry) => entry.month);
+  const rawHistorySeries = historyMode === "total"
+    ? [{ name: type === "Expense" ? "Expenses" : "Income", values: historyData.map((entry) => entry.value) }]
+    : historicalBreakdown(document, type, historyMonthLabels, historyMode, includeRecurring, dateBasis);
+  const historySeries = historyDisplay === "percentage" && historyMode === "categories"
+    ? rawHistorySeries.map((series) => ({
+      ...series,
+      values: series.values.map((value, index) => {
+        const total = rawHistorySeries.reduce((sum, entry) => sum + entry.values[index], 0);
+        return total ? value / total * 100 : 0;
+      })
+    }))
+    : historyDisplay === "percentage" && historyMode === "flexible"
+      ? [{
+        name: "Flexible Costs % of Income",
+        values: rawHistorySeries[1]?.values.map((cost, index) => {
+          const income = rawHistorySeries[0]?.values[index] ?? 0;
+          return income > 0 ? cost / income * 100 : cost > 0 ? 100 : 0;
+        }) ?? []
+      }]
+      : historyDisplay === "percentage" && historyMode === "over-under"
+        ? [{
+          name: "Net Result",
+          values: rawHistorySeries[0]?.values.map((income, index) => income - (rawHistorySeries[1]?.values[index] ?? 0)) ?? []
+        }]
+        : rawHistorySeries;
+  const historyChartData = historyMonthLabels.map((historyMonth, index) => {
+    const row: Record<string, string | number> = { month: historyMonth };
+    historySeries.forEach((series) => {
+      setChartValue(row, series.name, series.values[index] ?? 0);
+    });
+    if (historyMode === "total") {
+      row.Trend = trendValues(historyData.map((entry) => entry.value))[index] ?? 0;
+    }
+    return row;
+  });
+  const historyUsesPercent = historyDisplay === "percentage" && (historyMode === "categories" || historyMode === "flexible");
   const categoryLine = useMemo(
     () => lineRows(document, rangeStart, rangeEnd, selectedCategories, dateBasis),
     [document, rangeStart, rangeEnd, selectedCategories, dateBasis]
   );
   const heatmap = dayOfWeekHeatmap(document, historyMonths, currentMonth(), dateBasis);
   const pace = spendingPace(document, month, dateBasis);
+  const reportPeriod = kind === "history"
+    ? "Last " + historyMonths + " months"
+    : kind === "pie" || kind === "pace" ? month : rangeStart + " to " + rangeEnd;
+  const reportValues = kind === "history"
+    ? historyChartData.map((row) => row.month + ": " + historySeries
+      .map((series) => series.name + " " + (historyUsesPercent ? Number(row[series.name]).toFixed(1) + "%" : formatCurrency(Number(row[series.name]))))
+      .join(", "))
+    : pieData.map((entry) => entry.name + ": " + formatCurrency(entry.value));
   const report = [
     "FINANCE REPORT",
     "",
     "View: " + kind,
     "Date basis: " + (dateBasis === "behavior" ? "Spend date (metadata)" : "Transaction date"),
-    "Period: " + (kind === "pie" || kind === "pace" ? month : rangeStart + " to " + rangeEnd),
+    ...(kind === "history" ? ["History mode: " + historyMode, "Display: " + historyDisplay] : []),
+    "Period: " + reportPeriod,
     "",
-    ...pieData.map((entry) => entry.name + ": " + formatCurrency(entry.value))
+    ...reportValues
   ].join("\n");
 
   function toggleCategory(category: string) {
@@ -130,7 +202,37 @@ export function ReportsScreen({
             </select>
           ) : null}
           {kind === "pie" || kind === "pace" ? <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /> : null}
-          {kind === "history" || kind === "heatmap" ? <label className="control-label">Months<input type="number" min="1" max="24" value={historyMonths} onChange={(event) => setHistoryMonths(Math.max(1, Number(event.target.value)))} /></label> : null}
+          {kind === "history" || kind === "heatmap" ? <label className="control-label">Months<input type="number" min={kind === "history" ? 2 : 1} max="24" value={historyMonths} onChange={(event) => {
+            const value = Number(event.target.value);
+            const minimum = kind === "history" ? 2 : 1;
+            setHistoryMonths(Number.isFinite(value) ? Math.max(minimum, Math.floor(value)) : minimum);
+          }} /></label> : null}
+          {kind === "history" ? (
+            <>
+              <select aria-label="History breakdown" value={historyMode} onChange={(event) => setHistoryMode(event.target.value as HistoryMode)}>
+                <option value="total">Monthly totals</option>
+                <option value="categories">Categories</option>
+                <option value="flexible">Flexible income vs costs</option>
+                <option value="over-under">Total income vs expenses</option>
+              </select>
+              {historyMode !== "total" ? (
+                <select aria-label="History display" value={historyDisplay} onChange={(event) => setHistoryDisplay(event.target.value as HistoryDisplay)}>
+                  <option value="value">Values</option>
+                  <option value="percentage">{historyMode === "over-under" ? "Net result" : "Percentage"}</option>
+                </select>
+              ) : null}
+              {historyMode === "total" || historyMode === "categories" ? (
+                <label className="check-row toolbar-check">
+                  <input type="checkbox" checked={includeRecurring} onChange={(event) => setIncludeRecurring(event.target.checked)} />
+                  <span>{type === "Expense" ? "Include fixed costs" : "Include base income"}</span>
+                </label>
+              ) : null}
+              <label className="check-row toolbar-check">
+                <input type="checkbox" checked={showHistoryLabels} onChange={(event) => setShowHistoryLabels(event.target.checked)} />
+                <span>Show labels</span>
+              </label>
+            </>
+          ) : null}
           {kind === "line" ? (
             <>
               <label className="control-label">From<input type="month" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} /></label>
@@ -159,15 +261,37 @@ export function ReportsScreen({
 
       {kind === "history" ? (
         <Card className="chart-card report-chart">
-          <div className="card-heading"><div><p className="eyebrow">Last {historyMonths} months</p><h2>{type} history</h2></div></div>
-          <ResponsiveContainer width="100%" height={420}>
-            <BarChart data={historyData}>
-              <XAxis dataKey="month" tickLine={false} axisLine={false} />
-              <YAxis tickFormatter={(value) => "€" + Math.round(value)} tickLine={false} axisLine={false} width={70} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              <Bar dataKey="value" radius={[8, 8, 0, 0]} fill={type === "Expense" ? "#fb7185" : "#2dd4bf"} />
-            </BarChart>
-          </ResponsiveContainer>
+          <div className="card-heading"><div><p className="eyebrow">Last {historyMonths} months</p><h2>{historyMode === "total" ? type + " history" : historyMode === "categories" ? type + " category history" : historyMode === "flexible" ? "Flexible income vs costs" : historyDisplay === "percentage" ? "Monthly net result" : "Total income vs expenses"}</h2></div></div>
+          {historySeries.length ? (
+            <ResponsiveContainer width="100%" height={420}>
+              <ComposedChart data={historyChartData}>
+                <XAxis dataKey="month" tickLine={false} axisLine={false} />
+                <YAxis tickFormatter={(value) => historyUsesPercent ? Math.round(value) + "%" : "€" + Math.round(value)} tickLine={false} axisLine={false} width={70} />
+                <Tooltip formatter={(value) => historyUsesPercent ? Number(value).toFixed(1) + "%" : formatCurrency(Number(value))} />
+                {historyMode !== "total" ? <Legend /> : null}
+                {historyDisplay === "percentage" && historyMode === "over-under" ? <ReferenceLine y={0} stroke="#94a3b8" /> : null}
+                {historySeries.map((series, index) => (
+                  <Bar
+                    key={series.name}
+                    dataKey={series.name}
+                    stackId={historyMode === "categories" ? "categories" : undefined}
+                    radius={historyMode === "categories" ? 0 : [8, 8, 0, 0]}
+                    fill={historyMode === "total" ? type === "Expense" ? "#fb7185" : "#2dd4bf" : COLORS[index % COLORS.length]}
+                  >
+                    {historyDisplay === "percentage" && (historyMode === "flexible" || historyMode === "over-under")
+                      ? historyChartData.map((row) => {
+                        const value = Number(row[series.name]);
+                        const positive = historyMode === "flexible" ? value <= 100 : value >= 0;
+                        return <Cell key={String(row.month)} fill={positive ? "#2dd4bf" : "#fb7185"} />;
+                      })
+                      : null}
+                    {showHistoryLabels ? <LabelList dataKey={series.name} position="top" formatter={(value) => historyUsesPercent ? Math.round(Number(value)) + "%" : "€" + Math.round(Number(value))} /> : null}
+                  </Bar>
+                ))}
+                {historyMode === "total" ? <Line type="monotone" dataKey="Trend" stroke="#f5c451" strokeWidth={2} strokeDasharray="7 5" dot={false} /> : null}
+              </ComposedChart>
+            </ResponsiveContainer>
+          ) : <p className="muted-copy">No history data for this view.</p>}
         </Card>
       ) : null}
 

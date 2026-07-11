@@ -11,6 +11,7 @@ import type {
 } from "./types";
 
 export type TransactionDateBasis = "transaction" | "behavior";
+export type HistoricalBreakdownMode = "categories" | "flexible" | "over-under";
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
   "Food",
@@ -588,6 +589,55 @@ export function projection(document: FinanceDocument, months: number, startMonth
   return rows;
 }
 
+export interface NetWorthTrendProjection {
+  averageMonthlyChange: number;
+  availableIntervals: number;
+  intervals: Array<{ fromDate: string; toDate: string; change: number }>;
+  latestSnapshot: AssetSnapshot;
+  rows: Array<{ month: string; change: number; balance: number }>;
+}
+
+export function netWorthTrendProjection(
+  document: FinanceDocument,
+  months: number,
+  historyMonths = 6,
+  startMonth = currentMonth()
+): NetWorthTrendProjection | null {
+  if (!Number.isFinite(months) || !Number.isFinite(historyMonths)) {
+    return null;
+  }
+  const history = snapshots(document);
+  if (history.length < 2) {
+    return null;
+  }
+
+  const allIntervals = history.slice(1).map((snapshot, index) => ({
+    fromDate: history[index].date,
+    toDate: snapshot.date,
+    change: snapshot.net_worth - history[index].net_worth
+  }));
+  const intervals = allIntervals.slice(-Math.max(1, Math.floor(historyMonths)));
+  const averageMonthlyChange = intervals.reduce((total, interval) => total + interval.change, 0) / intervals.length;
+  const latestSnapshot = history.at(-1)!;
+  let balance = latestSnapshot.net_worth;
+  const rows = Array.from({ length: Math.max(0, Math.floor(months)) }, (_, index) => {
+    balance += averageMonthlyChange;
+    return {
+      month: monthOffset(startMonth, index),
+      change: averageMonthlyChange,
+      balance
+    };
+  });
+
+  return {
+    averageMonthlyChange,
+    availableIntervals: allIntervals.length,
+    intervals,
+    latestSnapshot,
+    rows
+  };
+}
+
 export function categoryTotals(
   document: FinanceDocument,
   type: TransactionType,
@@ -626,15 +676,78 @@ export function historicalTotals(
   type: TransactionType,
   months = 6,
   end = currentMonth(),
-  dateBasis: TransactionDateBasis = "transaction"
+  dateBasis: TransactionDateBasis = "transaction",
+  includeRecurring = true
 ) {
+  if (!Number.isFinite(months)) {
+    return [];
+  }
   return Array.from({ length: months }, (_, index) => {
     const month = monthOffset(end, index - months + 1);
     const transactions = monthTransactions(document, type, month, dateBasis)
       .reduce((total, transaction) => total + asNumber(transaction.amount), 0);
-    const recurring = type === "Expense" ? sumFixedCosts(document, month) : getActiveMonthlyIncome(document, month);
+    const recurring = includeRecurring
+      ? type === "Expense" ? sumFixedCosts(document, month) : getActiveMonthlyIncome(document, month)
+      : 0;
     return { month, value: transactions + recurring };
   });
+}
+
+export function historicalBreakdown(
+  document: FinanceDocument,
+  type: TransactionType,
+  months: string[],
+  mode: HistoricalBreakdownMode,
+  includeRecurring: boolean,
+  dateBasis: TransactionDateBasis = "transaction"
+): Array<{ name: string; values: number[] }> {
+  if (mode === "categories") {
+    const series = document.categories[type].map((category) => ({
+      name: category,
+      values: months.map((month) => monthTransactions(document, type, month, dateBasis)
+        .filter((transaction) => transaction.category === category)
+        .reduce((total, transaction) => total + asNumber(transaction.amount), 0))
+    })).filter((entry) => entry.values.some((value) => value !== 0));
+    if (includeRecurring) {
+      const recurring = months.map((month) => type === "Expense"
+        ? sumFixedCosts(document, month)
+        : getActiveMonthlyIncome(document, month));
+      if (recurring.some((value) => value !== 0)) {
+        series.push({ name: type === "Expense" ? "Fixed Costs" : "Base Income", values: recurring });
+      }
+    }
+    return series;
+  }
+
+  if (mode === "flexible") {
+    return [
+      {
+        name: "Flexible Income",
+        values: months.map((month) => monthTransactions(document, "Income", month, dateBasis)
+          .reduce((total, transaction) => total + asNumber(transaction.amount), 0))
+      },
+      {
+        name: "Flexible Costs",
+        values: months.map((month) => monthTransactions(document, "Expense", month, dateBasis)
+          .reduce((total, transaction) => total + asNumber(transaction.amount), 0))
+      }
+    ];
+  }
+
+  return [
+    {
+      name: "Total Income",
+      values: months.map((month) => getActiveMonthlyIncome(document, month)
+        + monthTransactions(document, "Income", month, dateBasis)
+          .reduce((total, transaction) => total + asNumber(transaction.amount), 0))
+    },
+    {
+      name: "Total Expenses",
+      values: months.map((month) => sumFixedCosts(document, month)
+        + monthTransactions(document, "Expense", month, dateBasis)
+          .reduce((total, transaction) => total + asNumber(transaction.amount), 0))
+    }
+  ];
 }
 
 export function spendingPace(
