@@ -385,9 +385,9 @@
     "semantic_hash": "9609d1f4dadbf1e0a0a1b28d08b4c4c7"
   },
   "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md": {
-    "mtime": 1781698037.2241628,
-    "ast_hash": "d5e626bf1b7b323b43499f95a0e5b774",
-    "semantic_hash": "d5e626bf1b7b323b43499f95a0e5b774"
+    "mtime": 1783709578.1377897,
+    "ast_hash": "e948850726c23f61d3c1eefb5d088081",
+    "semantic_hash": "e948850726c23f61d3c1eefb5d088081"
   },
   "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/code.txt": {
     "mtime": 1781698038.0977607,
@@ -493,5 +493,170 @@
     "mtime": 1783440745.9620636,
     "ast_hash": "ae14d8c9eb487f2152dd33a98d093ce5",
     "semantic_hash": "ae14d8c9eb487f2152dd33a98d093ce5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/electron.vite.config.ts": {
+    "mtime": 1783707511.123785,
+    "ast_hash": "e7addbc93f7ef2bc2ed2dc7ff85cefef",
+    "semantic_hash": "e7addbc93f7ef2bc2ed2dc7ff85cefef"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/package.json": {
+    "mtime": 1783711120.1874738,
+    "ast_hash": "179f72df86550cfe9b10a5b3f136366f",
+    "semantic_hash": "179f72df86550cfe9b10a5b3f136366f"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/playwright.config.ts": {
+    "mtime": 1783709539.7818916,
+    "ast_hash": "497887ee54ff3b86374291711a15ad99",
+    "semantic_hash": "497887ee54ff3b86374291711a15ad99"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/main/data-store.ts": {
+    "mtime": 1783709539.7595787,
+    "ast_hash": "043d2a3a6cec7d16689634d09108f519",
+    "semantic_hash": "043d2a3a6cec7d16689634d09108f519"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/main/file-utils.test.ts": {
+    "mtime": 1783709539.7769973,
+    "ast_hash": "d694418df4952e48c308345c8ca61b2d",
+    "semantic_hash": "d694418df4952e48c308345c8ca61b2d"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/main/file-utils.ts": {
+    "mtime": 1783709539.7557604,
+    "ast_hash": "0e577ef61936074279e9763234a33a63",
+    "semantic_hash": "0e577ef61936074279e9763234a33a63"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/main/index.ts": {
+    "mtime": 1783709539.7625506,
+    "ast_hash": "f5c22e71232e3520a8063aecd4565e72",
+    "semantic_hash": "f5c22e71232e3520a8063aecd4565e72"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/preload/index.ts": {
+    "mtime": 1783707600.4903054,
+    "ast_hash": "4c34c375c1d54f2c28b581a52d356600",
+    "semantic_hash": "4c34c375c1d54f2c28b581a52d356600"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/App.tsx": {
+    "mtime": 1783713497.5781536,
+    "ast_hash": "36162c1b525a3262de1b1afaf807dccf",
+    "semantic_hash": "36162c1b525a3262de1b1afaf807dccf"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/BudgetScreen.tsx": {
+    "mtime": 1783713095.2817085,
+    "ast_hash": "406f4e76e26931d869776e96f9838cc9",
+    "semantic_hash": "406f4e76e26931d869776e96f9838cc9"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/CategoryLimitsScreen.tsx": {
+    "mtime": 1783713486.6793158,
+    "ast_hash": "fe850aa07fc44995a13e9da45d18526c",
+    "semantic_hash": "fe850aa07fc44995a13e9da45d18526c"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/DashboardScreen.tsx": {
+    "mtime": 1783707752.039585,
+    "ast_hash": "529eb9040659364c365ee4f0d14f1f13",
+    "semantic_hash": "529eb9040659364c365ee4f0d14f1f13"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/GoalsScreen.tsx": {
+    "mtime": 1783707949.2085452,
+    "ast_hash": "adc4e433630b007a03fad2918c97d1bd",
+    "semantic_hash": "adc4e433630b007a03fad2918c97d1bd"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/NetWorthScreen.tsx": {
+    "mtime": 1783713135.2355833,
+    "ast_hash": "3acd5d335666d666b133b64ebf15a370",
+    "semantic_hash": "3acd5d335666d666b133b64ebf15a370"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/ProjectionScreen.tsx": {
+    "mtime": 1783707949.2116506,
+    "ast_hash": "1f14ec10b1175d30d1abd81f5969b1ca",
+    "semantic_hash": "1f14ec10b1175d30d1abd81f5969b1ca"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/ReconciliationScreen.tsx": {
+    "mtime": 1783708067.876468,
+    "ast_hash": "e323c52f3a479d73196a1044df061bf7",
+    "semantic_hash": "e323c52f3a479d73196a1044df061bf7"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/ReportsScreen.tsx": {
+    "mtime": 1783709539.7655692,
+    "ast_hash": "1f6abe0a5ccbd44b5df8c94e824b5b79",
+    "semantic_hash": "1f6abe0a5ccbd44b5df8c94e824b5b79"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/SettingsScreen.tsx": {
+    "mtime": 1783708067.8776891,
+    "ast_hash": "25c291020b039fd2580719fe57bae1a5",
+    "semantic_hash": "25c291020b039fd2580719fe57bae1a5"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/TransactionEditor.test.tsx": {
+    "mtime": 1783709539.7795115,
+    "ast_hash": "8005fe8885369abe0eb0f99bd23991b8",
+    "semantic_hash": "8005fe8885369abe0eb0f99bd23991b8"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/TransactionEditor.tsx": {
+    "mtime": 1783707752.0378683,
+    "ast_hash": "dc84a2826b8772733d48f28a3b658d8c",
+    "semantic_hash": "dc84a2826b8772733d48f28a3b658d8c"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/TransactionsScreen.tsx": {
+    "mtime": 1783707752.0412483,
+    "ast_hash": "9a4b8266e98b12e3dee8d40d28ffd758",
+    "semantic_hash": "9a4b8266e98b12e3dee8d40d28ffd758"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/components/ui.tsx": {
+    "mtime": 1783707752.0371742,
+    "ast_hash": "3ae2be254bc9d7e548a9f975c6d40cac",
+    "semantic_hash": "3ae2be254bc9d7e548a9f975c6d40cac"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/main.tsx": {
+    "mtime": 1783707752.0355027,
+    "ast_hash": "0202d6997124d676aa13e2141b403c20",
+    "semantic_hash": "0202d6997124d676aa13e2141b403c20"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/shared/finance.test.ts": {
+    "mtime": 1783713544.4210472,
+    "ast_hash": "7328ca6fefac678304079180144bc142",
+    "semantic_hash": "7328ca6fefac678304079180144bc142"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/shared/finance.ts": {
+    "mtime": 1783713008.4458294,
+    "ast_hash": "2210fa8c9c5c90f26ecfbbcd6cb1eee2",
+    "semantic_hash": "2210fa8c9c5c90f26ecfbbcd6cb1eee2"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/shared/reconciliation.test.ts": {
+    "mtime": 1783709539.7751741,
+    "ast_hash": "a3e8d32b48724c191ced0e5e71de6727",
+    "semantic_hash": "a3e8d32b48724c191ced0e5e71de6727"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/shared/reconciliation.ts": {
+    "mtime": 1783709339.2644427,
+    "ast_hash": "26ebdf3a00d260f0fa63c2ab8ef87db0",
+    "semantic_hash": "26ebdf3a00d260f0fa63c2ab8ef87db0"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/shared/types.ts": {
+    "mtime": 1783707511.130033,
+    "ast_hash": "54424ac797f30307e8351c6718bc68b0",
+    "semantic_hash": "54424ac797f30307e8351c6718bc68b0"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/tests/e2e/desktop.spec.ts": {
+    "mtime": 1783714084.108545,
+    "ast_hash": "0cba214a9ad2661facb7618f8529533d",
+    "semantic_hash": "0cba214a9ad2661facb7618f8529533d"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/tsconfig.json": {
+    "mtime": 1783709539.7684288,
+    "ast_hash": "5d8bd69799b9958e3979bde07eab0f17",
+    "semantic_hash": "5d8bd69799b9958e3979bde07eab0f17"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/vitest.config.ts": {
+    "mtime": 1783710904.0546253,
+    "ast_hash": "e1e7b2cb8a0f25ef2d5b3b12f590c452",
+    "semantic_hash": "e1e7b2cb8a0f25ef2d5b3b12f590c452"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md": {
+    "mtime": 1783709578.130971,
+    "ast_hash": "0f6b8f2d104f3f0ecc699951b356dbf2",
+    "semantic_hash": "0f6b8f2d104f3f0ecc699951b356dbf2"
+  },
+  "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/index.html": {
+    "mtime": 1783710979.650814,
+    "ast_hash": "42bb7d64c97d650fa596c9321ca3c386",
+    "semantic_hash": "42bb7d64c97d650fa596c9321ca3c386"
   }
 }

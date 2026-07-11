@@ -1,0 +1,344 @@
+{
+  "nodes": [
+    {
+      "id": "readme_finance_tracker",
+      "label": "Finance Tracker",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_python_tkinter_desktop",
+      "label": "Python/Tkinter Desktop App",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_modern_desktop_electron",
+      "label": "Modern Desktop Electron + React App",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_android_mvp",
+      "label": "Android MVP (Kotlin + Jetpack Compose)",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_finance_data_json",
+      "label": "finance_data.json Shared Data File",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_syncthing_workflow",
+      "label": "Syncthing File Sync Workflow",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_bnpl_booking",
+      "label": "BNPL (Buy Now Pay Later) Booking",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_storage_access_framework",
+      "label": "Android Storage Access Framework",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "readme_kotlinx_serialization",
+      "label": "kotlinx.serialization JSON Codec",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "modern_desktop_readme_modern_desktop_app",
+      "label": "Modern Desktop App Details",
+      "file_type": "document",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "modern_desktop_readme_features",
+      "label": "Modern Desktop Features",
+      "file_type": "document",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "modern_desktop_readme_data_safety",
+      "label": "Modern Desktop Data Safety (Atomic Writes)",
+      "file_type": "document",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "modern_desktop_readme_csv_reconciliation",
+      "label": "German-Bank CSV Reconciliation",
+      "file_type": "concept",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "modern_desktop_readme_ai_insights_deferred",
+      "label": "AI Insights Deferred",
+      "file_type": "rationale",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    },
+    {
+      "id": "renderer_index_html_entry",
+      "label": "Modern Desktop HTML Entry Point",
+      "file_type": "document",
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/src/renderer/index.html",
+      "source_location": null,
+      "source_url": null,
+      "captured_at": null,
+      "author": null,
+      "contributor": null
+    }
+  ],
+  "edges": [
+    {
+      "source": "readme_finance_tracker",
+      "target": "readme_python_tkinter_desktop",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_finance_tracker",
+      "target": "readme_modern_desktop_electron",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_finance_tracker",
+      "target": "readme_android_mvp",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_python_tkinter_desktop",
+      "target": "readme_finance_data_json",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_modern_desktop_electron",
+      "target": "readme_finance_data_json",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_android_mvp",
+      "target": "readme_finance_data_json",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_syncthing_workflow",
+      "target": "readme_finance_data_json",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_android_mvp",
+      "target": "readme_storage_access_framework",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_android_mvp",
+      "target": "readme_kotlinx_serialization",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_android_mvp",
+      "target": "readme_bnpl_booking",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "readme_modern_desktop_electron",
+      "target": "modern_desktop_readme_modern_desktop_app",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "modern_desktop_readme_modern_desktop_app",
+      "target": "readme_finance_data_json",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "modern_desktop_readme_modern_desktop_app",
+      "target": "modern_desktop_readme_features",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "modern_desktop_readme_modern_desktop_app",
+      "target": "modern_desktop_readme_data_safety",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "modern_desktop_readme_modern_desktop_app",
+      "target": "modern_desktop_readme_csv_reconciliation",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "modern_desktop_readme_modern_desktop_app",
+      "target": "modern_desktop_readme_ai_insights_deferred",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "weight": 1.0
+    },
+    {
+      "source": "modern_desktop_readme_modern_desktop_app",
+      "target": "renderer_index_html_entry",
+      "relation": "references",
+      "confidence": "EXTRACTED",
+      "confidence_score": 1.0,
+      "source_file": "/mnt/c/Users/molze/GitHub/finance-use-ubuntu-for-changes/modern-desktop/README.md",
+      "source_location": null,
+      "weight": 1.0
+    }
+  ],
+  "hyperedges": [],
+  "input_tokens": 0,
+  "output_tokens": 0
+}
