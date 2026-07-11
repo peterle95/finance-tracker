@@ -10,6 +10,8 @@ import type {
   TransactionType
 } from "./types";
 
+export type TransactionDateBasis = "transaction" | "behavior";
+
 export const DEFAULT_EXPENSE_CATEGORIES = [
   "Food",
   "Transportation",
@@ -301,9 +303,18 @@ export function sumFixedCosts(document: FinanceDocument, month: string): number 
   return getActiveFixedCosts(document, month).reduce((total, cost) => total + asNumber(cost.amount), 0);
 }
 
-export function monthTransactions(document: FinanceDocument, type: TransactionType, month: string): FinanceTransaction[] {
+function transactionDate(transaction: FinanceTransaction, dateBasis: TransactionDateBasis): string {
+  return dateBasis === "behavior" ? transaction.behavior_date ?? transaction.date : transaction.date;
+}
+
+export function monthTransactions(
+  document: FinanceDocument,
+  type: TransactionType,
+  month: string,
+  dateBasis: TransactionDateBasis = "transaction"
+): FinanceTransaction[] {
   const source = type === "Expense" ? document.expenses : document.incomes;
-  return source.filter((transaction) => transaction.date.startsWith(month));
+  return source.filter((transaction) => transactionDate(transaction, dateBasis).startsWith(month));
 }
 
 export function sumMonthTransactions(document: FinanceDocument, type: TransactionType, month: string): number {
@@ -351,7 +362,8 @@ export function dailyBudgetOverview(
   document: FinanceDocument,
   month: string,
   includeNegativeCarryover = false,
-  now = new Date()
+  now = new Date(),
+  dateBasis: TransactionDateBasis = "transaction"
 ): DailyBudgetOverview {
   const baseIncome = getActiveMonthlyIncome(document, month);
   const flexibleIncome = sumMonthTransactions(document, "Income", month);
@@ -368,10 +380,10 @@ export function dailyBudgetOverview(
   for (let day = 1; day <= throughDay; day += 1) {
     const date = month + "-" + String(day).padStart(2, "0");
     const income = document.incomes
-      .filter((item) => item.date === date)
+      .filter((item) => transactionDate(item, dateBasis) === date)
       .reduce((total, item) => total + asNumber(item.amount), 0);
     const expense = document.expenses
-      .filter((item) => item.date === date)
+      .filter((item) => transactionDate(item, dateBasis) === date)
       .reduce((total, item) => total + asNumber(item.amount), 0);
     remainingBudget += income - expense;
     spent += expense;
@@ -581,12 +593,13 @@ export function categoryTotals(
   type: TransactionType,
   startMonth: string,
   endMonth = startMonth,
-  includeRecurring = true
+  includeRecurring = true,
+  dateBasis: TransactionDateBasis = "transaction"
 ): Array<{ name: string; value: number }> {
   const totals = new Map<string, number>();
   let month = startMonth;
   while (month <= endMonth) {
-    monthTransactions(document, type, month).forEach((transaction) => {
+    monthTransactions(document, type, month, dateBasis).forEach((transaction) => {
       totals.set(transaction.category, (totals.get(transaction.category) ?? 0) + asNumber(transaction.amount));
     });
     if (includeRecurring && type === "Expense") {
@@ -608,17 +621,28 @@ export function categoryTotals(
     .sort((first, second) => second.value - first.value);
 }
 
-export function historicalTotals(document: FinanceDocument, type: TransactionType, months = 6, end = currentMonth()) {
+export function historicalTotals(
+  document: FinanceDocument,
+  type: TransactionType,
+  months = 6,
+  end = currentMonth(),
+  dateBasis: TransactionDateBasis = "transaction"
+) {
   return Array.from({ length: months }, (_, index) => {
     const month = monthOffset(end, index - months + 1);
-    const transactions = sumMonthTransactions(document, type, month);
+    const transactions = monthTransactions(document, type, month, dateBasis)
+      .reduce((total, transaction) => total + asNumber(transaction.amount), 0);
     const recurring = type === "Expense" ? sumFixedCosts(document, month) : getActiveMonthlyIncome(document, month);
     return { month, value: transactions + recurring };
   });
 }
 
-export function spendingPace(document: FinanceDocument, month: string) {
-  const overview = dailyBudgetOverview(document, month);
+export function spendingPace(
+  document: FinanceDocument,
+  month: string,
+  dateBasis: TransactionDateBasis = "transaction"
+) {
+  const overview = dailyBudgetOverview(document, month, false, new Date(), dateBasis);
   return {
     ...overview,
     flexibleBudget: computeNetAvailableForSpending(document, month),
@@ -630,12 +654,17 @@ export function spendingPace(document: FinanceDocument, month: string) {
   };
 }
 
-export function dayOfWeekHeatmap(document: FinanceDocument, months = 3, end = currentMonth()) {
+export function dayOfWeekHeatmap(
+  document: FinanceDocument,
+  months = 3,
+  end = currentMonth(),
+  dateBasis: TransactionDateBasis = "transaction"
+) {
   const values = Array.from({ length: 7 }, (_, day) => ({ day, value: 0 }));
   for (let offset = 0; offset < months; offset += 1) {
     const month = monthOffset(end, -offset);
-    monthTransactions(document, "Expense", month).forEach((transaction) => {
-      const date = new Date(transaction.date + "T12:00:00");
+    monthTransactions(document, "Expense", month, dateBasis).forEach((transaction) => {
+      const date = new Date(transactionDate(transaction, dateBasis) + "T12:00:00");
       if (!Number.isNaN(date.getTime())) {
         values[date.getDay()].value += asNumber(transaction.amount);
       }

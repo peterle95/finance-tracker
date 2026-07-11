@@ -7,6 +7,7 @@ import {
   getActiveMonthlyIncome,
   makeTransaction,
   mergeDocuments,
+  monthTransactions,
   negativeCarryover,
   normalizeDocument
 } from "./finance";
@@ -36,6 +37,21 @@ describe("shared finance compatibility", () => {
 
     expect(transaction.date).toBe("2026-07-01");
     expect(transaction.behavior_date).toBe("2026-06-16");
+  });
+
+  it("filters reports by transaction date or spend-date metadata", () => {
+    const document = defaultDocument();
+    document.expenses.push({
+      date: "2026-07-01",
+      behavior_date: "2026-06-16",
+      amount: 25.5,
+      category: "Shopping",
+      description: "Klarna purchase"
+    });
+
+    expect(monthTransactions(document, "Expense", "2026-06")).toHaveLength(0);
+    expect(monthTransactions(document, "Expense", "2026-06", "behavior")).toHaveLength(1);
+    expect(monthTransactions(document, "Expense", "2026-07", "behavior")).toHaveLength(0);
   });
 
   it("uses active date windows for income and fixed costs", () => {

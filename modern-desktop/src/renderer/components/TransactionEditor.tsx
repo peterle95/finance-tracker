@@ -27,7 +27,7 @@ export function TransactionEditor({
   const [amount, setAmount] = useState(String(transaction?.amount ?? ""));
   const [category, setCategory] = useState(transaction?.category ?? document.categories[type][0] ?? "Other");
   const [description, setDescription] = useState(transaction?.description ?? "");
-  const [bnpl, setBnpl] = useState(Boolean(transaction?.behavior_date));
+  const [bnpl, setBnpl] = useState(type === "Expense" && !transaction ? true : Boolean(transaction?.behavior_date));
 
   useEffect(() => {
     if (open) {
@@ -36,7 +36,7 @@ export function TransactionEditor({
       setAmount(transaction?.amount ? String(transaction.amount) : "");
       setCategory(transaction?.category ?? document.categories[type][0] ?? "Other");
       setDescription(transaction?.description ?? "");
-      setBnpl(Boolean(transaction?.behavior_date));
+      setBnpl(type === "Expense" && !transaction ? true : Boolean(transaction?.behavior_date));
     }
   }, [open, transaction, type, document.categories]);
 

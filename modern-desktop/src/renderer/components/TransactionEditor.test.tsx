@@ -18,6 +18,7 @@ describe("TransactionEditor", () => {
       />
     );
 
+    expect((screen.getByRole("checkbox", { name: /Pay next month/ }) as HTMLInputElement).checked).toBe(true);
     await user.type(screen.getByLabelText("Amount"), "27.5");
     await user.type(screen.getByLabelText("Description"), "Lunch with a friend");
     await user.click(screen.getByRole("button", { name: "Add transaction" }));
@@ -25,7 +26,8 @@ describe("TransactionEditor", () => {
     expect(submit).toHaveBeenCalledWith("Expense", expect.objectContaining({
       amount: 27.5,
       category: "Food",
-      description: "Lunch with a friend"
+      description: "Lunch with a friend",
+      behavior_date: expect.any(String)
     }));
   });
 });

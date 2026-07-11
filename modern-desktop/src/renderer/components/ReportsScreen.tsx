@@ -23,6 +23,7 @@ import {
   monthTransactions,
   spendingPace
 } from "../../shared/finance";
+import type { TransactionDateBasis } from "../../shared/finance";
 import type { FinanceDocument, TransactionType } from "../../shared/types";
 import { Button, Card, PageHeader } from "./ui";
 
@@ -31,13 +32,19 @@ const DAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 type ChartKind = "pie" | "history" | "line" | "heatmap" | "pace";
 
-function lineRows(document: FinanceDocument, start: string, end: string, categories: string[]) {
+function lineRows(
+  document: FinanceDocument,
+  start: string,
+  end: string,
+  categories: string[],
+  dateBasis: TransactionDateBasis
+) {
   const rows: Array<Record<string, string | number>> = [];
   let month = start;
   while (month <= end) {
     const row: Record<string, string | number> = { month };
     categories.forEach((category) => {
-      row[category] = monthTransactions(document, "Expense", month)
+      row[category] = monthTransactions(document, "Expense", month, dateBasis)
         .filter((transaction) => transaction.category === category)
         .reduce((total, transaction) => total + transaction.amount, 0);
     });
@@ -61,15 +68,20 @@ export function ReportsScreen({
   const [rangeEnd, setRangeEnd] = useState(currentMonth());
   const [selectedCategories, setSelectedCategories] = useState<string[]>(document.categories.Expense.slice(0, 3));
   const [historyMonths, setHistoryMonths] = useState(6);
-  const pieData = categoryTotals(document, type, month);
-  const historyData = historicalTotals(document, type, historyMonths);
-  const categoryLine = useMemo(() => lineRows(document, rangeStart, rangeEnd, selectedCategories), [document, rangeStart, rangeEnd, selectedCategories]);
-  const heatmap = dayOfWeekHeatmap(document, historyMonths);
-  const pace = spendingPace(document, month);
+  const [dateBasis, setDateBasis] = useState<TransactionDateBasis>("transaction");
+  const pieData = categoryTotals(document, type, month, month, true, dateBasis);
+  const historyData = historicalTotals(document, type, historyMonths, currentMonth(), dateBasis);
+  const categoryLine = useMemo(
+    () => lineRows(document, rangeStart, rangeEnd, selectedCategories, dateBasis),
+    [document, rangeStart, rangeEnd, selectedCategories, dateBasis]
+  );
+  const heatmap = dayOfWeekHeatmap(document, historyMonths, currentMonth(), dateBasis);
+  const pace = spendingPace(document, month, dateBasis);
   const report = [
     "FINANCE REPORT",
     "",
     "View: " + kind,
+    "Date basis: " + (dateBasis === "behavior" ? "Spend date (metadata)" : "Transaction date"),
     "Period: " + (kind === "pie" || kind === "pace" ? month : rangeStart + " to " + rangeEnd),
     "",
     ...pieData.map((entry) => entry.name + ": " + formatCurrency(entry.value))
@@ -103,6 +115,14 @@ export function ReportsScreen({
           ))}
         </div>
         <div className="toolbar">
+          <select
+            aria-label="Report date basis"
+            value={dateBasis}
+            onChange={(event) => setDateBasis(event.target.value as TransactionDateBasis)}
+          >
+            <option value="transaction">Transaction date</option>
+            <option value="behavior">Spend date (metadata)</option>
+          </select>
           {(kind === "pie" || kind === "history") ? (
             <select value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
               <option value="Expense">Expenses</option>
