@@ -33,6 +33,18 @@ export FINANCE_DATA_FILE="$HOME/Syncthing/FinanceTrackerData/finance_data.json"
 python run.py
 ```
 
+## Modern Desktop App
+
+The separate Electron + React desktop replacement lives in /modern-desktop. It leaves the Python/Tkinter app intact while reading and writing the same finance_data.json file.
+
+~~~powershell
+cd modern-desktop
+npm install
+npm run dev
+~~~
+
+See /modern-desktop/README.md for the data-connection workflow, tests, and Windows installer build.
+
 ## Android App Status
 
 The Android MVP lives in `/android`.

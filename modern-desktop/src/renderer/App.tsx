@@ -1,0 +1,278 @@
+import {
+  BarChart3,
+  ChevronLeft,
+  ChevronRight,
+  FileCheck2,
+  LayoutDashboard,
+  LineChart,
+  Menu,
+  Moon,
+  ReceiptText,
+  Settings,
+  SlidersHorizontal,
+  Target,
+  TrendingUp,
+  WalletCards
+} from "lucide-react";
+import { useEffect, useState } from "react";
+import { cloneDocument } from "../shared/finance";
+import type {
+  DataConnection,
+  DataLoadResult,
+  FinanceDocument,
+  FinanceTransaction,
+  TransactionType
+} from "../shared/types";
+import { BudgetScreen } from "./components/BudgetScreen";
+import { CategoryLimitsScreen } from "./components/CategoryLimitsScreen";
+import { DashboardScreen } from "./components/DashboardScreen";
+import { GoalsScreen } from "./components/GoalsScreen";
+import { NetWorthScreen } from "./components/NetWorthScreen";
+import { ProjectionScreen } from "./components/ProjectionScreen";
+import { ReconciliationScreen } from "./components/ReconciliationScreen";
+import { ReportsScreen } from "./components/ReportsScreen";
+import { SettingsScreen } from "./components/SettingsScreen";
+import { TransactionEditor } from "./components/TransactionEditor";
+import { TransactionsScreen } from "./components/TransactionsScreen";
+import { Button, LoadingScreen } from "./components/ui";
+
+type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
+type Theme = "dark" | "light";
+
+const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboard }> = [
+  { page: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { page: "transactions", label: "Transactions", icon: ReceiptText },
+  { page: "budget", label: "Budget", icon: WalletCards },
+  { page: "category-limits", label: "Category limits", icon: SlidersHorizontal },
+  { page: "goals", label: "Goals", icon: Target },
+  { page: "reports", label: "Reports", icon: BarChart3 },
+  { page: "net-worth", label: "Net worth", icon: LineChart },
+  { page: "projection", label: "Projection", icon: TrendingUp },
+  { page: "reconciliation", label: "Reconciliation", icon: FileCheck2 }
+];
+
+interface EditorState {
+  type: TransactionType;
+  transaction?: FinanceTransaction;
+}
+
+function initialTheme(): Theme {
+  const stored = localStorage.getItem("finance-tracker-theme");
+  if (stored === "light" || stored === "dark") {
+    return stored;
+  }
+  return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
+}
+
+export function App() {
+  const [financeDocument, setDocument] = useState<FinanceDocument | null>(null);
+  const [connection, setConnection] = useState<DataConnection>({ path: null, isConnected: false });
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState<Page>("dashboard");
+  const [editor, setEditor] = useState<EditorState | null>(null);
+  const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [collapsed, setCollapsed] = useState(false);
+  const [toast, setToast] = useState("");
+
+  useEffect(() => {
+    window.document.documentElement.dataset.theme = theme;
+    localStorage.setItem("finance-tracker-theme", theme);
+  }, [theme]);
+
+  useEffect(() => {
+    void loadData();
+  }, []);
+
+  function applyLoadResult(result: DataLoadResult) {
+    setDocument(result.document);
+    setConnection(result.connection);
+    setLoading(false);
+  }
+
+  async function loadData() {
+    setLoading(true);
+    try {
+      applyLoadResult(await window.finance.load());
+    } catch {
+      applyLoadResult({
+        document: null,
+        connection: {
+          path: null,
+          isConnected: false,
+          message: "The desktop bridge could not load the finance data."
+        }
+      });
+    }
+  }
+
+  async function chooseDataFile() {
+    setLoading(true);
+    applyLoadResult(await window.finance.chooseDataFile());
+  }
+
+  async function createDataFile() {
+    setLoading(true);
+    applyLoadResult(await window.finance.createDataFile());
+  }
+
+  async function persist(next: FinanceDocument) {
+    setDocument(next);
+    setSaving(true);
+    try {
+      const result = await window.finance.saveDocument(next);
+      setDocument(result.document);
+      setConnection(result.connection);
+      setToast("Saved to the shared finance file.");
+    } catch (error) {
+      setToast(error instanceof Error ? error.message : "Save failed. Reload the file before trying again.");
+    } finally {
+      setSaving(false);
+      window.setTimeout(() => setToast(""), 3200);
+    }
+  }
+
+  function saveTransaction(type: TransactionType, transaction: FinanceTransaction) {
+    if (!financeDocument) {
+      return;
+    }
+    const next = cloneDocument(financeDocument);
+    const source = type === "Expense" ? next.expenses : next.incomes;
+    const index = source.findIndex((entry) => entry.id && entry.id === transaction.id);
+    if (index >= 0) {
+      source[index] = transaction;
+    } else {
+      source.push(transaction);
+    }
+    void persist(next);
+  }
+
+  function deleteTransaction(type: TransactionType, transaction: FinanceTransaction) {
+    if (!financeDocument || !window.confirm("Delete this transaction from the shared finance file?")) {
+      return;
+    }
+    const next = cloneDocument(financeDocument);
+    const source = type === "Expense" ? next.expenses : next.incomes;
+    const index = source.findIndex((entry) => entry.id && entry.id === transaction.id);
+    if (index >= 0) {
+      source.splice(index, 1);
+    } else {
+      const fallback = source.indexOf(transaction);
+      if (fallback >= 0) {
+        source.splice(fallback, 1);
+      }
+    }
+    void persist(next);
+  }
+
+  async function exportText(defaultName: string, text: string) {
+    const filePath = await window.finance.exportText(defaultName, text);
+    if (filePath) {
+      setToast("Report exported.");
+      window.setTimeout(() => setToast(""), 3200);
+    }
+  }
+
+  if (loading) {
+    return <LoadingScreen />;
+  }
+
+  if (!financeDocument) {
+    return (
+      <main className="connect-screen">
+        <div className="connect-orb" />
+        <section className="connect-card">
+          <div className="brand-mark">F</div>
+          <p className="eyebrow">Finance Tracker Modern</p>
+          <h1>Connect your shared finance file</h1>
+          <p>Choose the existing <code>finance_data.json</code> used by the Python and Android apps, or create a fresh file.</p>
+          {connection.message ? <p className="error-copy">{connection.message}</p> : null}
+          <div className="connect-actions">
+            <Button onClick={() => void chooseDataFile()}>Choose finance_data.json</Button>
+            <Button variant="secondary" onClick={() => void createDataFile()}>Create new file</Button>
+          </div>
+          <small>The original Python app stays unchanged. This app reads and writes the same JSON contract.</small>
+        </section>
+      </main>
+    );
+  }
+
+  const activeDocument = financeDocument;
+
+  function content() {
+    switch (page) {
+      case "transactions":
+        return <TransactionsScreen document={activeDocument} onAdd={(type) => setEditor({ type })} onEdit={(type, transaction) => setEditor({ type, transaction })} onDelete={deleteTransaction} />;
+      case "budget":
+        return <BudgetScreen document={activeDocument} onSave={(next) => void persist(next)} onOpenCategoryLimits={() => setPage("category-limits")} />;
+      case "category-limits":
+        return <CategoryLimitsScreen document={activeDocument} onSave={(next) => void persist(next)} />;
+      case "goals":
+        return <GoalsScreen document={activeDocument} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
+      case "reports":
+        return <ReportsScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
+      case "net-worth":
+        return <NetWorthScreen document={activeDocument} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
+      case "projection":
+        return <ProjectionScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
+      case "reconciliation":
+        return <ReconciliationScreen document={activeDocument} onSave={(next) => void persist(next)} />;
+      case "settings":
+        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} onThemeChange={setTheme} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
+      case "dashboard":
+      default:
+        return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => setPage(next as Page)} />;
+    }
+  }
+
+  return (
+    <div className={"app-shell " + (collapsed ? "sidebar-collapsed" : "")}>
+      <aside className="sidebar">
+        <div className="sidebar-brand">
+          <div className="brand-mark">F</div>
+          <div className="brand-copy"><strong>Finance</strong><span>Tracker Modern</span></div>
+          <button className="icon-button sidebar-toggle" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle navigation">
+            {collapsed ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
+          </button>
+        </div>
+        <nav>
+          <p className="nav-label">Workspace</p>
+          {navigation.map((entry) => {
+            const Icon = entry.icon;
+            return <button key={entry.page} className={page === entry.page ? "active" : ""} onClick={() => setPage(entry.page)}><Icon size={18} /><span>{entry.label}</span></button>;
+          })}
+          <p className="nav-label nav-lower">Application</p>
+          <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")}><Settings size={18} /><span>Settings</span></button>
+        </nav>
+        <div className="sidebar-footer">
+          <span className="connection-dot" />
+          <div><strong>Connected</strong><span>{connection.path?.split(/[\\/]/).at(-1) ?? "finance_data.json"}</span></div>
+        </div>
+      </aside>
+
+      <main className="main-panel">
+        <header className="topbar">
+          <button className="icon-button mobile-menu" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle menu"><Menu size={20} /></button>
+          <div className="topbar-path"><span className="connection-dot" />{connection.path ?? "No connected file"}</div>
+          <div className="topbar-actions">
+            {saving ? <span className="saving-status">Saving…</span> : null}
+            <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme"><Moon size={18} /></button>
+          </div>
+        </header>
+        {toast ? <div className="toast">{toast}</div> : null}
+        <div className="page-scroll">{content()}</div>
+      </main>
+
+      {editor ? (
+        <TransactionEditor
+          open
+          document={activeDocument}
+          type={editor.type}
+          transaction={editor.transaction}
+          onOpenChange={(open) => { if (!open) setEditor(null); }}
+          onSubmit={saveTransaction}
+        />
+      ) : null}
+    </div>
+  );
+}

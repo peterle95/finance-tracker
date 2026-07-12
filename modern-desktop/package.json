@@ -1,0 +1,64 @@
+{
+  "name": "finance-tracker-modern-desktop",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Modern Electron desktop client for the shared Finance Tracker JSON file.",
+  "main": "./out/main/index.js",
+  "scripts": {
+    "dev": "npm exec -- electron-vite dev",
+    "build": "npm run typecheck && npm exec -- electron-vite build",
+    "preview": "npm exec -- electron-vite preview",
+    "typecheck": "npm exec -- tsc --noEmit",
+    "test": "npm exec -- vitest run",
+    "test:watch": "npm exec -- vitest",
+    "test:e2e": "npm run build && npm exec -- playwright test",
+    "package:win": "npm run build && npm exec -- electron-builder --win nsis"
+  },
+  "dependencies": {
+    "@radix-ui/react-dialog": "^1.1.19",
+    "lucide-react": "^1.24.0",
+    "react": "^19.2.7",
+    "react-dom": "^19.2.7",
+    "recharts": "^3.9.2"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.61.1",
+    "@tailwindcss/vite": "^4.3.2",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
+    "@types/node": "^22.15.21",
+    "@types/react": "^19.2.7",
+    "@types/react-dom": "^19.2.3",
+    "@swc/core": "^1.15.43",
+    "@vitejs/plugin-react": "^5.2.0",
+    "electron": "^43.1.0",
+    "electron-builder": "^26.15.3",
+    "electron-vite": "^5.0.0",
+    "jsdom": "^29.1.1",
+    "typescript": "^7.0.2",
+    "vite": "^7.3.6",
+    "vitest": "^4.1.10"
+  },
+  "build": {
+    "appId": "com.molze.financetracker",
+    "productName": "Finance Tracker Modern",
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "out/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true
+    }
+  }
+}
