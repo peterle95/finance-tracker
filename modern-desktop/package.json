@@ -5,6 +5,8 @@
   "description": "Modern Electron desktop client for the shared Finance Tracker JSON file.",
   "main": "./out/main/index.js",
   "scripts": {
+    "postinstall": "npm run install:electron",
+    "install:electron": "node scripts/install-electron.mjs",
     "dev": "npm exec -- electron-vite dev",
     "build": "npm run typecheck && npm exec -- electron-vite build",
     "preview": "npm exec -- electron-vite preview",
