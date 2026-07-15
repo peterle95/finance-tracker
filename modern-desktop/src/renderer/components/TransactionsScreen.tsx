@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { formatCurrency } from "../../shared/finance";
+import { currentMonth, formatCurrency } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
 
@@ -19,7 +19,7 @@ export function TransactionsScreen({
 }: TransactionsScreenProps) {
   const [type, setType] = useState<"All" | TransactionType>("All");
   const [query, setQuery] = useState("");
-  const [month, setMonth] = useState("");
+  const [month, setMonth] = useState(currentMonth);
   const [sortKey, setSortKey] = useState<"date" | "amount" | "category">("date");
   const [descending, setDescending] = useState(true);
 
@@ -80,7 +80,7 @@ export function TransactionsScreen({
             <option value="Income">Income</option>
           </select>
           <input aria-label="Filter by booking month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
-          <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setMonth(""); }}>Clear filters</Button>
+          <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setMonth(currentMonth()); }}>Clear filters</Button>
         </div>
       </Card>
 

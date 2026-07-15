@@ -1,11 +1,18 @@
 import { Camera, LineChart as LineChartIcon, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip } from "recharts";
+import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { assetAllocation, cloneDocument, createSnapshot, formatCurrency, isoToday, netWorth, roundCurrency, snapshots } from "../../shared/finance";
 import type { FinanceDocument } from "../../shared/types";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
 
 const COLORS = ["#f5c451", "#2dd4bf", "#7dd3fc", "#8b5cf6", "#fb923c"];
+const tooltipStyle = {
+  background: "#321452",
+  border: "1px solid #8b5cf6",
+  borderRadius: 10,
+  color: "#ffffff",
+  boxShadow: "0 12px 28px rgba(0, 0, 0, 0.35)"
+};
 
 export function NetWorthScreen({
   document,
@@ -66,7 +73,9 @@ export function NetWorthScreen({
           {history.length > 1 ? (
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={history}>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
+                <YAxis tickFormatter={(value) => "\u20AC" + Math.round(value)} tickLine={false} axisLine={false} width={70} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#ffffff" }} itemStyle={{ color: "#ffffff" }} formatter={(value) => formatCurrency(Number(value))} />
                 <Line type="monotone" dataKey="net_worth" stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
@@ -80,7 +89,7 @@ export function NetWorthScreen({
                 <Pie data={allocation.assets} dataKey="value" nameKey="name" innerRadius={65} outerRadius={100} paddingAngle={3}>
                   {allocation.assets.map((_entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#ffffff" }} itemStyle={{ color: "#ffffff" }} formatter={(value) => formatCurrency(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
            ) : <EmptyState title="Add account balances" detail="Balance entries from Budget will appear here." />}

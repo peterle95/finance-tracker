@@ -29,7 +29,7 @@ export function DashboardScreen({
   const recent = [...document.expenses, ...document.incomes]
     .sort((first, second) => second.date.localeCompare(first.date))
     .slice(0, 6);
-  const categories = categoryTotals(document, "Expense", month).slice(0, 5);
+  const categories = categoryTotals(document, "Expense", month, month, false).slice(0, 5);
   const topCategory = categories[0];
 
   return (
