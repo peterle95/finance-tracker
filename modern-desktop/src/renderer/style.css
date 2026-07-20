@@ -1644,6 +1644,11 @@ tbody tr:hover td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .exploration-context-grid,
+  .exploration-entry-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .inline-form,
   .loan-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -1718,6 +1723,12 @@ tbody tr:hover td {
   .page-header,
   .dashboard-grid,
   .two-column {
+    grid-template-columns: 1fr;
+  }
+
+  .exploration-context-grid,
+  .exploration-entry-grid,
+  .exploration-summary-grid {
     grid-template-columns: 1fr;
   }
 
