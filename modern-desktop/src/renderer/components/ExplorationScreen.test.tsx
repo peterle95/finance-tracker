@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
-import { defaultDocument } from "../../shared/finance";
+import { defaultDocument, formatCurrency } from "../../shared/finance";
 import { ExplorationScreen } from "./ExplorationScreen";
 
 describe("ExplorationScreen", () => {
@@ -12,7 +12,7 @@ describe("ExplorationScreen", () => {
     render(<ExplorationScreen document={document} />);
 
     expect(screen.getByRole("heading", { name: "Explore what comes next" })).toBeTruthy();
-    expect(screen.getByText("€1,250.00")).toBeTruthy();
+    expect(screen.getByText("Current net worth").parentElement?.textContent).toContain(formatCurrency(1250));
     expect(screen.getByRole("button", { name: "Open Future Simulator" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open Net-Worth Journey" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open Budget Balancer" })).toBeTruthy();
