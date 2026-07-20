@@ -26,6 +26,7 @@ import type {
 import { BudgetScreen } from "./components/BudgetScreen";
 import { CategoryLimitsScreen } from "./components/CategoryLimitsScreen";
 import { DashboardScreen } from "./components/DashboardScreen";
+import { ExplorationScreen } from "./components/ExplorationScreen";
 import { GoalsScreen } from "./components/GoalsScreen";
 import { NetWorthScreen } from "./components/NetWorthScreen";
 import { ProjectionScreen } from "./components/ProjectionScreen";
@@ -36,7 +37,7 @@ import { TransactionEditor } from "./components/TransactionEditor";
 import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
 
-type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
+type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "exploration" | "projection" | "reconciliation" | "settings";
 type Theme = "dark" | "light";
 
 const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboard }> = [
@@ -47,6 +48,7 @@ const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboar
   { page: "goals", label: "Goals", icon: Target },
   { page: "reports", label: "Reports", icon: BarChart3 },
   { page: "net-worth", label: "Net worth", icon: LineChart },
+  { page: "exploration", label: "Exploration", icon: TrendingUp },
   { page: "projection", label: "Projection", icon: TrendingUp },
   { page: "reconciliation", label: "Reconciliation", icon: FileCheck2 }
 ];
@@ -213,6 +215,8 @@ export function App() {
         return <ReportsScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
       case "net-worth":
         return <NetWorthScreen document={activeDocument} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
+      case "exploration":
+        return <ExplorationScreen document={activeDocument} />;
       case "projection":
         return <ProjectionScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
       case "reconciliation":
