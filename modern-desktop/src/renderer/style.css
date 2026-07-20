@@ -531,6 +531,96 @@ code {
   margin-bottom: 1rem;
 }
 
+.exploration-page {
+  --exploration-violet: #a78bfa;
+}
+
+.exploration-context-grid,
+.exploration-entry-grid,
+.exploration-summary-grid {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1.2rem;
+}
+
+.exploration-context-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.exploration-entry-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.exploration-entry {
+  display: flex;
+  min-height: 265px;
+  flex-direction: column;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--exploration-violet) 20%, transparent), transparent 13rem),
+    var(--surface);
+}
+
+.exploration-entry-icon {
+  display: grid;
+  width: 44px;
+  height: 44px;
+  margin-bottom: 1.2rem;
+  place-items: center;
+  border: 1px solid color-mix(in srgb, var(--exploration-violet) 42%, var(--border));
+  border-radius: 13px;
+  background: color-mix(in srgb, var(--exploration-violet) 15%, transparent);
+  color: var(--exploration-violet);
+}
+
+.exploration-entry h2,
+.section-heading h2,
+.exploration-focus-card h2 {
+  margin: 0;
+  color: var(--text);
+  font-size: 1.1rem;
+  letter-spacing: -0.025em;
+}
+
+.exploration-entry > p:not(.eyebrow),
+.exploration-focus-card > p {
+  color: var(--muted);
+  line-height: 1.55;
+}
+
+.exploration-entry > .button {
+  align-self: flex-start;
+  margin-top: auto;
+}
+
+.section-heading {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+  margin: 1.8rem 0 0.8rem;
+}
+
+.section-heading-note {
+  color: var(--faint);
+  font-size: 0.76rem;
+}
+
+.exploration-summary-grid {
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+}
+
+.exploration-safety-card {
+  border-color: color-mix(in srgb, var(--exploration-violet) 36%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--exploration-violet) 10%, var(--surface)), var(--surface));
+}
+
+.exploration-focus-card {
+  min-height: 260px;
+  background:
+    radial-gradient(circle at 100% 0%, color-mix(in srgb, var(--exploration-violet) 22%, transparent), transparent 18rem),
+    var(--surface);
+}
+
 .card-heading {
   display: flex;
   align-items: flex-start;
