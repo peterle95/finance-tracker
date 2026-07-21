@@ -1,6 +1,7 @@
 import type {
   AssetSnapshot,
   BudgetSettings,
+  BudgetSuggestion,
   FinanceDocument,
   FinanceTransaction,
   FixedCost,
@@ -323,12 +324,16 @@ export function sumMonthTransactions(document: FinanceDocument, type: Transactio
     .reduce((total, transaction) => total + asNumber(transaction.amount), 0);
 }
 
-export function computeNetAvailableForSpending(document: FinanceDocument, month: string): number {
+export function rawNetAvailableForSpending(document: FinanceDocument, month: string): number {
   const baseIncome = getActiveMonthlyIncome(document, month);
   const flexibleIncome = sumMonthTransactions(document, "Income", month);
   const fixedCosts = sumFixedCosts(document, month);
   const savingsGoal = asNumber(document.budget_settings.daily_savings_goal) * monthDays(month);
-  return Math.max(baseIncome + flexibleIncome - fixedCosts - savingsGoal, 0);
+  return roundCurrency(baseIncome + flexibleIncome - fixedCosts - savingsGoal);
+}
+
+export function computeNetAvailableForSpending(document: FinanceDocument, month: string): number {
+  return Math.max(rawNetAvailableForSpending(document, month), 0);
 }
 
 export function monthEndFlexibleBalance(document: FinanceDocument, month: string): number {
@@ -417,6 +422,86 @@ export interface AutoAssignResult {
   percentages: Record<string, number>;
   message: string;
   isOverspent: boolean;
+}
+
+const PROTECTED_BUDGET_PATTERN = /rent|mortgage|utility|utilities|debt|loan|insurance|saving|savings|commitment|obligation|tax|minimum/i;
+
+export function isProtectedBudgetCategory(category: string): boolean {
+  return PROTECTED_BUDGET_PATTERN.test(category);
+}
+
+export function budgetSuggestions(document: FinanceDocument, month = currentMonth()): BudgetSuggestion[] {
+  const budgets = categoryBudgetPercentages(document);
+  const categories = Array.from(new Set([
+    ...document.categories.Expense,
+    ...Object.keys(budgets)
+  ]));
+  const flexibleBudget = computeNetAvailableForSpending(document, month);
+  if (flexibleBudget <= 0 || categories.length < 2) {
+    return [];
+  }
+
+  const fixedCategories = new Set(getActiveFixedCosts(document, month)
+    .map((cost) => cost.description ?? cost.desc ?? ""));
+  const protectedCategories = new Set(categories.filter(isProtectedBudgetCategory));
+  fixedCategories.forEach((category) => protectedCategories.add(category));
+  const historicalMonths = [1, 2, 3].map((offset) => monthOffset(month, -offset));
+  const averageSpent = Object.fromEntries(categories.map((category) => [
+    category,
+    historicalMonths.reduce((total, historicalMonth) => total + monthTransactions(document, "Expense", historicalMonth)
+      .filter((transaction) => transaction.category === category)
+      .reduce((subtotal, transaction) => subtotal + asNumber(transaction.amount), 0), 0) / historicalMonths.length
+  ]));
+  const goals = getGoals(document).filter((goal) => goal.allocated_amount < goal.target_amount);
+  const goalImpact = goals.reduce((total, goal) => total
+    + (goal.target_amount - goal.allocated_amount) * (goal.priority === "High" ? 3 : goal.priority === "Low" ? 1 : 2), 0);
+  const entries = categories.map((category, index) => {
+    const allocated = flexibleBudget * (budgets[category] ?? 0) / 100;
+    const historical = averageSpent[category] ?? 0;
+    return {
+      category,
+      allocated,
+      historical,
+      historicalUnderspend: Math.max(allocated - historical, 0),
+      historicalNeed: Math.max(historical - allocated, 0),
+      categoryPriority: budgets[category] ?? 0,
+      order: categories.length - index
+    };
+  });
+  const sources = entries.filter((entry) => !protectedCategories.has(entry.category) && entry.historicalUnderspend > 0.01);
+  const targets = entries.filter((entry) => !protectedCategories.has(entry.category) && entry.historicalNeed > 0.01);
+
+  return sources.flatMap((source) => targets
+    .filter((target) => target.category !== source.category)
+    .map((target) => {
+      const amount = roundCurrency(Math.min(source.historicalUnderspend, target.historicalNeed));
+      const targetGoal = goals.find((goal) => goal.name.trim().toLowerCase() === target.category.trim().toLowerCase());
+      const targetGoalImpact = targetGoal ? targetGoal.target_amount - targetGoal.allocated_amount : 0;
+      const score = roundCurrency(
+        source.historicalUnderspend * 1000
+        + target.historicalNeed * 100
+        + target.categoryPriority * 10
+        + goalImpact * target.historicalNeed / Math.max(flexibleBudget, 1)
+        + targetGoalImpact * 100
+      );
+      const goalReason = targetGoal
+        ? "supports " + (targetGoal.priority ?? "Medium").toLowerCase() + "-priority goal " + targetGoal.name
+        : goalImpact > 0 ? "accounts for active goal shortfall" : "keeps goal impact neutral";
+      return {
+        source: source.category,
+        target: target.category,
+        amount,
+        score,
+        reason: "Moves " + formatCurrency(amount) + " from historical surplus in " + source.category
+          + " to " + target.category + "'s historical need; category priority " + target.categoryPriority.toFixed(1) + "% planned"
+          + "; " + goalReason + "."
+      };
+    }))
+    .filter((suggestion) => suggestion.amount > 0)
+    .sort((first, second) => second.score - first.score
+      || first.source.localeCompare(second.source)
+      || first.target.localeCompare(second.target))
+    .slice(0, 5);
 }
 
 export function autoAssignCategoryBudgets(

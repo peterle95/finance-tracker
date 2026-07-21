@@ -26,6 +26,7 @@ import type {
 import { BudgetScreen } from "./components/BudgetScreen";
 import { CategoryLimitsScreen } from "./components/CategoryLimitsScreen";
 import { DashboardScreen } from "./components/DashboardScreen";
+import { ExplorationScreen } from "./components/ExplorationScreen";
 import { GoalsScreen } from "./components/GoalsScreen";
 import { NetWorthScreen } from "./components/NetWorthScreen";
 import { ProjectionScreen } from "./components/ProjectionScreen";
@@ -36,7 +37,7 @@ import { TransactionEditor } from "./components/TransactionEditor";
 import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
 
-type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
+type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "exploration" | "projection" | "reconciliation" | "settings";
 type Theme = "dark" | "light";
 
 const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboard }> = [
@@ -47,6 +48,7 @@ const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboar
   { page: "goals", label: "Goals", icon: Target },
   { page: "reports", label: "Reports", icon: BarChart3 },
   { page: "net-worth", label: "Net worth", icon: LineChart },
+  { page: "exploration", label: "Exploration", icon: TrendingUp },
   { page: "projection", label: "Projection", icon: TrendingUp },
   { page: "reconciliation", label: "Reconciliation", icon: FileCheck2 }
 ];
@@ -64,6 +66,10 @@ function initialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
+function initialReducedMotion(): boolean {
+  return localStorage.getItem("finance-tracker-reduced-motion") === "true";
+}
+
 export function App() {
   const [financeDocument, setDocument] = useState<FinanceDocument | null>(null);
   const [connection, setConnection] = useState<DataConnection>({ path: null, isConnected: false });
@@ -72,13 +78,20 @@ export function App() {
   const [page, setPage] = useState<Page>("dashboard");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
+  const [explorationDirty, setExplorationDirty] = useState(false);
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
     localStorage.setItem("finance-tracker-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    window.document.documentElement.dataset.reducedMotion = String(reducedMotion);
+    localStorage.setItem("finance-tracker-reduced-motion", String(reducedMotion));
+  }, [reducedMotion]);
 
   useEffect(() => {
     void loadData();
@@ -128,7 +141,7 @@ export function App() {
       setToast(error instanceof Error ? error.message : "Save failed. Reload the file before trying again.");
     } finally {
       setSaving(false);
-      window.setTimeout(() => setToast(""), 3200);
+      window.setTimeout(() => setToast(""), 2000);
     }
   }
 
@@ -169,8 +182,18 @@ export function App() {
     const filePath = await window.finance.exportText(defaultName, text);
     if (filePath) {
       setToast("Report exported.");
-      window.setTimeout(() => setToast(""), 3200);
+      window.setTimeout(() => setToast(""), 2000);
     }
+  }
+
+  function navigate(next: Page) {
+    if (page === "exploration" && next !== "exploration" && explorationDirty) {
+      if (!window.confirm("Exploration has unsaved drafts. Leave without saving?")) {
+        return;
+      }
+      setExplorationDirty(false);
+    }
+    setPage(next);
   }
 
   if (loading) {
@@ -204,7 +227,7 @@ export function App() {
       case "transactions":
         return <TransactionsScreen document={activeDocument} onAdd={(type) => setEditor({ type })} onEdit={(type, transaction) => setEditor({ type, transaction })} onDelete={deleteTransaction} />;
       case "budget":
-        return <BudgetScreen document={activeDocument} onSave={(next) => void persist(next)} onOpenCategoryLimits={() => setPage("category-limits")} />;
+        return <BudgetScreen document={activeDocument} onSave={(next) => void persist(next)} onOpenCategoryLimits={() => navigate("category-limits")} />;
       case "category-limits":
         return <CategoryLimitsScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "goals":
@@ -213,15 +236,17 @@ export function App() {
         return <ReportsScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
       case "net-worth":
         return <NetWorthScreen document={activeDocument} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
+      case "exploration":
+        return <ExplorationScreen document={activeDocument} reducedMotion={reducedMotion} onConfirm={(next) => void persist(next)} onDirtyChange={setExplorationDirty} />;
       case "projection":
         return <ProjectionScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
       case "reconciliation":
         return <ReconciliationScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "settings":
-        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} onThemeChange={setTheme} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
+        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
-        return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => setPage(next as Page)} />;
+        return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
     }
   }
 
@@ -239,10 +264,10 @@ export function App() {
           <p className="nav-label">Workspace</p>
           {navigation.map((entry) => {
             const Icon = entry.icon;
-            return <button key={entry.page} className={page === entry.page ? "active" : ""} onClick={() => setPage(entry.page)}><Icon size={18} /><span>{entry.label}</span></button>;
+            return <button key={entry.page} className={page === entry.page ? "active" : ""} onClick={() => navigate(entry.page)}><Icon size={18} /><span>{entry.label}</span></button>;
           })}
           <p className="nav-label nav-lower">Application</p>
-          <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")}><Settings size={18} /><span>Settings</span></button>
+          <button className={page === "settings" ? "active" : ""} onClick={() => navigate("settings")}><Settings size={18} /><span>Settings</span></button>
         </nav>
         <div className="sidebar-footer">
           <span className="connection-dot" />
@@ -259,7 +284,7 @@ export function App() {
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme"><Moon size={18} /></button>
           </div>
         </header>
-        {toast ? <div className="toast">{toast}</div> : null}
+        {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
         <div className="page-scroll">{content()}</div>
       </main>
 

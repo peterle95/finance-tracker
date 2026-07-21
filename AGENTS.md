@@ -38,3 +38,17 @@ FINANCE_DATA_FILE=/path/to/data.json python run.py
 - Match existing code style — don't add comments
 - Verify with `python run.py` or Android Studio build
 - Never commit unless asked
+
+## Agent skills
+
+### Issue tracker
+
+Issues live in GitHub Issues for `peterle95/finance-tracker`. See `docs/agents/issue-tracker.md`.
+
+### Triage labels
+
+Use default labels: `needs-triage`, `needs-info`, `ready-for-agent`, `ready-for-human`, `wontfix`. See `docs/agents/triage-labels.md`.
+
+### Domain docs
+
+Single-context layout with root `CONTEXT.md` and `docs/adr/`. See `docs/agents/domain.md`.

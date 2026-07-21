@@ -6,7 +6,9 @@ interface SettingsScreenProps {
   document: FinanceDocument;
   connection: DataConnection;
   theme: "dark" | "light";
+  reducedMotion: boolean;
   onThemeChange(theme: "dark" | "light"): void;
+  onReducedMotionChange(reduced: boolean): void;
   onChooseFile(): void;
   onCreateFile(): void;
   onReload(): void;
@@ -16,7 +18,9 @@ export function SettingsScreen({
   document,
   connection,
   theme,
+  reducedMotion,
   onThemeChange,
+  onReducedMotionChange,
   onChooseFile,
   onCreateFile,
   onReload
@@ -45,6 +49,11 @@ export function SettingsScreen({
             <button className={theme === "dark" ? "selected" : ""} onClick={() => onThemeChange("dark")}><Moon size={17} /> Dark emerald</button>
             <button className={theme === "light" ? "selected" : ""} onClick={() => onThemeChange("light")}><Sun size={17} /> Light canvas</button>
           </div>
+          <label className="check-row motion-choice">
+            <input type="checkbox" checked={reducedMotion} onChange={(event) => onReducedMotionChange(event.target.checked)} />
+            <span>Reduce nonessential motion</span>
+          </label>
+          <p className="muted-copy">Disables springs, autoplay, and decorative transitions while keeping values and feedback visible.</p>
         </Card>
       </div>
 
