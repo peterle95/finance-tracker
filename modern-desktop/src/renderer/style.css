@@ -47,6 +47,14 @@
   --shadow: 0 24px 60px rgba(44, 83, 72, 0.12);
 }
 
+:root[data-reduced-motion="true"] *,
+:root[data-reduced-motion="true"] *::before,
+:root[data-reduced-motion="true"] *::after {
+  animation: none !important;
+  scroll-behavior: auto !important;
+  transition: none !important;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -1806,6 +1814,10 @@ tbody tr:hover td {
   color: var(--muted);
   font-size: 0.77rem;
   font-weight: 700;
+}
+
+.motion-choice {
+  margin-top: 1rem;
 }
 
 .segmented-control button {
