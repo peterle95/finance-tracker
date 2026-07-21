@@ -113,4 +113,34 @@ describe("App Exploration navigation", () => {
       budget_settings: expect.objectContaining({ category_budgets: expect.objectContaining({ Expense: expect.objectContaining({ Food: 20 }) }) })
     })));
   });
+
+  it("persists reduced-motion preference and applies it to the document", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    const bridge: FinanceApi = {
+      load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
+      chooseDataFile: vi.fn(),
+      createDataFile: vi.fn(),
+      saveDocument: vi.fn(),
+      chooseBankCsv: vi.fn(),
+      exportText: vi.fn()
+    };
+    window.finance = bridge;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
+    });
+    localStorage.removeItem("finance-tracker-reduced-motion");
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Your money, clearly" })).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: "Settings" }));
+    const preference = screen.getByRole("checkbox", { name: "Reduce nonessential motion" }) as HTMLInputElement;
+    expect(preference.checked).toBe(false);
+    await user.click(preference);
+
+    expect(preference.checked).toBe(true);
+    expect(localStorage.getItem("finance-tracker-reduced-motion")).toBe("true");
+    expect(window.document.documentElement.dataset.reducedMotion).toBe("true");
+  });
 });
