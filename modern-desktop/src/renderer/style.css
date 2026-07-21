@@ -696,6 +696,218 @@ code {
   font-size: 0.85rem;
 }
 
+.journey-workspace {
+  display: grid;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.journey-chart-card {
+  min-width: 0;
+  background: linear-gradient(135deg, color-mix(in srgb, var(--exploration-violet) 8%, var(--surface)), var(--surface));
+}
+
+.journey-toolbar,
+.journey-legend,
+.journey-scrubber,
+.journey-selected-summary,
+.journey-marker,
+.journey-driver-list > div {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+}
+
+.journey-toolbar {
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.journey-toolbar .control-label {
+  min-width: min(300px, 100%);
+}
+
+.journey-confidence {
+  display: flex;
+  align-items: baseline;
+  gap: 0.55rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.journey-confidence strong {
+  color: var(--accent-strong);
+  text-transform: capitalize;
+}
+
+.journey-confidence small {
+  color: var(--faint);
+}
+
+.journey-legend {
+  flex-wrap: wrap;
+  margin: 1.15rem 0 0.3rem;
+}
+
+.journey-legend-item {
+  display: grid;
+  grid-template-columns: 44px auto;
+  align-items: center;
+  column-gap: 0.45rem;
+  color: var(--text);
+  font-size: 0.78rem;
+}
+
+.journey-legend-item small {
+  grid-column: 2;
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+
+.journey-series-swatch {
+  display: block;
+  width: 38px;
+  border-top: 3px solid;
+}
+
+.journey-legend-item[data-series-style="dashed"] .journey-series-swatch {
+  border-top-style: dashed;
+}
+
+.journey-legend-item[data-series-style="accent"] .journey-series-swatch {
+  border-top-style: dotted;
+}
+
+.journey-chart-shell {
+  width: 100%;
+  min-width: 0;
+  height: 340px;
+  margin-top: 0.4rem;
+}
+
+.journey-scrubber {
+  align-items: flex-end;
+  margin-top: 0.7rem;
+}
+
+.journey-scrubber > span {
+  display: grid;
+  min-width: 115px;
+  color: var(--muted);
+  font-size: 0.75rem;
+}
+
+.journey-scrubber strong {
+  margin-top: 0.25rem;
+  color: var(--text);
+  font-size: 0.9rem;
+}
+
+.journey-scrubber input {
+  min-width: 0;
+}
+
+.journey-status,
+.journey-assumption {
+  margin: 0.7rem 0 0;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
+.journey-detail-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 1rem;
+}
+
+.journey-selected-summary {
+  align-items: baseline;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.journey-selected-summary span {
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.journey-selected-summary strong {
+  color: var(--positive);
+  font-size: 1.35rem;
+}
+
+.journey-selected-summary small {
+  width: 100%;
+  color: var(--faint);
+}
+
+.journey-driver-list,
+.journey-marker-list {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.journey-driver-list > div {
+  justify-content: space-between;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+}
+
+.journey-driver-list span {
+  display: grid;
+  color: var(--text);
+}
+
+.journey-driver-list small {
+  margin-top: 0.2rem;
+  color: var(--faint);
+  font-size: 0.68rem;
+}
+
+.journey-driver-list strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.journey-marker {
+  width: 100%;
+  justify-content: space-between;
+  padding: 0.65rem 0;
+  border: 0;
+  border-top: 1px solid var(--border);
+  background: transparent;
+  color: var(--muted);
+  text-align: left;
+}
+
+.journey-marker:hover,
+.journey-marker:focus-visible {
+  color: var(--text);
+}
+
+.journey-marker > span:first-child {
+  display: grid;
+  min-width: 112px;
+}
+
+.journey-marker strong {
+  color: var(--text);
+}
+
+.journey-marker small {
+  margin-top: 0.18rem;
+  color: var(--accent);
+  font-size: 0.68rem;
+}
+
+.journey-marker > span:last-child {
+  max-width: 65%;
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
 .card-heading {
   display: flex;
   align-items: flex-start;
@@ -1807,6 +2019,19 @@ tbody tr:hover td {
     grid-template-columns: 1fr;
   }
 
+  .journey-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .journey-toolbar {
+    display: grid;
+    align-items: stretch;
+  }
+
+  .journey-toolbar .control-label {
+    width: 100%;
+  }
+
   .page-header {
     display: grid;
   }
@@ -1884,6 +2109,22 @@ tbody tr:hover td {
 
   .report-controls {
     align-items: stretch;
+  }
+
+  .journey-scrubber {
+    display: grid;
+  }
+
+  .journey-scrubber > span {
+    width: 100%;
+  }
+
+  .journey-marker {
+    align-items: flex-start;
+  }
+
+  .journey-marker > span:last-child {
+    max-width: 58%;
   }
 
   .segmented-control {

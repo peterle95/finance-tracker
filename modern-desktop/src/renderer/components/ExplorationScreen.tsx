@@ -1,4 +1,4 @@
-import { ArrowLeft, Check, LineChart, RotateCcw, Save, TrendingUp, WalletCards, X } from "lucide-react";
+import { ArrowLeft, Check, LineChart, Pencil, RotateCcw, Save, Trash2, TrendingUp, Undo2, WalletCards, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import {
   cloneDocument,
@@ -12,6 +12,7 @@ import {
 } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, Metric, PageHeader } from "./ui";
+import { JourneyChart } from "./JourneyChart";
 
 type ExplorationView = "landing" | "simulator" | "journey" | "balancer";
 
@@ -51,6 +52,7 @@ interface ExplorationScreenProps {
 interface ScenarioEventDraft {
   type: TransactionType;
   amount: string;
+  category: string;
   description: string;
   date: string;
 }
@@ -70,20 +72,32 @@ function FocusedView({
   document,
   draft,
   categories,
+  eventCategories,
+  scenarioEvents,
+  editingEventId,
   eventDraft,
   onBack,
   onEventDraftChange,
   onAddEvent,
+  onEditEvent,
+  onRemoveEvent,
+  onCancelEventEdit,
   onBudgetChange
 }: {
   view: Exclude<ExplorationView, "landing">;
   document: FinanceDocument;
   draft: FinanceDocument;
   categories: string[];
+  eventCategories: Record<TransactionType, string[]>;
+  scenarioEvents: ScenarioEventChange[];
+  editingEventId: string | null;
   eventDraft: ScenarioEventDraft;
   onBack(): void;
   onEventDraftChange(update: Partial<ScenarioEventDraft>): void;
   onAddEvent(event: React.FormEvent<HTMLFormElement>): void;
+  onEditEvent(event: ScenarioEventChange): void;
+  onRemoveEvent(event: ScenarioEventChange): void;
+  onCancelEventEdit(): void;
   onBudgetChange(category: string, value: string): void;
 }) {
   const workflow = workflows.find((entry) => entry.view === view)!;
@@ -98,10 +112,6 @@ function FocusedView({
     : view === "journey"
       ? "Net-Worth Journey tools are ready for the next Exploration phase."
       : "Adjust temporary category allocations without changing saved budgets.";
-  const scenarioEvents = [
-    ...draft.expenses.slice(document.expenses.length).map((event) => ({ ...event, type: "Expense" as const })),
-    ...draft.incomes.slice(document.incomes.length).map((event) => ({ ...event, type: "Income" as const }))
-  ];
   const budgetValues = draft.budget_settings.category_budgets?.Expense ?? {};
 
   return (
@@ -122,16 +132,19 @@ function FocusedView({
         <Card className="exploration-draft-card">
           <div className="card-heading"><div><p className="eyebrow">Temporary event</p><h2>Add future scenario event</h2></div><TrendingUp size={24} /></div>
           <p className="muted-copy">Only today and future dates are accepted. Event stays in memory until confirmation.</p>
-          <form className="form-grid exploration-draft-form" onSubmit={onAddEvent}>
-            <label><span>Type</span><select aria-label="Scenario event type" value={eventDraft.type} onChange={(event) => onEventDraftChange({ type: event.target.value as TransactionType })}><option value="Expense">Expense</option><option value="Income">Income</option></select></label>
-            <label><span>Amount</span><input aria-label="Scenario event amount" type="number" min="0.01" step="0.01" value={eventDraft.amount} onChange={(event) => onEventDraftChange({ amount: event.target.value })} /></label>
-            <label><span>Description</span><input aria-label="Scenario event description" value={eventDraft.description} onChange={(event) => onEventDraftChange({ description: event.target.value })} /></label>
-            <label><span>Date</span><input aria-label="Scenario event date" type="date" min={isoToday()} value={eventDraft.date} onChange={(event) => onEventDraftChange({ date: event.target.value })} /></label>
-            <div className="span-two form-actions"><Button type="submit"><TrendingUp size={16} /> Add temporary event</Button></div>
-          </form>
-          {scenarioEvents.length ? <div className="exploration-draft-list"><strong>Temporary events</strong>{scenarioEvents.map((event, index) => <div key={(event.id ?? event.date) + index}><span>{event.description || event.category} · {event.date}</span><strong className={event.type === "Expense" ? "amount-expense" : "amount-income"}>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong></div>)}</div> : <p className="muted-copy">No temporary events yet.</p>}
+            <form className="form-grid exploration-draft-form" onSubmit={onAddEvent}>
+             <label><span>Type</span><select aria-label="Scenario event type" value={eventDraft.type} onChange={(event) => onEventDraftChange({ type: event.target.value as TransactionType })}><option value="Expense">Expense</option><option value="Income">Income</option></select></label>
+             <label><span>Amount</span><input aria-label="Scenario event amount" type="number" min="0.01" step="0.01" value={eventDraft.amount} onChange={(event) => onEventDraftChange({ amount: event.target.value })} /></label>
+             <label><span>Category</span><select aria-label="Scenario event category" value={eventDraft.category} onChange={(event) => onEventDraftChange({ category: event.target.value })}>{eventCategories[eventDraft.type].map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+             <label><span>Description</span><input aria-label="Scenario event description" value={eventDraft.description} onChange={(event) => onEventDraftChange({ description: event.target.value })} /></label>
+             <label><span>Date</span><input aria-label="Scenario event date" type="date" value={eventDraft.date} onChange={(event) => onEventDraftChange({ date: event.target.value })} /></label>
+             <div className="span-two form-actions"><Button type="submit"><TrendingUp size={16} /> {editingEventId ? "Save event changes" : "Add temporary event"}</Button>{editingEventId ? <Button type="button" variant="ghost" onClick={onCancelEventEdit}>Cancel edit</Button> : null}</div>
+           </form>
+           {scenarioEvents.length ? <div className="exploration-draft-list"><strong>Temporary events</strong>{scenarioEvents.map((event) => <div key={event.id ?? event.date}><span><span>{event.description || event.category} · {event.date}</span><small>{event.category}</small></span><strong className={event.type === "Expense" ? "amount-expense" : "amount-income"}>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong><span className="button-group"><button type="button" className="icon-button" aria-label={"Edit temporary event " + (event.description || event.category)} onClick={() => onEditEvent(event)}><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" aria-label={"Remove temporary event " + (event.description || event.category)} onClick={() => onRemoveEvent(event)}><Trash2 size={15} /></button></span></div>)}</div> : <p className="muted-copy">No temporary events yet.</p>}
         </Card>
       ) : null}
+
+      {view === "journey" ? <JourneyChart document={document} /> : null}
 
       {view === "balancer" ? (
         <Card className="exploration-draft-card">
@@ -143,10 +156,10 @@ function FocusedView({
         </Card>
       ) : null}
 
-      <Card className="exploration-focus-card">
+      {view !== "journey" ? <Card className="exploration-focus-card">
         <div className="card-heading"><div><p className="eyebrow">Coming into focus</p><h2>{detail}</h2></div><Icon size={26} /></div>
         <p className="muted-copy">This focused view shares one temporary workspace. Use the back action to switch views without losing drafts.</p>
-      </Card>
+      </Card> : null}
     </div>
   );
 }
@@ -154,20 +167,24 @@ function FocusedView({
 function DraftControls({
   dirty,
   reviewing,
+  canUndo,
   scenarioChanges,
   budgetChanges,
   onCancel,
   onReset,
+  onUndo,
   onReview,
   onConfirm,
   onKeepEditing
 }: {
   dirty: boolean;
   reviewing: boolean;
+  canUndo: boolean;
   scenarioChanges: ScenarioEventChange[];
   budgetChanges: BudgetChange[];
   onCancel(): void;
   onReset(): void;
+  onUndo(): void;
   onReview(): void;
   onConfirm(): void;
   onKeepEditing(): void;
@@ -181,6 +198,7 @@ function DraftControls({
       <div className="card-heading"><div><p className="eyebrow">Unsaved Exploration drafts</p><h2>Saved finance data is unchanged</h2></div><Save size={24} /></div>
       <p className="muted-copy">{scenarioChanges.length} temporary event(s) and {budgetChanges.length} budget change(s) remain in memory.</p>
       <div className="button-group exploration-draft-actions">
+        {canUndo ? <Button variant="ghost" onClick={onUndo}><Undo2 size={16} /> Undo last edit</Button> : null}
         <Button variant="ghost" onClick={onCancel}><X size={16} /> Cancel drafts</Button>
         <Button variant="danger" onClick={onReset}><RotateCcw size={16} /> Reset drafts</Button>
         <Button onClick={onReview}><Check size={16} /> Review and confirm</Button>
@@ -207,11 +225,14 @@ function DraftControls({
 export function ExplorationScreen({ document, onConfirm, onDirtyChange }: ExplorationScreenProps) {
   const [view, setView] = useState<ExplorationView>("landing");
   const [draft, setDraft] = useState(() => cloneDocument(document));
+  const [history, setHistory] = useState<FinanceDocument[]>([]);
   const [reviewing, setReviewing] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [eventDraft, setEventDraft] = useState<ScenarioEventDraft>(() => ({
     type: "Expense",
     amount: "",
+    category: document.categories.Expense[0] ?? "Other",
     description: "",
     date: isoToday()
   }));
@@ -222,9 +243,10 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const budgetChanges = categories
     .filter((category) => draftBudgets[category] !== savedBudgets[category])
     .map((category) => ({ category, from: savedBudgets[category] ?? 0, to: draftBudgets[category] ?? 0 }));
+  const savedEventIds = new Set([...document.expenses, ...document.incomes].map((event) => event.id).filter((id): id is string => Boolean(id)));
   const scenarioChanges: ScenarioEventChange[] = [
-    ...draft.expenses.slice(document.expenses.length).map((event) => ({ ...event, type: "Expense" as const })),
-    ...draft.incomes.slice(document.incomes.length).map((event) => ({ ...event, type: "Income" as const }))
+    ...draft.expenses.filter((event) => Boolean(event.id) && !savedEventIds.has(event.id ?? "")).map((event) => ({ ...event, type: "Expense" as const })),
+    ...draft.incomes.filter((event) => Boolean(event.id) && !savedEventIds.has(event.id ?? "")).map((event) => ({ ...event, type: "Income" as const }))
   ];
   const historyCount = snapshots(document).length;
   const goals = goalSummary(document);
@@ -235,6 +257,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   }, [dirty, onDirtyChange]);
 
   function updateDraft(update: (next: FinanceDocument) => void) {
+    setHistory((entries) => [...entries, cloneDocument(draft)]);
     setDraft((current) => {
       const next = cloneDocument(current);
       update(next);
@@ -259,16 +282,57 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
       return;
     }
     updateDraft((next) => {
-      const transaction = makeTransaction(eventDraft.type, {
-        date: eventDraft.date,
-        amount,
-        category: next.categories[eventDraft.type][0] ?? "Other",
-        description: eventDraft.description.trim()
-      });
+      const existing = editingEventId
+        ? [...next.expenses, ...next.incomes].find((transaction) => transaction.id === editingEventId)
+        : undefined;
+      const transaction = existing
+        ? { ...existing, date: eventDraft.date, amount, category: eventDraft.category, description: eventDraft.description.trim() }
+        : makeTransaction(eventDraft.type, {
+          date: eventDraft.date,
+          amount,
+          category: eventDraft.category,
+          description: eventDraft.description.trim()
+        });
+      if (existing) {
+        next.expenses = next.expenses.filter((entry) => entry.id !== editingEventId);
+        next.incomes = next.incomes.filter((entry) => entry.id !== editingEventId);
+      }
       (eventDraft.type === "Expense" ? next.expenses : next.incomes).push(transaction);
     });
+    setEditingEventId(null);
     setEventDraft({ ...eventDraft, amount: "", description: "" });
-    setMessage("Temporary event added.");
+    setMessage(editingEventId ? "Temporary event updated." : "Temporary event added.");
+  }
+
+  function editScenarioEvent(event: ScenarioEventChange) {
+    setEditingEventId(event.id ?? null);
+    setEventDraft({ type: event.type, amount: String(event.amount), category: event.category, description: event.description, date: event.date });
+    setView("simulator");
+    setMessage("");
+  }
+
+  function updateEventDraft(update: Partial<ScenarioEventDraft>) {
+    setEventDraft((current) => {
+      const next = { ...current, ...update };
+      if (update.type && !document.categories[update.type].includes(next.category)) {
+        next.category = document.categories[update.type][0] ?? "Other";
+      }
+      return next;
+    });
+  }
+
+  function removeScenarioEvent(event: ScenarioEventChange) {
+    if (!event.id) {
+      return;
+    }
+    updateDraft((next) => {
+      next.expenses = next.expenses.filter((entry) => entry.id !== event.id);
+      next.incomes = next.incomes.filter((entry) => entry.id !== event.id);
+    });
+    if (editingEventId === event.id) {
+      setEditingEventId(null);
+    }
+    setMessage("Temporary event removed.");
   }
 
   function updateBudget(category: string, value: string) {
@@ -289,6 +353,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
       return false;
     }
     setDraft(cloneDocument(document));
+    setHistory([]);
+    setEditingEventId(null);
     setReviewing(false);
     setMessage("Exploration drafts reset to saved baseline.");
     return true;
@@ -308,9 +374,21 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   function confirmDrafts() {
     onConfirm?.(draft);
     setReviewing(false);
+    setHistory([]);
   }
 
-  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
+  function undoDraft() {
+    const previous = history.at(-1);
+    if (!previous) {
+      return;
+    }
+    setDraft(cloneDocument(previous));
+    setHistory(history.slice(0, -1));
+    setReviewing(false);
+    setMessage("Last Exploration edit undone.");
+  }
+
+  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={history.length > 0} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
 
   if (view !== "landing") {
     return (
@@ -320,10 +398,16 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           document={document}
           draft={draft}
           categories={categories}
+          eventCategories={document.categories}
+          scenarioEvents={scenarioChanges}
+          editingEventId={editingEventId}
           eventDraft={eventDraft}
           onBack={() => setView("landing")}
-          onEventDraftChange={(update) => setEventDraft((current) => ({ ...current, ...update }))}
+          onEventDraftChange={updateEventDraft}
           onAddEvent={addScenarioEvent}
+          onEditEvent={editScenarioEvent}
+          onRemoveEvent={removeScenarioEvent}
+          onCancelEventEdit={() => { setEditingEventId(null); setEventDraft({ ...eventDraft, amount: "", description: "" }); }}
           onBudgetChange={updateBudget}
         />
         {message ? <p className="exploration-status" role="status">{message}</p> : null}
