@@ -9,7 +9,9 @@ import {
   goalSummary,
   isoToday,
   makeTransaction,
+  monthOffset,
   netWorth,
+  projection,
   rawNetAvailableForSpending,
   roundCurrency,
   snapshots
@@ -126,6 +128,9 @@ function goalDateComparison(document: FinanceDocument, scenarioNet: number): Pic
   }
   const dailyFunding = Math.max(goal.target_amount / 365, 1);
   const shift = Math.round(scenarioNet / dailyFunding);
+  if (shift === 0) {
+    return { baselineGoalDate, scenarioGoalDate: baselineGoalDate, goalDateChange: "Unchanged" };
+  }
   const scenarioGoalDate = shiftIsoDate(baselineGoalDate, -shift);
   const absoluteShift = Math.abs(shift);
   return {
@@ -181,12 +186,12 @@ function ScenarioComparisonCard({ comparison }: { comparison: ScenarioComparison
     <Card className="scenario-comparison-card">
       <div className="card-heading"><div><p className="eyebrow">Scenario comparison</p><h2>Baseline versus active scenario</h2></div><TrendingUp size={24} /></div>
       <div className="scenario-compare-grid">
-        <div><p className="eyebrow">Baseline</p><strong>{formatCurrency(comparison.baselineNetWorth)}</strong><small>Saved net worth</small></div>
-        <div className="scenario-active"><p className="eyebrow">Active scenario</p><strong>{formatCurrency(comparison.scenarioNetWorth)}</strong><small>Draft events and allocations</small></div>
+        <div><p className="eyebrow">Baseline projection</p><strong>{formatCurrency(comparison.baselineNetWorth)}</strong><small>12-month projection</small></div>
+        <div className="scenario-active"><p className="eyebrow">Active scenario</p><strong>{formatCurrency(comparison.scenarioNetWorth)}</strong><small>Projection plus draft events</small></div>
       </div>
       <div className="scenario-difference-grid">
         <Metric label="Net-worth difference" value={signedCurrency(comparison.netWorthDifference)} detail="Baseline to scenario" tone={comparison.netWorthDifference < 0 ? "warning" : "positive"} />
-        <Metric label="Cash-flow difference" value={signedCurrency(comparison.cashFlowDifference)} detail="Current planning period" tone={comparison.cashFlowDifference < 0 ? "warning" : "positive"} />
+        <Metric label="Cash-flow difference" value={signedCurrency(comparison.cashFlowDifference)} detail="12-month projection" tone={comparison.cashFlowDifference < 0 ? "warning" : "positive"} />
         <Metric label="Goal-date change" value={comparison.goalDateChange} detail={comparison.baselineGoalDate + " → " + comparison.scenarioGoalDate} tone={comparison.goalDateChange.startsWith("Later") ? "warning" : "default"} />
       </div>
       <div className="scenario-driver-list">
@@ -280,20 +285,20 @@ function FocusedView({
 
       {view === "simulator" ? (
         <>
-        <Card className="exploration-draft-card">
-          <div className="card-heading"><div><p className="eyebrow">Temporary event</p><h2>Add future scenario event</h2></div><TrendingUp size={24} /></div>
-          <p className="muted-copy">Only today and future dates are accepted. Event stays in memory until confirmation.</p>
-          <form className="form-grid exploration-draft-form" onSubmit={onAddEvent}>
-            <label><span>Type</span><select aria-label="Scenario event type" value={eventDraft.type} onChange={(event) => onEventDraftChange({ type: event.target.value as TransactionType })}><option value="Expense">Expense</option><option value="Income">Income</option></select></label>
-            <label><span>Amount</span><input aria-label="Scenario event amount" type="number" min="0.01" step="0.01" value={eventDraft.amount} onChange={(event) => onEventDraftChange({ amount: event.target.value })} /></label>
-            <label><span>Category</span><select aria-label="Scenario event category" value={eventDraft.category} onChange={(event) => onEventDraftChange({ category: event.target.value })}>{eventCategories[eventDraft.type].map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-            <label><span>Description</span><input aria-label="Scenario event description" value={eventDraft.description} onChange={(event) => onEventDraftChange({ description: event.target.value })} /></label>
-            <label><span>Date</span><input aria-label="Scenario event date" type="date" value={eventDraft.date} onChange={(event) => onEventDraftChange({ date: event.target.value })} /></label>
-            <div className="span-two form-actions"><Button type="submit"><TrendingUp size={16} /> {editingEventId ? "Save event changes" : "Add temporary event"}</Button>{editingEventId ? <Button type="button" variant="ghost" onClick={onCancelEventEdit}>Cancel edit</Button> : null}</div>
+          <Card className="exploration-draft-card">
+            <div className="card-heading"><div><p className="eyebrow">Temporary event</p><h2>Add future scenario event</h2></div><TrendingUp size={24} /></div>
+            <p className="muted-copy">Only today and future dates are accepted. Event stays in memory until confirmation.</p>
+            <form className="form-grid exploration-draft-form" onSubmit={onAddEvent}>
+              <label><span>Type</span><select aria-label="Scenario event type" value={eventDraft.type} onChange={(event) => onEventDraftChange({ type: event.target.value as TransactionType })}><option value="Expense">Expense</option><option value="Income">Income</option></select></label>
+              <label><span>Amount</span><input aria-label="Scenario event amount" type="number" min="0.01" step="0.01" value={eventDraft.amount} onChange={(event) => onEventDraftChange({ amount: event.target.value })} /></label>
+              <label><span>Category</span><select aria-label="Scenario event category" value={eventDraft.category} onChange={(event) => onEventDraftChange({ category: event.target.value })}>{eventCategories[eventDraft.type].map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+              <label><span>Description</span><input aria-label="Scenario event description" value={eventDraft.description} onChange={(event) => onEventDraftChange({ description: event.target.value })} /></label>
+              <label><span>Date</span><input aria-label="Scenario event date" type="date" value={eventDraft.date} onChange={(event) => onEventDraftChange({ date: event.target.value })} /></label>
+              <div className="span-two form-actions"><Button type="submit"><TrendingUp size={16} /> {editingEventId ? "Save event changes" : "Add temporary event"}</Button>{editingEventId ? <Button type="button" variant="ghost" onClick={onCancelEventEdit}>Cancel edit</Button> : null}</div>
             </form>
-           {scenarioEvents.length ? <div className="exploration-draft-list"><strong>Temporary events</strong>{scenarioEvents.map((event) => <div key={event.id ?? event.date}><span><span>{event.description || event.category} · {event.date}</span><small>{event.category}</small></span><strong className={event.type === "Expense" ? "amount-expense" : "amount-income"}>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong><span className="button-group"><button type="button" className="icon-button" aria-label={"Edit temporary event " + (event.description || event.category)} onClick={() => onEditEvent(event)}><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" aria-label={"Remove temporary event " + (event.description || event.category)} onClick={() => onRemoveEvent(event)}><Trash2 size={15} /></button></span></div>)}</div> : <p className="muted-copy">No temporary events yet.</p>}
-         </Card>
-         <ScenarioComparisonCard comparison={comparison} />
+            {scenarioEvents.length ? <div className="exploration-draft-list"><strong>Temporary events</strong>{scenarioEvents.map((event) => <div key={event.id ?? event.date}><span><span>{event.description || event.category} · {event.date}</span><small>{event.category}</small></span><strong className={event.type === "Expense" ? "amount-expense" : "amount-income"}>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong><span className="button-group"><button type="button" className="icon-button" aria-label={"Edit temporary event " + (event.description || event.category)} onClick={() => onEditEvent(event)}><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" aria-label={"Remove temporary event " + (event.description || event.category)} onClick={() => onRemoveEvent(event)}><Trash2 size={15} /></button></span></div>)}</div> : <p className="muted-copy">No temporary events yet.</p>}
+          </Card>
+          <ScenarioComparisonCard comparison={comparison} />
         </>
       ) : null}
 
@@ -443,11 +448,19 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const plannedPercent = roundCurrency(Object.values(budgetValues).reduce((total, value) => total + value, 0));
   const savedPlannedPercent = roundCurrency(Object.values(savedBudgetValues).reduce((total, value) => total + value, 0));
   const scenarioNet = scenarioChanges.reduce((total, event) => total + (event.type === "Income" ? event.amount : -event.amount), 0);
-  const baselineNetWorth = roundCurrency(netWorth(document));
-  const scenarioNetWorth = roundCurrency(baselineNetWorth + scenarioNet);
-  const baselineCashFlow = rawNetAvailableForSpending(document, month);
-  const scenarioCashFlow = roundCurrency(baselineCashFlow + scenarioNet);
-  const goalDates = goalDateComparison(document, scenarioNet);
+  const projectionMonths = 12;
+  const projectionEndMonth = monthOffset(month, projectionMonths - 1);
+  const horizonEvents = scenarioChanges.filter((event) => {
+    const eventMonth = event.date.slice(0, 7);
+    return eventMonth >= month && eventMonth <= projectionEndMonth;
+  });
+  const horizonScenarioNet = horizonEvents.reduce((total, event) => total + (event.type === "Income" ? event.amount : -event.amount), 0);
+  const baselineProjection = projection(document, projectionMonths, month);
+  const baselineNetWorth = roundCurrency(baselineProjection.at(-1)?.balance ?? netWorth(document));
+  const scenarioNetWorth = roundCurrency(baselineNetWorth + horizonScenarioNet);
+  const baselineCashFlow = roundCurrency(Array.from({ length: projectionMonths }, (_, index) => rawNetAvailableForSpending(document, monthOffset(month, index))).reduce((total, value) => total + value, 0));
+  const scenarioCashFlow = roundCurrency(baselineCashFlow + horizonScenarioNet);
+  const goalDates = goalDateComparison(document, horizonScenarioNet);
   const comparison: ScenarioComparison = {
     baselineNetWorth,
     scenarioNetWorth,
@@ -457,8 +470,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     cashFlowDifference: roundCurrency(scenarioCashFlow - baselineCashFlow),
     ...goalDates,
     drivers: [
-      { label: "Income events", baseline: 0, scenario: scenarioChanges.filter((event) => event.type === "Income").reduce((total, event) => total + event.amount, 0) },
-      { label: "Expense events", baseline: 0, scenario: scenarioChanges.filter((event) => event.type === "Expense").reduce((total, event) => total + event.amount, 0) },
+      { label: "Income events", baseline: 0, scenario: horizonEvents.filter((event) => event.type === "Income").reduce((total, event) => total + event.amount, 0) },
+      { label: "Expense events", baseline: 0, scenario: horizonEvents.filter((event) => event.type === "Expense").reduce((total, event) => total + event.amount, 0) },
       { label: "Planned budget", baseline: savedPlannedPercent, scenario: plannedPercent }
     ]
   };
