@@ -621,6 +621,66 @@ code {
     var(--surface);
 }
 
+.exploration-draft-card,
+.exploration-draft-controls {
+  margin-bottom: 1rem;
+  border-color: color-mix(in srgb, var(--exploration-violet) 36%, var(--border));
+}
+
+.exploration-draft-card {
+  background: linear-gradient(135deg, color-mix(in srgb, var(--exploration-violet) 9%, var(--surface)), var(--surface));
+}
+
+.exploration-draft-controls {
+  width: min(1320px, calc(100% - 4.6rem));
+  margin: 0 auto 1rem;
+  background: color-mix(in srgb, var(--surface) 88%, var(--exploration-violet));
+}
+
+.exploration-draft-form,
+.exploration-budget-grid {
+  margin-top: 1rem;
+}
+
+.exploration-draft-list {
+  display: grid;
+  gap: 0.55rem;
+  margin-top: 1.2rem;
+}
+
+.exploration-draft-list > div {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.65rem 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.exploration-draft-actions {
+  flex-wrap: wrap;
+  margin-top: 1rem;
+}
+
+.exploration-review {
+  margin-top: 1.2rem;
+  padding-top: 1.2rem;
+  border-top: 1px solid var(--border);
+}
+
+.exploration-review h3 {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.exploration-status {
+  width: min(1320px, 100%);
+  margin: 0 auto 1rem;
+  color: var(--accent-strong);
+  font-size: 0.85rem;
+}
+
 .card-heading {
   display: flex;
   align-items: flex-start;
