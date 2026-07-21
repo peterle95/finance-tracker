@@ -122,6 +122,9 @@ describe("ExplorationScreen", () => {
     await user.click(screen.getByRole("button", { name: "Remove temporary event Updated trip" }));
     expect(screen.queryByText("Updated trip · " + new Date().toISOString().slice(0, 10))).toBeNull();
     expect(document.expenses).toHaveLength(0);
+    await user.click(screen.getByRole("button", { name: "Undo last edit" }));
+    expect(screen.getByText("Updated trip · " + new Date().toISOString().slice(0, 10))).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Remove temporary event Updated trip" }));
 
     await user.type(screen.getByLabelText("Scenario event amount"), "20");
     await user.type(screen.getByLabelText("Scenario event description"), "Undo me");

@@ -132,14 +132,14 @@ function FocusedView({
         <Card className="exploration-draft-card">
           <div className="card-heading"><div><p className="eyebrow">Temporary event</p><h2>Add future scenario event</h2></div><TrendingUp size={24} /></div>
           <p className="muted-copy">Only today and future dates are accepted. Event stays in memory until confirmation.</p>
-            <form className="form-grid exploration-draft-form" onSubmit={onAddEvent}>
-             <label><span>Type</span><select aria-label="Scenario event type" value={eventDraft.type} onChange={(event) => onEventDraftChange({ type: event.target.value as TransactionType })}><option value="Expense">Expense</option><option value="Income">Income</option></select></label>
-             <label><span>Amount</span><input aria-label="Scenario event amount" type="number" min="0.01" step="0.01" value={eventDraft.amount} onChange={(event) => onEventDraftChange({ amount: event.target.value })} /></label>
-             <label><span>Category</span><select aria-label="Scenario event category" value={eventDraft.category} onChange={(event) => onEventDraftChange({ category: event.target.value })}>{eventCategories[eventDraft.type].map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
-             <label><span>Description</span><input aria-label="Scenario event description" value={eventDraft.description} onChange={(event) => onEventDraftChange({ description: event.target.value })} /></label>
-             <label><span>Date</span><input aria-label="Scenario event date" type="date" value={eventDraft.date} onChange={(event) => onEventDraftChange({ date: event.target.value })} /></label>
-             <div className="span-two form-actions"><Button type="submit"><TrendingUp size={16} /> {editingEventId ? "Save event changes" : "Add temporary event"}</Button>{editingEventId ? <Button type="button" variant="ghost" onClick={onCancelEventEdit}>Cancel edit</Button> : null}</div>
-           </form>
+          <form className="form-grid exploration-draft-form" onSubmit={onAddEvent}>
+            <label><span>Type</span><select aria-label="Scenario event type" value={eventDraft.type} onChange={(event) => onEventDraftChange({ type: event.target.value as TransactionType })}><option value="Expense">Expense</option><option value="Income">Income</option></select></label>
+            <label><span>Amount</span><input aria-label="Scenario event amount" type="number" min="0.01" step="0.01" value={eventDraft.amount} onChange={(event) => onEventDraftChange({ amount: event.target.value })} /></label>
+            <label><span>Category</span><select aria-label="Scenario event category" value={eventDraft.category} onChange={(event) => onEventDraftChange({ category: event.target.value })}>{eventCategories[eventDraft.type].map((category) => <option key={category} value={category}>{category}</option>)}</select></label>
+            <label><span>Description</span><input aria-label="Scenario event description" value={eventDraft.description} onChange={(event) => onEventDraftChange({ description: event.target.value })} /></label>
+            <label><span>Date</span><input aria-label="Scenario event date" type="date" value={eventDraft.date} onChange={(event) => onEventDraftChange({ date: event.target.value })} /></label>
+            <div className="span-two form-actions"><Button type="submit"><TrendingUp size={16} /> {editingEventId ? "Save event changes" : "Add temporary event"}</Button>{editingEventId ? <Button type="button" variant="ghost" onClick={onCancelEventEdit}>Cancel edit</Button> : null}</div>
+            </form>
            {scenarioEvents.length ? <div className="exploration-draft-list"><strong>Temporary events</strong>{scenarioEvents.map((event) => <div key={event.id ?? event.date}><span><span>{event.description || event.category} · {event.date}</span><small>{event.category}</small></span><strong className={event.type === "Expense" ? "amount-expense" : "amount-income"}>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong><span className="button-group"><button type="button" className="icon-button" aria-label={"Edit temporary event " + (event.description || event.category)} onClick={() => onEditEvent(event)}><Pencil size={15} /></button><button type="button" className="icon-button danger-icon" aria-label={"Remove temporary event " + (event.description || event.category)} onClick={() => onRemoveEvent(event)}><Trash2 size={15} /></button></span></div>)}</div> : <p className="muted-copy">No temporary events yet.</p>}
         </Card>
       ) : null}
@@ -189,7 +189,7 @@ function DraftControls({
   onConfirm(): void;
   onKeepEditing(): void;
 }) {
-  if (!dirty) {
+  if (!dirty && !canUndo) {
     return null;
   }
 
@@ -225,7 +225,7 @@ function DraftControls({
 export function ExplorationScreen({ document, onConfirm, onDirtyChange }: ExplorationScreenProps) {
   const [view, setView] = useState<ExplorationView>("landing");
   const [draft, setDraft] = useState(() => cloneDocument(document));
-  const [history, setHistory] = useState<FinanceDocument[]>([]);
+  const [undoStack, setUndoStack] = useState<FinanceDocument[]>([]);
   const [reviewing, setReviewing] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
@@ -257,7 +257,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   }, [dirty, onDirtyChange]);
 
   function updateDraft(update: (next: FinanceDocument) => void) {
-    setHistory((entries) => [...entries, cloneDocument(draft)]);
+    setUndoStack((entries) => [...entries, cloneDocument(draft)]);
     setDraft((current) => {
       const next = cloneDocument(current);
       update(next);
@@ -353,7 +353,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
       return false;
     }
     setDraft(cloneDocument(document));
-    setHistory([]);
+    setUndoStack([]);
     setEditingEventId(null);
     setReviewing(false);
     setMessage("Exploration drafts reset to saved baseline.");
@@ -374,21 +374,21 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   function confirmDrafts() {
     onConfirm?.(draft);
     setReviewing(false);
-    setHistory([]);
+    setUndoStack([]);
   }
 
   function undoDraft() {
-    const previous = history.at(-1);
+    const previous = undoStack.at(-1);
     if (!previous) {
       return;
     }
     setDraft(cloneDocument(previous));
-    setHistory(history.slice(0, -1));
+    setUndoStack(undoStack.slice(0, -1));
     setReviewing(false);
     setMessage("Last Exploration edit undone.");
   }
 
-  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={history.length > 0} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
+  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={undoStack.length > 0} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
 
   if (view !== "landing") {
     return (
