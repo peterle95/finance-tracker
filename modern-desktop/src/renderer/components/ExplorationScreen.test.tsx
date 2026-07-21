@@ -264,4 +264,19 @@ describe("ExplorationScreen", () => {
     expect(screen.getByRole("status").textContent).toContain("today or a future date");
     expect(screen.queryByText(/Invalid ·/)).toBeNull();
   });
+
+  it("clears transient status feedback after two seconds", () => {
+    vi.useFakeTimers();
+    try {
+      render(<ExplorationScreen document={defaultDocument()} />);
+      fireEvent.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+      fireEvent.click(screen.getByRole("button", { name: "Add temporary event" }));
+
+      expect(screen.getByText("Enter event description and positive amount.")).toBeTruthy();
+      vi.advanceTimersByTime(2000);
+      expect(screen.queryByText("Enter event description and positive amount.")).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
 });
