@@ -2,6 +2,7 @@ import { ArrowLeft, Check, LineChart, Pencil, RotateCcw, Save, Trash2, TrendingU
 import { useEffect, useState } from "react";
 import {
   cloneDocument,
+  budgetSuggestions,
   currentMonth,
   formatCurrency,
   getActiveFixedCosts,
@@ -16,7 +17,7 @@ import {
   roundCurrency,
   snapshots
 } from "../../shared/finance";
-import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
+import type { BudgetSuggestion, FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, Metric, PageHeader } from "./ui";
 import { JourneyChart } from "./JourneyChart";
 
@@ -214,6 +215,7 @@ function FocusedView({
   scenarioEvents,
   editingEventId,
   budgetPreview,
+  suggestions,
   comparison,
   protectedCategories,
   eventDraft,
@@ -223,7 +225,9 @@ function FocusedView({
   onEditEvent,
   onRemoveEvent,
   onCancelEventEdit,
-  onBudgetChange
+  onBudgetChange,
+  onApplySuggestion,
+  onDiscardSuggestion
 }: {
   view: Exclude<ExplorationView, "landing">;
   document: FinanceDocument;
@@ -232,6 +236,7 @@ function FocusedView({
   scenarioEvents: ScenarioEventChange[];
   editingEventId: string | null;
   budgetPreview: BudgetPreview;
+  suggestions: BudgetSuggestion[];
   comparison: ScenarioComparison;
   protectedCategories: Set<string>;
   eventDraft: ScenarioEventDraft;
@@ -242,6 +247,8 @@ function FocusedView({
   onRemoveEvent(event: ScenarioEventChange): void;
   onCancelEventEdit(): void;
   onBudgetChange(category: string, value: string): void;
+  onApplySuggestion(suggestion: BudgetSuggestion): void;
+  onDiscardSuggestion(suggestion: BudgetSuggestion): void;
 }) {
   const workflow = workflows.find((entry) => entry.view === view)!;
   const Icon = workflow.icon;
@@ -317,6 +324,14 @@ function FocusedView({
           {budgetPreview.negativeCash ? <p className="balancer-warning" role="alert">Negative projected cash blocks save. Reduce planned categories before confirming.</p> : null}
           {budgetPreview.goalShortfall > 0 ? <p className="balancer-warning">Goal shortfall: {formatCurrency(budgetPreview.goalShortfall)} remains unfunded.</p> : null}
           {budgetPreview.reducedEmergencyBuffer ? <p className="balancer-warning">Emergency buffer is reduced by this preview.</p> : null}
+          <div className="balancer-suggestions">
+            <div className="section-heading"><div><p className="eyebrow">Deterministic suggestions</p><h3>Review possible reallocations</h3></div><small>Nothing applies until you choose Preview</small></div>
+            {suggestions.length ? suggestions.map((suggestion) => <div className="balancer-suggestion" key={suggestion.source + "-" + suggestion.target}>
+              <div><strong>{suggestion.source} → {suggestion.target}</strong><p>{suggestion.reason}</p></div>
+              <strong>{formatCurrency(suggestion.amount)}</strong>
+              <div className="button-group"><Button variant="secondary" onClick={() => onApplySuggestion(suggestion)}>Preview</Button><Button variant="ghost" onClick={() => onDiscardSuggestion(suggestion)}>Discard</Button></div>
+            </div>) : <p className="muted-copy">No safe reallocation suggestions from current surplus and history.</p>}
+          </div>
           <div className="exploration-budget-grid">
             {categories.map((category) => protectedCategories.has(category) ? (
               <div className="balancer-category protected" key={category} aria-label={"Protected budget category " + category}>
@@ -346,12 +361,14 @@ function DraftControls({
   comparison,
   scenarioChanges,
   budgetChanges,
+  categoryReviewConfirmed,
   onCancel,
   onReset,
   onUndo,
   onReview,
   onConfirm,
-  onKeepEditing
+  onKeepEditing,
+  onCategoryReviewChange
 }: {
   dirty: boolean;
   reviewing: boolean;
@@ -360,12 +377,14 @@ function DraftControls({
   comparison: ScenarioComparison;
   scenarioChanges: ScenarioEventChange[];
   budgetChanges: BudgetChange[];
+  categoryReviewConfirmed: boolean;
   onCancel(): void;
   onReset(): void;
   onUndo(): void;
   onReview(): void;
   onConfirm(): void;
   onKeepEditing(): void;
+  onCategoryReviewChange(confirmed: boolean): void;
 }) {
   if (!dirty && !canUndo) {
     return null;
@@ -387,13 +406,14 @@ function DraftControls({
            <h3>Confirm changes to shared finance data?</h3>
            <p className="muted-copy">Confirmation is the only action that sends this draft through the existing save flow.</p>
            <p className="scenario-review-summary">Net worth: {formatCurrency(comparison.baselineNetWorth)} → {formatCurrency(comparison.scenarioNetWorth)} · Cash flow: {formatCurrency(comparison.baselineCashFlow)} → {formatCurrency(comparison.scenarioCashFlow)} · Goal date: {comparison.baselineGoalDate} → {comparison.scenarioGoalDate}</p>
+          {budgetChanges.length ? <label className="check-row"><input type="checkbox" checked={categoryReviewConfirmed} onChange={(event) => onCategoryReviewChange(event.target.checked)} /><span>I reviewed each changed category before saving.</span></label> : null}
           <div className="exploration-review-list">
             {scenarioChanges.map((event, index) => <div key={(event.id ?? event.date) + index}><span>{event.type} · {event.description || event.category} · {event.date}</span><strong>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong></div>)}
             {budgetChanges.map((change) => <div key={change.category}><span>{change.category} percentage</span><strong>{change.from}% → {change.to}%</strong></div>)}
           </div>
           <div className="button-group exploration-draft-actions">
             <Button variant="ghost" onClick={onKeepEditing}>Keep editing</Button>
-            <Button disabled={confirmBlocked} onClick={onConfirm}>Confirm and save</Button>
+            <Button disabled={confirmBlocked || (budgetChanges.length > 0 && !categoryReviewConfirmed)} onClick={onConfirm}>Confirm and save</Button>
           </div>
         </div>
       ) : null}
@@ -408,6 +428,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const [reviewing, setReviewing] = useState(false);
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
+  const [discardedSuggestions, setDiscardedSuggestions] = useState<string[]>([]);
+  const [categoryReviewConfirmed, setCategoryReviewConfirmed] = useState(false);
   const [eventDraft, setEventDraft] = useState<ScenarioEventDraft>(() => ({
     type: "Expense",
     amount: "",
@@ -490,6 +512,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     reducedEmergencyBuffer: emergencyBuffer < baselineEmergencyBuffer,
     negativeCash: projectedCash < 0
   };
+  const suggestions = budgetSuggestions(document, month)
+    .filter((suggestion) => !discardedSuggestions.includes(suggestion.source + "-" + suggestion.target));
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -591,12 +615,34 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     });
   }
 
+  function applySuggestion(suggestion: BudgetSuggestion) {
+    if (flexibleBudget <= 0) {
+      return;
+    }
+    const shift = suggestion.amount / flexibleBudget * 100;
+    updateDraft((next) => {
+      const expenseBudgets = { ...(next.budget_settings.category_budgets?.Expense ?? {}) };
+      expenseBudgets[suggestion.source] = roundCurrency(Math.max(0, Number(expenseBudgets[suggestion.source] ?? 0) - shift));
+      expenseBudgets[suggestion.target] = roundCurrency(Number(expenseBudgets[suggestion.target] ?? 0) + shift);
+      next.budget_settings.category_budgets = {
+        ...(next.budget_settings.category_budgets ?? {}),
+        Expense: expenseBudgets
+      };
+    });
+    setMessage("Suggestion previewed. Review or modify allocation before saving.");
+  }
+
+  function discardSuggestion(suggestion: BudgetSuggestion) {
+    setDiscardedSuggestions((current) => [...current, suggestion.source + "-" + suggestion.target]);
+  }
+
   function resetDrafts(ask = true) {
     if (dirty && ask && !window.confirm("Reset all temporary Exploration drafts?")) {
       return false;
     }
     setDraft(cloneDocument(document));
     setUndoStack([]);
+    setDiscardedSuggestions([]);
     setEditingEventId(null);
     setReviewing(false);
     setMessage("Exploration drafts reset to saved baseline.");
@@ -611,12 +657,17 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
 
   function reviewDrafts() {
     setReviewing(true);
+    setCategoryReviewConfirmed(false);
     setMessage("");
   }
 
   function confirmDrafts() {
     if (budgetChanges.length > 0 && budgetPreview.negativeCash) {
       setMessage("Negative projected cash blocks budget confirmation.");
+      return;
+    }
+    if (budgetChanges.length > 0 && !categoryReviewConfirmed) {
+      setMessage("Review changed categories before confirming the budget.");
       return;
     }
     onConfirm?.(draft);
@@ -635,7 +686,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     setMessage("Last Exploration edit undone.");
   }
 
-  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={undoStack.length > 0} confirmBlocked={budgetChanges.length > 0 && budgetPreview.negativeCash} comparison={comparison} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
+  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={undoStack.length > 0} confirmBlocked={budgetChanges.length > 0 && budgetPreview.negativeCash} comparison={comparison} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} categoryReviewConfirmed={categoryReviewConfirmed} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} onCategoryReviewChange={setCategoryReviewConfirmed} />;
 
   if (view !== "landing") {
     return (
@@ -649,6 +700,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           editingEventId={editingEventId}
           eventDraft={eventDraft}
           budgetPreview={budgetPreview}
+          suggestions={suggestions}
           comparison={comparison}
           protectedCategories={protectedCategories}
           onBack={() => setView("landing")}
@@ -658,6 +710,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           onRemoveEvent={removeScenarioEvent}
           onCancelEventEdit={() => { setEditingEventId(null); setEventDraft({ ...eventDraft, amount: "", description: "" }); }}
           onBudgetChange={updateBudget}
+          onApplySuggestion={applySuggestion}
+          onDiscardSuggestion={discardSuggestion}
         />
         {message ? <p className="exploration-status" role="status">{message}</p> : null}
         {draftControls}

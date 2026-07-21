@@ -79,6 +79,14 @@ export interface BudgetSettings {
   [key: string]: unknown;
 }
 
+export interface BudgetSuggestion {
+  source: string;
+  target: string;
+  amount: number;
+  reason: string;
+  score: number;
+}
+
 export interface FinanceDocument {
   expenses: FinanceTransaction[];
   incomes: FinanceTransaction[];

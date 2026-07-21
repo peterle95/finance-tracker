@@ -108,6 +108,48 @@ describe("ExplorationScreen", () => {
     expect(document.budget_settings.category_budgets?.Expense?.Food).toBe(40);
   });
 
+  it("previews and discards deterministic budget suggestions without saving", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    document.categories.Expense = ["Food", "Shopping", "Healthcare"];
+    document.budget_settings.monthly_income = 1000;
+    document.budget_settings.category_budgets = { Expense: { Food: 10, Shopping: 40, Healthcare: 0 } };
+    document.expenses.push(
+      { date: "2026-04-10", amount: 250, category: "Food", description: "Groceries" },
+      { date: "2026-05-10", amount: 250, category: "Food", description: "Groceries" },
+      { date: "2026-06-10", amount: 250, category: "Food", description: "Groceries" },
+      { date: "2026-04-11", amount: 50, category: "Shopping", description: "Shopping" },
+      { date: "2026-05-11", amount: 50, category: "Shopping", description: "Shopping" },
+      { date: "2026-06-11", amount: 50, category: "Shopping", description: "Shopping" }
+    );
+    render(<ExplorationScreen document={document} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+    expect(screen.getByText("Shopping → Food")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Preview" }));
+    expect((screen.getByLabelText("Draft budget percentage for Food") as HTMLInputElement).value).toBe("25");
+    expect(document.budget_settings.category_budgets?.Expense?.Food).toBe(10);
+
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    expect(screen.queryByText("Shopping → Food")).toBeNull();
+  });
+
+  it("requires changed-category review before confirming budget drafts", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    const document = defaultDocument();
+    render(<ExplorationScreen document={document} onConfirm={save} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+    await user.clear(screen.getByLabelText("Draft budget percentage for Food"));
+    await user.type(screen.getByLabelText("Draft budget percentage for Food"), "20");
+    await user.click(screen.getByRole("button", { name: "Review and confirm" }));
+    expect((screen.getByRole("button", { name: "Confirm and save" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByLabelText("I reviewed each changed category before saving."));
+    await user.click(screen.getByRole("button", { name: "Confirm and save" }));
+    expect(save).toHaveBeenCalledTimes(1);
+  });
+
   it("blocks confirmation when previewed planned budget leaves negative cash", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assetAllocation,
+  budgetSuggestions,
   createSnapshot,
   defaultDocument,
   getActiveFixedCosts,
@@ -147,6 +148,36 @@ describe("shared finance compatibility", () => {
     document.budget_settings.fixed_costs = [{ amount: 150, description: "Rent", start_date: "2026-01-01", end_date: null }];
 
     expect(rawNetAvailableForSpending(document, "2026-06")).toBe(-50);
+  });
+
+  it("ranks explainable reallocations from surplus to historical need", () => {
+    const document = defaultDocument();
+    document.categories.Expense = ["Food", "Shopping", "Healthcare"];
+    document.budget_settings.monthly_income = 1000;
+    document.budget_settings.category_budgets = {
+      Expense: { Food: 10, Shopping: 40, Healthcare: 0 }
+    };
+    document.budget_settings.savings_goals = [{
+      name: "Emergency fund",
+      target_amount: 2000,
+      allocated_amount: 500,
+      priority: "High"
+    }];
+    document.expenses.push(
+      { date: "2026-04-10", amount: 250, category: "Food", description: "Groceries" },
+      { date: "2026-05-10", amount: 250, category: "Food", description: "Groceries" },
+      { date: "2026-06-10", amount: 250, category: "Food", description: "Groceries" },
+      { date: "2026-04-11", amount: 50, category: "Shopping", description: "Shopping" },
+      { date: "2026-05-11", amount: 50, category: "Shopping", description: "Shopping" },
+      { date: "2026-06-11", amount: 50, category: "Shopping", description: "Shopping" }
+    );
+
+    const suggestions = budgetSuggestions(document, "2026-07");
+
+    expect(suggestions[0]).toMatchObject({ source: "Shopping", target: "Food", amount: 150 });
+    expect(suggestions[0].reason).toContain("historical surplus");
+    expect(suggestions[0].reason).toContain("high-priority goal funding");
+    expect(budgetSuggestions(document, "2026-07")).toEqual(suggestions);
   });
 
   it("records snapshots from the current balance fields", () => {

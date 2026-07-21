@@ -79,4 +79,38 @@ describe("App Exploration navigation", () => {
       expenses: [expect.objectContaining({ description: "Confirmed event", amount: 20 })]
     })));
   });
+
+  it("routes reviewed budget changes through shared save flow", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    const saveDocument = vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } });
+    const bridge: FinanceApi = {
+      load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
+      chooseDataFile: vi.fn(),
+      createDataFile: vi.fn(),
+      saveDocument,
+      chooseBankCsv: vi.fn(),
+      exportText: vi.fn()
+    };
+    window.finance = bridge;
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
+    });
+
+    render(<App />);
+    await waitFor(() => expect(screen.getByRole("heading", { name: "Your money, clearly" })).toBeTruthy());
+    await user.click(screen.getByRole("button", { name: "Exploration" }));
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+    await user.clear(screen.getByLabelText("Draft budget percentage for Food"));
+    await user.type(screen.getByLabelText("Draft budget percentage for Food"), "20");
+    await user.click(screen.getByRole("button", { name: "Review and confirm" }));
+    expect((screen.getByRole("button", { name: "Confirm and save" }) as HTMLButtonElement).disabled).toBe(true);
+    await user.click(screen.getByLabelText("I reviewed each changed category before saving."));
+    await user.click(screen.getByRole("button", { name: "Confirm and save" }));
+
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+      budget_settings: expect.objectContaining({ category_budgets: expect.objectContaining({ Expense: expect.objectContaining({ Food: 20 }) }) })
+    })));
+  });
 });
