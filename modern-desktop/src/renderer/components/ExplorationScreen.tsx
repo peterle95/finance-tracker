@@ -86,6 +86,10 @@ interface BudgetPreview {
   negativeCash: boolean;
 }
 
+function suggestionKey(suggestion: BudgetSuggestion): string {
+  return JSON.stringify([suggestion.source, suggestion.target]);
+}
+
 interface ScenarioDriverChange {
   label: string;
   baseline: number;
@@ -424,7 +428,6 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [discardedSuggestions, setDiscardedSuggestions] = useState<string[]>([]);
-  const [appliedSuggestions, setAppliedSuggestions] = useState<string[]>([]);
   const [categoryReviewConfirmed, setCategoryReviewConfirmed] = useState(false);
   const [eventDraft, setEventDraft] = useState<ScenarioEventDraft>(() => ({
     type: "Expense",
@@ -508,11 +511,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     reducedEmergencyBuffer: emergencyBuffer < baselineEmergencyBuffer,
     negativeCash: projectedCash < 0
   };
-  const suggestions = budgetSuggestions(document, month)
-    .filter((suggestion) => {
-      const key = suggestion.source + "-" + suggestion.target;
-      return !discardedSuggestions.includes(key) && !appliedSuggestions.includes(key);
-    });
+  const suggestions = budgetSuggestions(draft, month)
+    .filter((suggestion) => !discardedSuggestions.includes(suggestionKey(suggestion)));
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -618,22 +618,22 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     if (flexibleBudget <= 0) {
       return;
     }
-    const shift = suggestion.amount / flexibleBudget * 100;
     updateDraft((next) => {
       const expenseBudgets = { ...(next.budget_settings.category_budgets?.Expense ?? {}) };
-      expenseBudgets[suggestion.source] = roundCurrency(Math.max(0, Number(expenseBudgets[suggestion.source] ?? 0) - shift));
+      const sourceBudget = Number(expenseBudgets[suggestion.source] ?? 0);
+      const shift = Math.min(suggestion.amount / flexibleBudget * 100, Math.max(sourceBudget, 0));
+      expenseBudgets[suggestion.source] = roundCurrency(Math.max(0, sourceBudget - shift));
       expenseBudgets[suggestion.target] = roundCurrency(Number(expenseBudgets[suggestion.target] ?? 0) + shift);
       next.budget_settings.category_budgets = {
         ...(next.budget_settings.category_budgets ?? {}),
         Expense: expenseBudgets
       };
     });
-    setAppliedSuggestions((current) => [...current, suggestion.source + "-" + suggestion.target]);
     setMessage("Suggestion previewed. Review or modify allocation before saving.");
   }
 
   function discardSuggestion(suggestion: BudgetSuggestion) {
-    setDiscardedSuggestions((current) => [...current, suggestion.source + "-" + suggestion.target]);
+    setDiscardedSuggestions((current) => [...current, suggestionKey(suggestion)]);
   }
 
   function resetDrafts(ask = true) {
@@ -643,7 +643,6 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     setDraft(cloneDocument(document));
     setUndoStack([]);
     setDiscardedSuggestions([]);
-    setAppliedSuggestions([]);
     setEditingEventId(null);
     setReviewing(false);
     setMessage("Exploration drafts reset to saved baseline.");
@@ -683,7 +682,6 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     }
     setDraft(cloneDocument(previous));
     setUndoStack(undoStack.slice(0, -1));
-    setAppliedSuggestions([]);
     setReviewing(false);
     setMessage("Last Exploration edit undone.");
   }

@@ -464,6 +464,7 @@ export function budgetSuggestions(document: FinanceDocument, month = currentMont
       historical,
       historicalUnderspend: Math.max(allocated - historical, 0),
       historicalNeed: Math.max(historical - allocated, 0),
+      categoryPriority: budgets[category] ?? 0,
       order: categories.length - index
     };
   });
@@ -479,22 +480,20 @@ export function budgetSuggestions(document: FinanceDocument, month = currentMont
       const score = roundCurrency(
         source.historicalUnderspend * 1000
         + target.historicalNeed * 100
-        + target.order * 10
+        + target.categoryPriority * 10
         + goalImpact * target.historicalNeed / Math.max(flexibleBudget, 1)
         + targetGoalImpact * 100
       );
       const goalReason = targetGoal
         ? "supports " + (targetGoal.priority ?? "Medium").toLowerCase() + "-priority goal " + targetGoal.name
-        : goalImpact > 0
-          ? "protects " + (goals[0]?.priority ?? "Medium").toLowerCase() + "-priority goal funding"
-        : "keeps goal impact neutral";
+        : goalImpact > 0 ? "accounts for active goal shortfall" : "keeps goal impact neutral";
       return {
         source: source.category,
         target: target.category,
         amount,
         score,
         reason: "Moves " + formatCurrency(amount) + " from historical surplus in " + source.category
-          + " to " + target.category + "'s historical need; category priority " + target.order
+          + " to " + target.category + "'s historical need; category priority " + target.categoryPriority.toFixed(1) + "% planned"
           + "; " + goalReason + "."
       };
     }))

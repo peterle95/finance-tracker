@@ -122,16 +122,19 @@ describe("ExplorationScreen", () => {
       { date: "2026-05-11", amount: 50, category: "Shopping", description: "Shopping" },
       { date: "2026-06-11", amount: 50, category: "Shopping", description: "Shopping" }
     );
-    render(<ExplorationScreen document={document} />);
+    const view = render(<ExplorationScreen document={document} />);
 
     await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
     expect(screen.getByText("Shopping → Food")).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Discard" }));
+    expect(screen.queryByText("Shopping → Food")).toBeNull();
+
+    view.unmount();
+    render(<ExplorationScreen document={document} />);
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
     await user.click(screen.getByRole("button", { name: "Preview" }));
     expect((screen.getByLabelText("Draft budget percentage for Food") as HTMLInputElement).value).toBe("25");
     expect(document.budget_settings.category_budgets?.Expense?.Food).toBe(10);
-
-    await user.click(screen.getByRole("button", { name: "Discard" }));
-    expect(screen.queryByText("Shopping → Food")).toBeNull();
   });
 
   it("requires changed-category review before confirming budget drafts", async () => {
