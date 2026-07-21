@@ -674,6 +674,21 @@ code {
   font-size: 1rem;
 }
 
+.exploration-review-list {
+  display: grid;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.exploration-review-list > div {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
 .exploration-status {
   width: min(1320px, 100%);
   margin: 0 auto 1rem;

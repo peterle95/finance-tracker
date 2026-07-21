@@ -41,12 +41,14 @@ describe("ExplorationScreen", () => {
     await user.type(screen.getByLabelText("Scenario event amount"), "300");
     await user.type(screen.getByLabelText("Scenario event description"), "Trip");
     await user.click(screen.getByRole("button", { name: "Add temporary event" }));
+    expect(document.expenses).toHaveLength(0);
+    expect(document.budget_settings.category_budgets?.Expense?.Food).toBeUndefined();
     await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
     await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
 
-    const budget = screen.getByLabelText("Draft budget for Food");
+    const budget = screen.getByLabelText("Draft budget percentage for Food");
     await user.clear(budget);
-    await user.type(budget, "250");
+    await user.type(budget, "25");
     await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
     expect(screen.getByText("Draft changes")).toBeTruthy();
 
@@ -54,7 +56,7 @@ describe("ExplorationScreen", () => {
     expect(screen.getByText("Trip · " + new Date().toISOString().slice(0, 10))).toBeTruthy();
     await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
     await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
-    expect((screen.getByLabelText("Draft budget for Food") as HTMLInputElement).value).toBe("250");
+    expect((screen.getByLabelText("Draft budget percentage for Food") as HTMLInputElement).value).toBe("25");
     expect(save).not.toHaveBeenCalled();
   });
 
@@ -79,7 +81,23 @@ describe("ExplorationScreen", () => {
 
     await user.click(screen.getByRole("button", { name: "Reset drafts" }));
     expect(confirm).toHaveBeenCalledWith("Reset all temporary Exploration drafts?");
-    expect(screen.getByText("Baseline only")).toBeTruthy();
+    expect(screen.getByRole("status").textContent).toContain("reset to saved baseline");
+    confirm.mockRestore();
+  });
+
+  it("cancels drafts and returns to the saved baseline", async () => {
+    const user = userEvent.setup();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<ExplorationScreen document={defaultDocument()} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+    await user.type(screen.getByLabelText("Scenario event amount"), "15");
+    await user.type(screen.getByLabelText("Scenario event description"), "Cancelled");
+    await user.click(screen.getByRole("button", { name: "Add temporary event" }));
+    await user.click(screen.getByRole("button", { name: "Cancel drafts" }));
+
+    expect(screen.getByRole("heading", { name: "Explore what comes next" })).toBeTruthy();
+    expect(screen.queryByText("Cancelled")).toBeNull();
     confirm.mockRestore();
   });
 });

@@ -10,7 +10,7 @@ import {
   netWorth,
   snapshots
 } from "../../shared/finance";
-import type { FinanceDocument, TransactionType } from "../../shared/types";
+import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, Metric, PageHeader } from "./ui";
 
 type ExplorationView = "landing" | "simulator" | "journey" | "balancer";
@@ -53,6 +53,16 @@ interface ScenarioEventDraft {
   amount: string;
   description: string;
   date: string;
+}
+
+interface ScenarioEventChange extends FinanceTransaction {
+  type: TransactionType;
+}
+
+interface BudgetChange {
+  category: string;
+  from: number;
+  to: number;
 }
 
 function FocusedView({
@@ -104,7 +114,7 @@ function FocusedView({
       />
       <div className="exploration-context-grid">
         <Metric label="Saved net worth" value={formatCurrency(netWorth(document))} detail="Saved finance data" tone="positive" />
-        <Metric label="Scenario net worth" value={formatCurrency(netWorth(draft))} detail="Temporary draft" />
+        <Metric label="Scenario events" value={String(scenarioEvents.length)} detail="Temporary draft" />
         <Metric label="Workspace" value={workflow.title} detail="Drafts preserved while navigating" />
       </div>
 
@@ -128,7 +138,7 @@ function FocusedView({
           <div className="card-heading"><div><p className="eyebrow">Temporary allocation</p><h2>Adjust flexible category budgets</h2></div><WalletCards size={24} /></div>
           <p className="muted-copy">These values are a preview. Saved budget settings stay unchanged until confirmation.</p>
           <div className="form-grid exploration-budget-grid">
-            {categories.map((category) => <label key={category}><span>{category}</span><input aria-label={"Draft budget for " + category} type="number" min="0" step="0.01" value={budgetValues[category] ?? 0} onChange={(event) => onBudgetChange(category, event.target.value)} /></label>)}
+            {categories.map((category) => <label key={category}><span>{category} (%)</span><input aria-label={"Draft budget percentage for " + category} type="number" min="0" max="100" step="0.5" value={budgetValues[category] ?? 0} onChange={(event) => onBudgetChange(category, event.target.value)} /></label>)}
           </div>
         </Card>
       ) : null}
@@ -144,8 +154,8 @@ function FocusedView({
 function DraftControls({
   dirty,
   reviewing,
-  scenarioEventCount,
-  budgetChangeCount,
+  scenarioChanges,
+  budgetChanges,
   onCancel,
   onReset,
   onReview,
@@ -154,8 +164,8 @@ function DraftControls({
 }: {
   dirty: boolean;
   reviewing: boolean;
-  scenarioEventCount: number;
-  budgetChangeCount: number;
+  scenarioChanges: ScenarioEventChange[];
+  budgetChanges: BudgetChange[];
   onCancel(): void;
   onReset(): void;
   onReview(): void;
@@ -169,7 +179,7 @@ function DraftControls({
   return (
     <Card className="exploration-draft-controls">
       <div className="card-heading"><div><p className="eyebrow">Unsaved Exploration drafts</p><h2>Saved finance data is unchanged</h2></div><Save size={24} /></div>
-      <p className="muted-copy">{scenarioEventCount} temporary event(s) and {budgetChangeCount} budget change(s) remain in memory.</p>
+      <p className="muted-copy">{scenarioChanges.length} temporary event(s) and {budgetChanges.length} budget change(s) remain in memory.</p>
       <div className="button-group exploration-draft-actions">
         <Button variant="ghost" onClick={onCancel}><X size={16} /> Cancel drafts</Button>
         <Button variant="danger" onClick={onReset}><RotateCcw size={16} /> Reset drafts</Button>
@@ -180,6 +190,10 @@ function DraftControls({
           <p className="eyebrow">Final diff</p>
           <h3>Confirm changes to shared finance data?</h3>
           <p className="muted-copy">Confirmation is the only action that sends this draft through the existing save flow.</p>
+          <div className="exploration-review-list">
+            {scenarioChanges.map((event, index) => <div key={(event.id ?? event.date) + index}><span>{event.type} · {event.description || event.category} · {event.date}</span><strong>{event.type === "Expense" ? "−" : "+"}{formatCurrency(event.amount)}</strong></div>)}
+            {budgetChanges.map((change) => <div key={change.category}><span>{change.category} percentage</span><strong>{change.from}% → {change.to}%</strong></div>)}
+          </div>
           <div className="button-group exploration-draft-actions">
             <Button variant="ghost" onClick={onKeepEditing}>Keep editing</Button>
             <Button onClick={onConfirm}>Confirm and save</Button>
@@ -205,8 +219,13 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const savedBudgets = document.budget_settings.category_budgets?.Expense ?? {};
   const draftBudgets = draft.budget_settings.category_budgets?.Expense ?? {};
   const categories = Array.from(new Set([...document.categories.Expense, ...Object.keys(savedBudgets), ...Object.keys(draftBudgets)]));
-  const budgetChangeCount = categories.filter((category) => (draftBudgets[category] ?? 0) !== (savedBudgets[category] ?? 0)).length;
-  const scenarioEventCount = Math.max(0, draft.expenses.length - document.expenses.length) + Math.max(0, draft.incomes.length - document.incomes.length);
+  const budgetChanges = categories
+    .filter((category) => draftBudgets[category] !== savedBudgets[category])
+    .map((category) => ({ category, from: savedBudgets[category] ?? 0, to: draftBudgets[category] ?? 0 }));
+  const scenarioChanges: ScenarioEventChange[] = [
+    ...draft.expenses.slice(document.expenses.length).map((event) => ({ ...event, type: "Expense" as const })),
+    ...draft.incomes.slice(document.incomes.length).map((event) => ({ ...event, type: "Income" as const }))
+  ];
   const historyCount = snapshots(document).length;
   const goals = goalSummary(document);
   const goalCount = getGoals(document).length;
@@ -231,7 +250,11 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
       setMessage("Enter event description and positive amount.");
       return;
     }
-    if (!eventDraft.date || eventDraft.date < isoToday()) {
+    const parsedDate = new Date(eventDraft.date + "T12:00:00");
+    const validDate = /^\d{4}-\d{2}-\d{2}$/.test(eventDraft.date)
+      && !Number.isNaN(parsedDate.getTime())
+      && parsedDate.toISOString().slice(0, 10) === eventDraft.date;
+    if (!validDate || eventDraft.date < isoToday()) {
       setMessage("Scenario events must use today or a future date.");
       return;
     }
@@ -255,7 +278,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
         ...(next.budget_settings.category_budgets ?? {}),
         Expense: {
           ...(next.budget_settings.category_budgets?.Expense ?? {}),
-          [category]: Number.isFinite(amount) && amount >= 0 ? amount : 0
+          [category]: Number.isFinite(amount) && amount >= 0 ? Math.min(100, amount) : 0
         }
       };
     });
@@ -287,6 +310,8 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     setReviewing(false);
   }
 
+  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
+
   if (view !== "landing") {
     return (
       <>
@@ -302,7 +327,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           onBudgetChange={updateBudget}
         />
         {message ? <p className="exploration-status" role="status">{message}</p> : null}
-        <DraftControls dirty={dirty} reviewing={reviewing} scenarioEventCount={scenarioEventCount} budgetChangeCount={budgetChangeCount} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />
+        {draftControls}
       </>
     );
   }
@@ -360,7 +385,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           </Card>
         </div>
       </div>
-      <DraftControls dirty={dirty} reviewing={reviewing} scenarioEventCount={scenarioEventCount} budgetChangeCount={budgetChangeCount} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />
+      {draftControls}
     </>
   );
 }
