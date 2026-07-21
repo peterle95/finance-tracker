@@ -31,6 +31,36 @@ describe("ExplorationScreen", () => {
     expect(screen.getByRole("button", { name: "Open Budget Balancer" })).toBeTruthy();
   });
 
+  it("shows baseline and active scenario comparison with disabled multi-scenario control", async () => {
+    const user = userEvent.setup();
+    render(<ExplorationScreen document={defaultDocument()} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+    expect(screen.getByRole("heading", { name: "Baseline versus active scenario" })).toBeTruthy();
+    expect(screen.getByText("Net-worth difference")).toBeTruthy();
+    expect(screen.getByText("Cash-flow difference")).toBeTruthy();
+    expect(screen.getByText("Driver differences")).toBeTruthy();
+    expect((screen.getByRole("button", { name: "Compare another scenario" }) as HTMLButtonElement).disabled).toBe(true);
+  });
+
+  it("updates comparison and includes it in final review before save", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    render(<ExplorationScreen document={defaultDocument()} onConfirm={save} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+    await user.selectOptions(screen.getByLabelText("Scenario event type"), "Income");
+    await user.type(screen.getByLabelText("Scenario event amount"), "100");
+    await user.type(screen.getByLabelText("Scenario event description"), "New contract");
+    await user.click(screen.getByRole("button", { name: "Add temporary event" }));
+    expect(screen.getAllByText("+100,00 €").length).toBeGreaterThan(0);
+
+    await user.click(screen.getByRole("button", { name: "Review and confirm" }));
+    expect(screen.getByText(/Net worth: 0,00 € → 100,00 €/)).toBeTruthy();
+    expect(screen.getByText(/INCOME|Income/)).toBeTruthy();
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("preserves scenario and budget drafts across focused views", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();

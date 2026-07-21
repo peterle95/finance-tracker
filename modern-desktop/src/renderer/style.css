@@ -631,6 +631,100 @@ code {
   background: linear-gradient(135deg, color-mix(in srgb, var(--exploration-violet) 9%, var(--surface)), var(--surface));
 }
 
+.scenario-comparison-card {
+  margin-bottom: 1rem;
+  border-color: color-mix(in srgb, var(--exploration-violet) 36%, var(--border));
+  background: linear-gradient(135deg, color-mix(in srgb, var(--exploration-violet) 7%, var(--surface)), var(--surface));
+}
+
+.scenario-compare-grid,
+.scenario-difference-grid {
+  display: grid;
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.scenario-compare-grid {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.scenario-compare-grid > div {
+  display: grid;
+  gap: 0.25rem;
+  padding: 0.9rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface) 82%, var(--exploration-violet));
+}
+
+.scenario-compare-grid strong {
+  color: var(--text);
+  font-size: 1.4rem;
+  font-variant-numeric: tabular-nums;
+}
+
+.scenario-compare-grid small,
+.scenario-comparison-actions small {
+  color: var(--faint);
+  font-size: 0.72rem;
+}
+
+.scenario-active {
+  border-color: color-mix(in srgb, var(--exploration-violet) 50%, var(--border)) !important;
+}
+
+.scenario-difference-grid {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.scenario-driver-list {
+  display: grid;
+  gap: 0.45rem;
+  margin-top: 1rem;
+}
+
+.scenario-driver-list > p {
+  margin-bottom: 0.2rem;
+}
+
+.scenario-driver-list > div,
+.scenario-comparison-actions,
+.scenario-review-summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.scenario-driver-list > div {
+  padding: 0.55rem 0;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+}
+
+.scenario-driver-list strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.scenario-comparison-actions {
+  align-items: flex-start;
+  margin-top: 1rem;
+}
+
+.scenario-comparison-actions .button:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.scenario-review-summary {
+  flex-wrap: wrap;
+  margin-top: 0.8rem;
+  color: var(--muted);
+  font-size: 0.78rem;
+  line-height: 1.5;
+}
+
 .exploration-draft-controls {
   width: min(1320px, calc(100% - 4.6rem));
   margin: 0 auto 1rem;
@@ -2011,6 +2105,10 @@ tbody tr:hover td {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
+  .scenario-difference-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
   .inline-form,
   .loan-form {
     grid-template-columns: repeat(2, minmax(0, 1fr));
@@ -2095,6 +2193,11 @@ tbody tr:hover td {
   }
 
   .balancer-impact-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .scenario-compare-grid,
+  .scenario-difference-grid {
     grid-template-columns: 1fr;
   }
 
