@@ -53,6 +53,7 @@ const workflows = [
 
 interface ExplorationScreenProps {
   document: FinanceDocument;
+  reducedMotion?: boolean;
   onConfirm?(document: FinanceDocument): void;
   onDirtyChange?(dirty: boolean): void;
 }
@@ -219,6 +220,7 @@ function FocusedView({
   protectedCategories,
   eventDraft,
   onBack,
+  reducedMotion,
   onEventDraftChange,
   onAddEvent,
   onEditEvent,
@@ -240,6 +242,7 @@ function FocusedView({
   protectedCategories: Set<string>;
   eventDraft: ScenarioEventDraft;
   onBack(): void;
+  reducedMotion: boolean;
   onEventDraftChange(update: Partial<ScenarioEventDraft>): void;
   onAddEvent(event: React.FormEvent<HTMLFormElement>): void;
   onEditEvent(event: ScenarioEventChange): void;
@@ -267,6 +270,10 @@ function FocusedView({
     if (view !== "balancer") {
       return;
     }
+    if (reducedMotion) {
+      setFeedbackActive(false);
+      return;
+    }
     setFeedbackActive(false);
     const frame = window.requestAnimationFrame(() => setFeedbackActive(true));
     const timeout = window.setTimeout(() => setFeedbackActive(false), 320);
@@ -274,7 +281,7 @@ function FocusedView({
       window.cancelAnimationFrame(frame);
       window.clearTimeout(timeout);
     };
-  }, [budgetPreview.emergencyBuffer, budgetPreview.goalShortfall, budgetPreview.projectedCash, view]);
+  }, [budgetPreview.emergencyBuffer, budgetPreview.goalShortfall, budgetPreview.projectedCash, reducedMotion, view]);
   return (
     <div className="page exploration-page">
       <PageHeader
@@ -308,7 +315,7 @@ function FocusedView({
         </>
       ) : null}
 
-      {view === "journey" ? <JourneyChart document={document} /> : null}
+      {view === "journey" ? <JourneyChart document={document} reducedMotion={reducedMotion} /> : null}
 
       {view === "balancer" ? (
         <Card className="exploration-draft-card">
@@ -420,7 +427,7 @@ function DraftControls({
   );
 }
 
-export function ExplorationScreen({ document, onConfirm, onDirtyChange }: ExplorationScreenProps) {
+export function ExplorationScreen({ document, reducedMotion = false, onConfirm, onDirtyChange }: ExplorationScreenProps) {
   const [view, setView] = useState<ExplorationView>("landing");
   const [draft, setDraft] = useState(() => cloneDocument(document));
   const [undoStack, setUndoStack] = useState<FinanceDocument[]>([]);
@@ -517,6 +524,14 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   useEffect(() => {
     onDirtyChange?.(dirty);
   }, [dirty, onDirtyChange]);
+
+  useEffect(() => {
+    if (!message) {
+      return;
+    }
+    const timeout = window.setTimeout(() => setMessage(""), 2000);
+    return () => window.clearTimeout(timeout);
+  }, [message]);
 
   function updateDraft(update: (next: FinanceDocument) => void) {
     setUndoStack((entries) => [...entries, cloneDocument(draft)]);
@@ -696,6 +711,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           document={document}
           categories={categories}
           eventCategories={document.categories}
+          reducedMotion={reducedMotion}
           scenarioEvents={scenarioChanges}
           editingEventId={editingEventId}
           eventDraft={eventDraft}
@@ -713,7 +729,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
           onApplySuggestion={applySuggestion}
           onDiscardSuggestion={discardSuggestion}
         />
-        {message ? <p className="exploration-status" role="status">{message}</p> : null}
+        {message ? <p className="exploration-status" role="status" aria-live="polite">{message}</p> : null}
         {draftControls}
       </>
     );
