@@ -1,6 +1,6 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { defaultDocument, formatCurrency } from "../../shared/finance";
 import { ExplorationScreen } from "./ExplorationScreen";
 
@@ -29,5 +29,57 @@ describe("ExplorationScreen", () => {
     await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
     expect(screen.getByRole("heading", { name: "Explore what comes next" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Open Budget Balancer" })).toBeTruthy();
+  });
+
+  it("preserves scenario and budget drafts across focused views", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    const save = vi.fn();
+    render(<ExplorationScreen document={document} onConfirm={save} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+    await user.type(screen.getByLabelText("Scenario event amount"), "300");
+    await user.type(screen.getByLabelText("Scenario event description"), "Trip");
+    await user.click(screen.getByRole("button", { name: "Add temporary event" }));
+    await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+
+    const budget = screen.getByLabelText("Draft budget for Food");
+    await user.clear(budget);
+    await user.type(budget, "250");
+    await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
+    expect(screen.getByText("Draft changes")).toBeTruthy();
+
+    await user.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+    expect(screen.getByText("Trip · " + new Date().toISOString().slice(0, 10))).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "Back to Exploration" }));
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+    expect((screen.getByLabelText("Draft budget for Food") as HTMLInputElement).value).toBe("250");
+    expect(save).not.toHaveBeenCalled();
+  });
+
+  it("does not save drafts until explicit confirmation and can reset them", async () => {
+    const user = userEvent.setup();
+    const save = vi.fn();
+    const confirm = vi.spyOn(window, "confirm").mockReturnValue(true);
+    render(<ExplorationScreen document={defaultDocument()} onConfirm={save} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Future Simulator" }));
+    await user.type(screen.getByLabelText("Scenario event amount"), "40");
+    await user.type(screen.getByLabelText("Scenario event description"), "Cinema");
+    await user.click(screen.getByRole("button", { name: "Add temporary event" }));
+    expect(save).not.toHaveBeenCalled();
+
+    await user.click(screen.getByRole("button", { name: "Review and confirm" }));
+    expect(save).not.toHaveBeenCalled();
+    await user.click(screen.getByRole("button", { name: "Confirm and save" }));
+    expect(save).toHaveBeenCalledWith(expect.objectContaining({
+      expenses: [expect.objectContaining({ description: "Cinema", amount: 40 })]
+    }));
+
+    await user.click(screen.getByRole("button", { name: "Reset drafts" }));
+    expect(confirm).toHaveBeenCalledWith("Reset all temporary Exploration drafts?");
+    expect(screen.getByText("Baseline only")).toBeTruthy();
+    confirm.mockRestore();
   });
 });
