@@ -66,6 +66,10 @@ function initialTheme(): Theme {
   return window.matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark";
 }
 
+function initialReducedMotion(): boolean {
+  return localStorage.getItem("finance-tracker-reduced-motion") === "true";
+}
+
 export function App() {
   const [financeDocument, setDocument] = useState<FinanceDocument | null>(null);
   const [connection, setConnection] = useState<DataConnection>({ path: null, isConnected: false });
@@ -74,6 +78,7 @@ export function App() {
   const [page, setPage] = useState<Page>("dashboard");
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
+  const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
   const [explorationDirty, setExplorationDirty] = useState(false);
@@ -82,6 +87,11 @@ export function App() {
     window.document.documentElement.dataset.theme = theme;
     localStorage.setItem("finance-tracker-theme", theme);
   }, [theme]);
+
+  useEffect(() => {
+    window.document.documentElement.dataset.reducedMotion = String(reducedMotion);
+    localStorage.setItem("finance-tracker-reduced-motion", String(reducedMotion));
+  }, [reducedMotion]);
 
   useEffect(() => {
     void loadData();
@@ -131,7 +141,7 @@ export function App() {
       setToast(error instanceof Error ? error.message : "Save failed. Reload the file before trying again.");
     } finally {
       setSaving(false);
-      window.setTimeout(() => setToast(""), 3200);
+      window.setTimeout(() => setToast(""), 2000);
     }
   }
 
@@ -172,7 +182,7 @@ export function App() {
     const filePath = await window.finance.exportText(defaultName, text);
     if (filePath) {
       setToast("Report exported.");
-      window.setTimeout(() => setToast(""), 3200);
+      window.setTimeout(() => setToast(""), 2000);
     }
   }
 
@@ -227,13 +237,13 @@ export function App() {
       case "net-worth":
         return <NetWorthScreen document={activeDocument} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
       case "exploration":
-        return <ExplorationScreen document={activeDocument} onConfirm={(next) => void persist(next)} onDirtyChange={setExplorationDirty} />;
+        return <ExplorationScreen document={activeDocument} reducedMotion={reducedMotion} onConfirm={(next) => void persist(next)} onDirtyChange={setExplorationDirty} />;
       case "projection":
         return <ProjectionScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
       case "reconciliation":
         return <ReconciliationScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "settings":
-        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} onThemeChange={setTheme} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
+        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
         return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
@@ -274,7 +284,7 @@ export function App() {
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme"><Moon size={18} /></button>
           </div>
         </header>
-        {toast ? <div className="toast">{toast}</div> : null}
+        {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
         <div className="page-scroll">{content()}</div>
       </main>
 
