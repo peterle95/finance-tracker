@@ -8,6 +8,7 @@ import {
   getActiveFixedCosts,
   getGoals,
   goalSummary,
+  isProtectedBudgetCategory,
   isoToday,
   makeTransaction,
   monthOffset,
@@ -102,12 +103,6 @@ interface ScenarioComparison {
   scenarioGoalDate: string;
   goalDateChange: string;
   drivers: ScenarioDriverChange[];
-}
-
-const PROTECTED_CATEGORY_PATTERN = /rent|mortgage|utility|utilities|debt|loan|insurance|saving|savings|commitment|obligation|tax|minimum/i;
-
-function isProtectedCategory(category: string): boolean {
-  return PROTECTED_CATEGORY_PATTERN.test(category);
 }
 
 function shiftIsoDate(value: string, days: number): string {
@@ -429,6 +424,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [message, setMessage] = useState("");
   const [discardedSuggestions, setDiscardedSuggestions] = useState<string[]>([]);
+  const [appliedSuggestions, setAppliedSuggestions] = useState<string[]>([]);
   const [categoryReviewConfirmed, setCategoryReviewConfirmed] = useState(false);
   const [eventDraft, setEventDraft] = useState<ScenarioEventDraft>(() => ({
     type: "Expense",
@@ -456,7 +452,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const fixedCostCategories = getActiveFixedCosts(document, month)
     .map((cost) => cost.description ?? cost.desc ?? "")
     .filter((category) => categories.includes(category));
-  const protectedCategories = new Set([...categories.filter(isProtectedCategory), ...fixedCostCategories]);
+  const protectedCategories = new Set([...categories.filter(isProtectedBudgetCategory), ...fixedCostCategories]);
   const budgetValues = Object.fromEntries(categories.map((category) => {
     const value = Number(draftBudgets[category] ?? 0);
     return [category, Number.isFinite(value) ? value : 0];
@@ -513,7 +509,10 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     negativeCash: projectedCash < 0
   };
   const suggestions = budgetSuggestions(document, month)
-    .filter((suggestion) => !discardedSuggestions.includes(suggestion.source + "-" + suggestion.target));
+    .filter((suggestion) => {
+      const key = suggestion.source + "-" + suggestion.target;
+      return !discardedSuggestions.includes(key) && !appliedSuggestions.includes(key);
+    });
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -629,6 +628,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
         Expense: expenseBudgets
       };
     });
+    setAppliedSuggestions((current) => [...current, suggestion.source + "-" + suggestion.target]);
     setMessage("Suggestion previewed. Review or modify allocation before saving.");
   }
 
@@ -643,6 +643,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     setDraft(cloneDocument(document));
     setUndoStack([]);
     setDiscardedSuggestions([]);
+    setAppliedSuggestions([]);
     setEditingEventId(null);
     setReviewing(false);
     setMessage("Exploration drafts reset to saved baseline.");
@@ -682,6 +683,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     }
     setDraft(cloneDocument(previous));
     setUndoStack(undoStack.slice(0, -1));
+    setAppliedSuggestions([]);
     setReviewing(false);
     setMessage("Last Exploration edit undone.");
   }

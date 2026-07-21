@@ -426,7 +426,7 @@ export interface AutoAssignResult {
 
 const PROTECTED_BUDGET_PATTERN = /rent|mortgage|utility|utilities|debt|loan|insurance|saving|savings|commitment|obligation|tax|minimum/i;
 
-function isProtectedBudgetCategory(category: string): boolean {
+export function isProtectedBudgetCategory(category: string): boolean {
   return PROTECTED_BUDGET_PATTERN.test(category);
 }
 
@@ -474,18 +474,19 @@ export function budgetSuggestions(document: FinanceDocument, month = currentMont
     .filter((target) => target.category !== source.category)
     .map((target) => {
       const amount = roundCurrency(Math.min(source.historicalUnderspend, target.historicalNeed));
-      const targetGoalImpact = goals.reduce((total, goal) => total
-        + (goal.name.trim().toLowerCase() === target.category.trim().toLowerCase()
-          ? goal.target_amount - goal.allocated_amount
-          : 0), 0);
+      const targetGoal = goals.find((goal) => goal.name.trim().toLowerCase() === target.category.trim().toLowerCase());
+      const targetGoalImpact = targetGoal ? targetGoal.target_amount - targetGoal.allocated_amount : 0;
       const score = roundCurrency(
         source.historicalUnderspend * 1000
         + target.historicalNeed * 100
         + target.order * 10
-        + (goalImpact + targetGoalImpact * 3) / Math.max(flexibleBudget, 1)
+        + goalImpact * target.historicalNeed / Math.max(flexibleBudget, 1)
+        + targetGoalImpact * 100
       );
-      const goalReason = goalImpact > 0
-        ? "protects " + (goals[0]?.priority ?? "Medium").toLowerCase() + "-priority goal funding"
+      const goalReason = targetGoal
+        ? "supports " + (targetGoal.priority ?? "Medium").toLowerCase() + "-priority goal " + targetGoal.name
+        : goalImpact > 0
+          ? "protects " + (goals[0]?.priority ?? "Medium").toLowerCase() + "-priority goal funding"
         : "keeps goal impact neutral";
       return {
         source: source.category,
