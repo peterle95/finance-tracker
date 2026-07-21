@@ -64,7 +64,7 @@ function seriesPoint(dataset: JourneyDataset, series: JourneySeries, date: strin
   return series.points.find((point) => point.date === date);
 }
 
-export function JourneyChart({ document }: { document: FinanceDocument }) {
+export function JourneyChart({ document, reducedMotion = false }: { document: FinanceDocument; reducedMotion?: boolean }) {
   const [horizon, setHorizon] = useState<JourneyHorizon>(DEFAULT_JOURNEY_HORIZON);
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dataset = buildJourneyDataset(document, horizon);
@@ -130,7 +130,7 @@ export function JourneyChart({ document }: { document: FinanceDocument }) {
               <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
               <YAxis tickFormatter={(value) => "€" + Math.round(value)} tickLine={false} axisLine={false} width={76} />
               <Tooltip formatter={(value) => formatCurrency(Number(value))} />
-              {dataset.series.map((series) => <Line key={series.id} type="monotone" dataKey={series.id} name={series.label} stroke={seriesColors[series.state]} strokeWidth={series.state === "actual" ? 3 : 2} strokeDasharray={series.style === "dashed" ? "8 5" : series.style === "accent" ? "2 4" : undefined} dot={series.state === "scenario" ? false : { r: 3 }} connectNulls={false} />)}
+              {dataset.series.map((series) => <Line key={series.id} type="monotone" dataKey={series.id} name={series.label} stroke={seriesColors[series.state]} strokeWidth={series.state === "actual" ? 3 : 2} strokeDasharray={series.style === "dashed" ? "8 5" : series.style === "accent" ? "2 4" : undefined} dot={series.state === "scenario" ? false : { r: 3 }} connectNulls={false} isAnimationActive={!reducedMotion} animationDuration={reducedMotion ? 0 : 300} />)}
             </LineChart>
           </ResponsiveContainer>
         </div>
