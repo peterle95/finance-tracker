@@ -323,12 +323,16 @@ export function sumMonthTransactions(document: FinanceDocument, type: Transactio
     .reduce((total, transaction) => total + asNumber(transaction.amount), 0);
 }
 
-export function computeNetAvailableForSpending(document: FinanceDocument, month: string): number {
+export function rawNetAvailableForSpending(document: FinanceDocument, month: string): number {
   const baseIncome = getActiveMonthlyIncome(document, month);
   const flexibleIncome = sumMonthTransactions(document, "Income", month);
   const fixedCosts = sumFixedCosts(document, month);
   const savingsGoal = asNumber(document.budget_settings.daily_savings_goal) * monthDays(month);
-  return Math.max(baseIncome + flexibleIncome - fixedCosts - savingsGoal, 0);
+  return roundCurrency(baseIncome + flexibleIncome - fixedCosts - savingsGoal);
+}
+
+export function computeNetAvailableForSpending(document: FinanceDocument, month: string): number {
+  return Math.max(rawNetAvailableForSpending(document, month), 0);
 }
 
 export function monthEndFlexibleBalance(document: FinanceDocument, month: string): number {

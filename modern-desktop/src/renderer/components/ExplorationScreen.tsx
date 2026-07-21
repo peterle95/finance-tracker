@@ -2,7 +2,6 @@ import { ArrowLeft, Check, LineChart, Pencil, RotateCcw, Save, Trash2, TrendingU
 import { useEffect, useState } from "react";
 import {
   cloneDocument,
-  computeNetAvailableForSpending,
   currentMonth,
   formatCurrency,
   getActiveFixedCosts,
@@ -11,6 +10,7 @@ import {
   isoToday,
   makeTransaction,
   netWorth,
+  rawNetAvailableForSpending,
   roundCurrency,
   snapshots
 } from "../../shared/finance";
@@ -104,17 +104,15 @@ function rebalanceBudgetValues(
     .reduce((sum, [, value]) => sum + value, 0);
   const rounded = (value: number) => Math.round(value * 10) / 10;
   const boundedRequest = Math.max(0, Math.min(Number.isFinite(requested) ? requested : 0, 100));
-  const target = Math.max(0, Math.min(boundedRequest, total - protectedTotal));
-  if (total === 0) {
-    return { ...current, [category]: rounded(boundedRequest) };
-  }
+  const plannedTotal = total === 0 ? 100 : total;
+  const target = Math.max(0, Math.min(boundedRequest, plannedTotal - protectedTotal));
 
   const others = entries.filter(([name]) => name !== category && !protectedCategories.has(name));
   if (others.length === 0) {
     return { ...current };
   }
   const result = { ...current, [category]: rounded(target) };
-  const remaining = Math.max(0, total - protectedTotal - target);
+  const remaining = Math.max(0, plannedTotal - protectedTotal - target);
   const currentOtherTotal = others.reduce((sum, [, value]) => sum + value, 0);
   let assigned = 0;
   others.forEach(([name, value], index) => {
@@ -174,6 +172,20 @@ function FocusedView({
     : view === "journey"
       ? "Net-Worth Journey tools are ready for the next Exploration phase."
       : "Adjust temporary category allocations without changing saved budgets.";
+  const [feedbackActive, setFeedbackActive] = useState(false);
+
+  useEffect(() => {
+    if (view !== "balancer") {
+      return;
+    }
+    setFeedbackActive(false);
+    const frame = window.requestAnimationFrame(() => setFeedbackActive(true));
+    const timeout = window.setTimeout(() => setFeedbackActive(false), 320);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.clearTimeout(timeout);
+    };
+  }, [budgetPreview.emergencyBuffer, budgetPreview.goalShortfall, budgetPreview.projectedCash, view]);
   return (
     <div className="page exploration-page">
       <PageHeader
@@ -215,7 +227,7 @@ function FocusedView({
             <Metric label="Emergency buffer" value={formatCurrency(budgetPreview.emergencyBuffer)} detail={budgetPreview.reducedEmergencyBuffer ? "Reduced by this preview" : "Preserved by this preview"} tone={budgetPreview.reducedEmergencyBuffer ? "warning" : "default"} />
             <Metric label="Goal shortfall" value={formatCurrency(budgetPreview.goalShortfall)} detail="Unfunded target amount" tone={budgetPreview.goalShortfall > 0 ? "warning" : "positive"} />
           </div>
-          <p className="balancer-feedback" role="status">Total planned budget stays at {budgetPreview.plannedPercent.toFixed(1)}%. Drag discretionary categories to reallocate it.</p>
+          <p className={"balancer-feedback" + (feedbackActive ? " is-active" : "")} data-feedback="spring" role="status">Total planned budget stays at {budgetPreview.plannedPercent.toFixed(1)}%. Drag discretionary categories to reallocate it.</p>
           {budgetPreview.negativeCash ? <p className="balancer-warning" role="alert">Negative projected cash blocks save. Reduce planned categories before confirming.</p> : null}
           {budgetPreview.goalShortfall > 0 ? <p className="balancer-warning">Goal shortfall: {formatCurrency(budgetPreview.goalShortfall)} remains unfunded.</p> : null}
           {budgetPreview.reducedEmergencyBuffer ? <p className="balancer-warning">Emergency buffer is reduced by this preview.</p> : null}
@@ -342,13 +354,14 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     const value = Number(savedBudgets[category] ?? 0);
     return [category, Number.isFinite(value) ? value : 0];
   }));
-  const flexibleBudget = computeNetAvailableForSpending(document, month);
-  const goalShortfall = getGoals(document).reduce((total, goal) => total + Math.max(goal.target_amount - goal.allocated_amount, 0), 0);
+  const flexibleBudget = rawNetAvailableForSpending(document, month);
+  const baseGoalShortfall = getGoals(document).reduce((total, goal) => total + Math.max(goal.target_amount - goal.allocated_amount, 0), 0);
   const plannedPercent = roundCurrency(Object.values(budgetValues).reduce((total, value) => total + value, 0));
   const savedPlannedPercent = roundCurrency(Object.values(savedBudgetValues).reduce((total, value) => total + value, 0));
   const scenarioNet = scenarioChanges.reduce((total, event) => total + (event.type === "Income" ? event.amount : -event.amount), 0);
-  const projectedCash = roundCurrency(flexibleBudget - flexibleBudget * plannedPercent / 100 + scenarioNet);
-  const baselineProjectedCash = roundCurrency(flexibleBudget - flexibleBudget * savedPlannedPercent / 100 + scenarioNet);
+  const plannedCashBase = Math.max(flexibleBudget, 0);
+  const projectedCash = roundCurrency(flexibleBudget - plannedCashBase * plannedPercent / 100 + scenarioNet);
+  const baselineProjectedCash = roundCurrency(flexibleBudget - plannedCashBase * savedPlannedPercent / 100 + scenarioNet);
   const emergencyBuffer = roundCurrency(Number(document.budget_settings.savings_balance ?? 0) + projectedCash);
   const baselineEmergencyBuffer = roundCurrency(Number(document.budget_settings.savings_balance ?? 0) + baselineProjectedCash);
   const budgetPreview: BudgetPreview = {
@@ -357,7 +370,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     flexibleBudget,
     projectedCash,
     emergencyBuffer,
-    goalShortfall: roundCurrency(goalShortfall),
+    goalShortfall: roundCurrency(Math.max(baseGoalShortfall - Math.max(projectedCash, 0), 0)),
     reducedEmergencyBuffer: emergencyBuffer < baselineEmergencyBuffer,
     negativeCash: projectedCash < 0
   };

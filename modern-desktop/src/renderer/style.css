@@ -698,11 +698,17 @@ code {
 }
 
 .balancer-feedback {
-  transition: color 180ms ease, transform 180ms ease;
+  transform: translateY(0);
+  transition: color 180ms ease, transform 320ms cubic-bezier(.2, .8, .2, 1.2);
+}
+
+.balancer-feedback.is-active {
+  transform: translateY(-2px);
 }
 
 @media (prefers-reduced-motion: reduce) {
   .balancer-feedback {
+    transform: none;
     transition: none;
   }
 }

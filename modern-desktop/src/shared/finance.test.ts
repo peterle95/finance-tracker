@@ -12,7 +12,8 @@ import {
   monthTransactions,
   netWorthTrendProjection,
   negativeCarryover,
-  normalizeDocument
+  normalizeDocument,
+  rawNetAvailableForSpending
 } from "./finance";
 
 describe("shared finance compatibility", () => {
@@ -138,6 +139,14 @@ describe("shared finance compatibility", () => {
     });
 
     expect(negativeCarryover(document, "2026-06")).toBe(-25);
+  });
+
+  it("exposes negative raw spending capacity for safety previews", () => {
+    const document = defaultDocument();
+    document.budget_settings.monthly_income = 100;
+    document.budget_settings.fixed_costs = [{ amount: 150, description: "Rent", start_date: "2026-01-01", end_date: null }];
+
+    expect(rawNetAvailableForSpending(document, "2026-06")).toBe(-50);
   });
 
   it("records snapshots from the current balance fields", () => {
