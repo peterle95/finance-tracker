@@ -176,7 +176,7 @@ describe("shared finance compatibility", () => {
 
     expect(suggestions[0]).toMatchObject({ source: "Shopping", target: "Food", amount: 150 });
     expect(suggestions[0].reason).toContain("historical surplus");
-    expect(suggestions[0].reason).toContain("high-priority goal funding");
+    expect(suggestions[0].reason).toContain("active goal shortfall");
     expect(budgetSuggestions(document, "2026-07")).toEqual(suggestions);
   });
 
