@@ -2,12 +2,16 @@ import { ArrowLeft, Check, LineChart, Pencil, RotateCcw, Save, Trash2, TrendingU
 import { useEffect, useState } from "react";
 import {
   cloneDocument,
+  computeNetAvailableForSpending,
+  currentMonth,
   formatCurrency,
+  getActiveFixedCosts,
   getGoals,
   goalSummary,
   isoToday,
   makeTransaction,
   netWorth,
+  roundCurrency,
   snapshots
 } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
@@ -67,14 +71,71 @@ interface BudgetChange {
   to: number;
 }
 
+interface BudgetPreview {
+  values: Record<string, number>;
+  plannedPercent: number;
+  flexibleBudget: number;
+  projectedCash: number;
+  emergencyBuffer: number;
+  goalShortfall: number;
+  reducedEmergencyBuffer: boolean;
+  negativeCash: boolean;
+}
+
+const PROTECTED_CATEGORY_PATTERN = /rent|mortgage|utility|utilities|debt|loan|insurance|saving|savings|commitment|obligation|tax|minimum/i;
+
+function isProtectedCategory(category: string): boolean {
+  return PROTECTED_CATEGORY_PATTERN.test(category);
+}
+
+function rebalanceBudgetValues(
+  current: Record<string, number>,
+  category: string,
+  requested: number,
+  protectedCategories: Set<string>
+): Record<string, number> {
+  if (protectedCategories.has(category)) {
+    return { ...current };
+  }
+  const entries = Object.entries(current);
+  const total = entries.reduce((sum, [, value]) => sum + value, 0);
+  const protectedTotal = entries
+    .filter(([name]) => protectedCategories.has(name))
+    .reduce((sum, [, value]) => sum + value, 0);
+  const rounded = (value: number) => Math.round(value * 10) / 10;
+  const boundedRequest = Math.max(0, Math.min(Number.isFinite(requested) ? requested : 0, 100));
+  const target = Math.max(0, Math.min(boundedRequest, total - protectedTotal));
+  if (total === 0) {
+    return { ...current, [category]: rounded(boundedRequest) };
+  }
+
+  const others = entries.filter(([name]) => name !== category && !protectedCategories.has(name));
+  if (others.length === 0) {
+    return { ...current };
+  }
+  const result = { ...current, [category]: rounded(target) };
+  const remaining = Math.max(0, total - protectedTotal - target);
+  const currentOtherTotal = others.reduce((sum, [, value]) => sum + value, 0);
+  let assigned = 0;
+  others.forEach(([name, value], index) => {
+    const nextValue = index === others.length - 1
+      ? remaining - assigned
+      : currentOtherTotal > 0 ? remaining * value / currentOtherTotal : index === 0 ? remaining : 0;
+    result[name] = rounded(nextValue);
+    assigned += result[name];
+  });
+  return result;
+}
+
 function FocusedView({
   view,
   document,
-  draft,
   categories,
   eventCategories,
   scenarioEvents,
   editingEventId,
+  budgetPreview,
+  protectedCategories,
   eventDraft,
   onBack,
   onEventDraftChange,
@@ -86,11 +147,12 @@ function FocusedView({
 }: {
   view: Exclude<ExplorationView, "landing">;
   document: FinanceDocument;
-  draft: FinanceDocument;
   categories: string[];
   eventCategories: Record<TransactionType, string[]>;
   scenarioEvents: ScenarioEventChange[];
   editingEventId: string | null;
+  budgetPreview: BudgetPreview;
+  protectedCategories: Set<string>;
   eventDraft: ScenarioEventDraft;
   onBack(): void;
   onEventDraftChange(update: Partial<ScenarioEventDraft>): void;
@@ -112,8 +174,6 @@ function FocusedView({
     : view === "journey"
       ? "Net-Worth Journey tools are ready for the next Exploration phase."
       : "Adjust temporary category allocations without changing saved budgets.";
-  const budgetValues = draft.budget_settings.category_budgets?.Expense ?? {};
-
   return (
     <div className="page exploration-page">
       <PageHeader
@@ -150,8 +210,24 @@ function FocusedView({
         <Card className="exploration-draft-card">
           <div className="card-heading"><div><p className="eyebrow">Temporary allocation</p><h2>Adjust flexible category budgets</h2></div><WalletCards size={24} /></div>
           <p className="muted-copy">These values are a preview. Saved budget settings stay unchanged until confirmation.</p>
-          <div className="form-grid exploration-budget-grid">
-            {categories.map((category) => <label key={category}><span>{category} (%)</span><input aria-label={"Draft budget percentage for " + category} type="number" min="0" max="100" step="0.5" value={budgetValues[category] ?? 0} onChange={(event) => onBudgetChange(category, event.target.value)} /></label>)}
+          <div className="balancer-impact-grid">
+            <Metric label="Projected cash" value={formatCurrency(budgetPreview.projectedCash)} detail={budgetPreview.negativeCash ? "Save blocked" : "After planned categories"} tone={budgetPreview.negativeCash ? "warning" : "positive"} />
+            <Metric label="Emergency buffer" value={formatCurrency(budgetPreview.emergencyBuffer)} detail={budgetPreview.reducedEmergencyBuffer ? "Reduced by this preview" : "Preserved by this preview"} tone={budgetPreview.reducedEmergencyBuffer ? "warning" : "default"} />
+            <Metric label="Goal shortfall" value={formatCurrency(budgetPreview.goalShortfall)} detail="Unfunded target amount" tone={budgetPreview.goalShortfall > 0 ? "warning" : "positive"} />
+          </div>
+          <p className="balancer-feedback" role="status">Total planned budget stays at {budgetPreview.plannedPercent.toFixed(1)}%. Drag discretionary categories to reallocate it.</p>
+          {budgetPreview.negativeCash ? <p className="balancer-warning" role="alert">Negative projected cash blocks save. Reduce planned categories before confirming.</p> : null}
+          {budgetPreview.goalShortfall > 0 ? <p className="balancer-warning">Goal shortfall: {formatCurrency(budgetPreview.goalShortfall)} remains unfunded.</p> : null}
+          {budgetPreview.reducedEmergencyBuffer ? <p className="balancer-warning">Emergency buffer is reduced by this preview.</p> : null}
+          <div className="exploration-budget-grid">
+            {categories.map((category) => protectedCategories.has(category) ? (
+              <div className="balancer-category protected" key={category} aria-label={"Protected budget category " + category}>
+                <span><strong>{category}</strong><small>Protected obligation</small></span>
+                <strong>{budgetPreview.values[category] ?? 0}% · Locked</strong>
+              </div>
+            ) : (
+              <label className="balancer-category" key={category}><span><strong>{category}</strong><small>Discretionary · {formatCurrency(budgetPreview.flexibleBudget * (budgetPreview.values[category] ?? 0) / 100)}</small></span><input aria-label={"Drag draft budget for " + category} type="range" min="0" max={Math.max(100, budgetPreview.plannedPercent)} step="0.5" value={budgetPreview.values[category] ?? 0} onChange={(event) => onBudgetChange(category, event.target.value)} /><input aria-label={"Draft budget percentage for " + category} type="number" min="0" max="100" step="0.5" value={budgetPreview.values[category] ?? 0} onChange={(event) => onBudgetChange(category, event.target.value)} /></label>
+            ))}
           </div>
         </Card>
       ) : null}
@@ -168,6 +244,7 @@ function DraftControls({
   dirty,
   reviewing,
   canUndo,
+  confirmBlocked,
   scenarioChanges,
   budgetChanges,
   onCancel,
@@ -180,6 +257,7 @@ function DraftControls({
   dirty: boolean;
   reviewing: boolean;
   canUndo: boolean;
+  confirmBlocked: boolean;
   scenarioChanges: ScenarioEventChange[];
   budgetChanges: BudgetChange[];
   onCancel(): void;
@@ -214,7 +292,7 @@ function DraftControls({
           </div>
           <div className="button-group exploration-draft-actions">
             <Button variant="ghost" onClick={onKeepEditing}>Keep editing</Button>
-            <Button onClick={onConfirm}>Confirm and save</Button>
+            <Button disabled={confirmBlocked} onClick={onConfirm}>Confirm and save</Button>
           </div>
         </div>
       ) : null}
@@ -241,7 +319,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const draftBudgets = draft.budget_settings.category_budgets?.Expense ?? {};
   const categories = Array.from(new Set([...document.categories.Expense, ...Object.keys(savedBudgets), ...Object.keys(draftBudgets)]));
   const budgetChanges = categories
-    .filter((category) => draftBudgets[category] !== savedBudgets[category])
+    .filter((category) => (draftBudgets[category] ?? 0) !== (savedBudgets[category] ?? 0))
     .map((category) => ({ category, from: savedBudgets[category] ?? 0, to: draftBudgets[category] ?? 0 }));
   const savedEventIds = new Set([...document.expenses, ...document.incomes].map((event) => event.id).filter((id): id is string => Boolean(id)));
   const scenarioChanges: ScenarioEventChange[] = [
@@ -251,6 +329,38 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   const historyCount = snapshots(document).length;
   const goals = goalSummary(document);
   const goalCount = getGoals(document).length;
+  const month = currentMonth();
+  const fixedCostCategories = getActiveFixedCosts(document, month)
+    .map((cost) => cost.description ?? cost.desc ?? "")
+    .filter((category) => categories.includes(category));
+  const protectedCategories = new Set([...categories.filter(isProtectedCategory), ...fixedCostCategories]);
+  const budgetValues = Object.fromEntries(categories.map((category) => {
+    const value = Number(draftBudgets[category] ?? 0);
+    return [category, Number.isFinite(value) ? value : 0];
+  }));
+  const savedBudgetValues = Object.fromEntries(categories.map((category) => {
+    const value = Number(savedBudgets[category] ?? 0);
+    return [category, Number.isFinite(value) ? value : 0];
+  }));
+  const flexibleBudget = computeNetAvailableForSpending(document, month);
+  const goalShortfall = getGoals(document).reduce((total, goal) => total + Math.max(goal.target_amount - goal.allocated_amount, 0), 0);
+  const plannedPercent = roundCurrency(Object.values(budgetValues).reduce((total, value) => total + value, 0));
+  const savedPlannedPercent = roundCurrency(Object.values(savedBudgetValues).reduce((total, value) => total + value, 0));
+  const scenarioNet = scenarioChanges.reduce((total, event) => total + (event.type === "Income" ? event.amount : -event.amount), 0);
+  const projectedCash = roundCurrency(flexibleBudget - flexibleBudget * plannedPercent / 100 + scenarioNet);
+  const baselineProjectedCash = roundCurrency(flexibleBudget - flexibleBudget * savedPlannedPercent / 100 + scenarioNet);
+  const emergencyBuffer = roundCurrency(Number(document.budget_settings.savings_balance ?? 0) + projectedCash);
+  const baselineEmergencyBuffer = roundCurrency(Number(document.budget_settings.savings_balance ?? 0) + baselineProjectedCash);
+  const budgetPreview: BudgetPreview = {
+    values: budgetValues,
+    plannedPercent,
+    flexibleBudget,
+    projectedCash,
+    emergencyBuffer,
+    goalShortfall: roundCurrency(goalShortfall),
+    reducedEmergencyBuffer: emergencyBuffer < baselineEmergencyBuffer,
+    negativeCash: projectedCash < 0
+  };
 
   useEffect(() => {
     onDirtyChange?.(dirty);
@@ -336,14 +446,18 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   }
 
   function updateBudget(category: string, value: string) {
-    const amount = Number(value);
+    const nextValues = rebalanceBudgetValues(budgetValues, category, Number(value), protectedCategories);
     updateDraft((next) => {
+      const expenseBudgets = { ...(next.budget_settings.category_budgets?.Expense ?? {}) };
+      Object.entries(nextValues).forEach(([name, amount]) => {
+        if (amount === 0 && expenseBudgets[name] === undefined) {
+          return;
+        }
+        expenseBudgets[name] = amount;
+      });
       next.budget_settings.category_budgets = {
         ...(next.budget_settings.category_budgets ?? {}),
-        Expense: {
-          ...(next.budget_settings.category_budgets?.Expense ?? {}),
-          [category]: Number.isFinite(amount) && amount >= 0 ? Math.min(100, amount) : 0
-        }
+        Expense: expenseBudgets
       };
     });
   }
@@ -372,6 +486,10 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
   }
 
   function confirmDrafts() {
+    if (budgetChanges.length > 0 && budgetPreview.negativeCash) {
+      setMessage("Negative projected cash blocks budget confirmation.");
+      return;
+    }
     onConfirm?.(draft);
     setReviewing(false);
     setUndoStack([]);
@@ -388,7 +506,7 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
     setMessage("Last Exploration edit undone.");
   }
 
-  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={undoStack.length > 0} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
+  const draftControls = <DraftControls dirty={dirty} reviewing={reviewing} canUndo={undoStack.length > 0} confirmBlocked={budgetChanges.length > 0 && budgetPreview.negativeCash} scenarioChanges={scenarioChanges} budgetChanges={budgetChanges} onCancel={cancelDrafts} onReset={() => { resetDrafts(); }} onUndo={undoDraft} onReview={reviewDrafts} onConfirm={confirmDrafts} onKeepEditing={() => setReviewing(false)} />;
 
   if (view !== "landing") {
     return (
@@ -396,12 +514,13 @@ export function ExplorationScreen({ document, onConfirm, onDirtyChange }: Explor
         <FocusedView
           view={view}
           document={document}
-          draft={draft}
           categories={categories}
           eventCategories={document.categories}
           scenarioEvents={scenarioChanges}
           editingEventId={editingEventId}
           eventDraft={eventDraft}
+          budgetPreview={budgetPreview}
+          protectedCategories={protectedCategories}
           onBack={() => setView("landing")}
           onEventDraftChange={updateEventDraft}
           onAddEvent={addScenarioEvent}

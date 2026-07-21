@@ -60,6 +60,40 @@ describe("ExplorationScreen", () => {
     expect(save).not.toHaveBeenCalled();
   });
 
+  it("protects obligations and preserves planned budget during reallocation", () => {
+    const document = defaultDocument();
+    document.budget_settings.category_budgets = { Expense: { Rent: 20, Food: 40, Shopping: 0, Utilities: 10 } };
+    document.categories.Expense = ["Rent", "Food", "Shopping", "Utilities"];
+    render(<ExplorationScreen document={document} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+    expect(screen.getByLabelText("Protected budget category Rent")).toBeTruthy();
+    expect(screen.queryByLabelText("Draft budget percentage for Rent")).toBeNull();
+    expect(screen.getByLabelText("Protected budget category Utilities")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Draft budget percentage for Food"), { target: { value: "20" } });
+    expect((screen.getByLabelText("Draft budget percentage for Food") as HTMLInputElement).value).toBe("20");
+    expect((screen.getByLabelText("Draft budget percentage for Shopping") as HTMLInputElement).value).toBe("40");
+    expect(screen.getByText("Total planned budget stays at 70.0%")).toBeTruthy();
+    expect(document.budget_settings.category_budgets?.Expense?.Food).toBe(40);
+  });
+
+  it("blocks confirmation when previewed planned budget leaves negative cash", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    document.budget_settings.monthly_income = 100;
+    document.budget_settings.category_budgets = { Expense: { Food: 120 } };
+    const save = vi.fn();
+    render(<ExplorationScreen document={document} onConfirm={save} />);
+
+    await user.click(screen.getByRole("button", { name: "Open Budget Balancer" }));
+    fireEvent.change(screen.getByLabelText("Draft budget percentage for Food"), { target: { value: "100" } });
+    expect(screen.getByRole("alert").textContent).toContain("Negative projected cash blocks save");
+    await user.click(screen.getByRole("button", { name: "Review and confirm" }));
+    expect((screen.getByRole("button", { name: "Confirm and save" }) as HTMLButtonElement).disabled).toBe(true);
+    expect(save).not.toHaveBeenCalled();
+  });
+
   it("does not save drafts until explicit confirmation and can reset them", async () => {
     const user = userEvent.setup();
     const save = vi.fn();
