@@ -76,6 +76,7 @@ export function App() {
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
+  const [explorationDirty, setExplorationDirty] = useState(false);
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
@@ -175,6 +176,16 @@ export function App() {
     }
   }
 
+  function navigate(next: Page) {
+    if (page === "exploration" && next !== "exploration" && explorationDirty) {
+      if (!window.confirm("Exploration has unsaved drafts. Leave without saving?")) {
+        return;
+      }
+      setExplorationDirty(false);
+    }
+    setPage(next);
+  }
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -206,7 +217,7 @@ export function App() {
       case "transactions":
         return <TransactionsScreen document={activeDocument} onAdd={(type) => setEditor({ type })} onEdit={(type, transaction) => setEditor({ type, transaction })} onDelete={deleteTransaction} />;
       case "budget":
-        return <BudgetScreen document={activeDocument} onSave={(next) => void persist(next)} onOpenCategoryLimits={() => setPage("category-limits")} />;
+        return <BudgetScreen document={activeDocument} onSave={(next) => void persist(next)} onOpenCategoryLimits={() => navigate("category-limits")} />;
       case "category-limits":
         return <CategoryLimitsScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "goals":
@@ -216,7 +227,7 @@ export function App() {
       case "net-worth":
         return <NetWorthScreen document={activeDocument} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
       case "exploration":
-        return <ExplorationScreen document={activeDocument} />;
+        return <ExplorationScreen document={activeDocument} onConfirm={(next) => void persist(next)} onDirtyChange={setExplorationDirty} />;
       case "projection":
         return <ProjectionScreen document={activeDocument} onExport={(name, text) => void exportText(name, text)} />;
       case "reconciliation":
@@ -225,7 +236,7 @@ export function App() {
         return <SettingsScreen document={activeDocument} connection={connection} theme={theme} onThemeChange={setTheme} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
-        return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => setPage(next as Page)} />;
+        return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
     }
   }
 
@@ -243,10 +254,10 @@ export function App() {
           <p className="nav-label">Workspace</p>
           {navigation.map((entry) => {
             const Icon = entry.icon;
-            return <button key={entry.page} className={page === entry.page ? "active" : ""} onClick={() => setPage(entry.page)}><Icon size={18} /><span>{entry.label}</span></button>;
+            return <button key={entry.page} className={page === entry.page ? "active" : ""} onClick={() => navigate(entry.page)}><Icon size={18} /><span>{entry.label}</span></button>;
           })}
           <p className="nav-label nav-lower">Application</p>
-          <button className={page === "settings" ? "active" : ""} onClick={() => setPage("settings")}><Settings size={18} /><span>Settings</span></button>
+          <button className={page === "settings" ? "active" : ""} onClick={() => navigate("settings")}><Settings size={18} /><span>Settings</span></button>
         </nav>
         <div className="sidebar-footer">
           <span className="connection-dot" />
