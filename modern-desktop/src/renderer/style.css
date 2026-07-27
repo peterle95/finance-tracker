@@ -378,6 +378,28 @@ code {
   margin-bottom: 1.7rem;
 }
 
+.budget-month-navigation {
+  display: flex;
+  align-items: center;
+  gap: 0.25rem;
+}
+
+.budget-month-navigation input {
+  width: 130px;
+}
+
+.carryover-controls {
+  display: flex;
+  align-items: flex-end;
+  flex-wrap: wrap;
+  gap: 0.8rem;
+  margin-top: 0.8rem;
+}
+
+.carryover-months input {
+  width: 92px;
+}
+
 .page-header h1 {
   margin: 0;
   color: var(--text);
@@ -1226,11 +1248,16 @@ code {
   font-size: 0.72rem;
 }
 
+.snapshot-history-list {
+  max-height: 360px;
+  overflow-y: auto;
+  padding-right: 0.35rem;
+}
+
 .mini-list > .loan-row {
   margin: 0 -0.55rem;
   padding: 0 0.55rem;
   border-radius: 10px;
-  cursor: pointer;
   transition: background-color 450ms ease, box-shadow 450ms ease;
 }
 
@@ -1262,6 +1289,29 @@ code {
 
 .loan-edit-target:focus-visible {
   outline: none;
+}
+
+.loan-change-confirmation {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.loan-change-confirmation h2,
+.loan-change-confirmation p {
+  margin: 0;
+}
+
+.loan-change-confirmation h2 {
+  color: var(--text);
+}
+
+.loan-change-confirmation p:not(.eyebrow) {
+  color: var(--muted);
+  line-height: 1.5;
+}
+
+.loan-change-confirmation strong {
+  color: var(--warning);
 }
 
 .recent-card {
@@ -1358,6 +1408,41 @@ code {
   border: 1px solid var(--border);
   border-radius: 11px;
   color: var(--faint);
+}
+
+.transactions-toolbar .search-field {
+  flex: 0 1 280px;
+  min-width: 180px;
+}
+
+.transactions-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.transactions-summary > div {
+  min-width: 0;
+}
+
+.transactions-summary p {
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.8rem;
+}
+
+.transactions-summary strong {
+  display: block;
+  margin: 0.42rem 0 0.2rem;
+  color: var(--text);
+  font-size: clamp(1.25rem, 1.6vw, 1.75rem);
+  letter-spacing: -0.04em;
+}
+
+.transactions-summary span {
+  color: var(--faint);
+  font-size: 0.75rem;
 }
 
 .search-field:focus-within {
@@ -1747,6 +1832,10 @@ tbody tr:hover td {
   min-height: 380px;
 }
 
+.budget-detail-view {
+  margin-bottom: 1rem;
+}
+
 .projection-hero {
   display: flex;
   min-height: 320px;
@@ -2024,6 +2113,29 @@ tbody tr:hover td {
   background: var(--surface-solid);
   box-shadow: var(--shadow);
   transform: translate(-50%, -50%);
+}
+
+.default-ranges-dialog {
+  width: min(700px, calc(100vw - 2rem));
+}
+
+.default-behaviors-dialog {
+  width: min(700px, calc(100vw - 2rem));
+}
+
+.default-ranges-form small {
+  color: var(--faint);
+  font-size: 0.69rem;
+}
+
+.default-ranges-form .dialog-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.default-behaviors-form .dialog-actions {
+  flex-wrap: wrap;
 }
 
 .dialog-heading {
@@ -2331,7 +2443,8 @@ tbody tr:hover td {
   .metric-grid,
   .form-grid,
   .goal-controls,
-  .heatmap {
+  .heatmap,
+  .transactions-summary {
     grid-template-columns: 1fr;
   }
 
