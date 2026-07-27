@@ -2,7 +2,10 @@ import { Download, TrendingUp } from "lucide-react";
 import { useState } from "react";
 import { Area, AreaChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
 import { formatCurrency, isoToday, netWorthTrendProjection, projection } from "../../shared/finance";
+import { DEFAULT_BEHAVIOR_SETTINGS, type DefaultBehaviorSettings } from "../../shared/behavior-settings";
+import { DEFAULT_RANGE_SETTINGS, type DefaultRangeSettings } from "../../shared/range-settings";
 import type { FinanceDocument } from "../../shared/types";
+import { tooltipStyle, tooltipTextStyle } from "./chartStyles";
 import { Button, Card, PageHeader } from "./ui";
 
 type ProjectionMode = "target" | "net-worth";
@@ -13,14 +16,18 @@ function formatSignedCurrency(value: number): string {
 
 export function ProjectionScreen({
   document,
+  defaultRanges = DEFAULT_RANGE_SETTINGS,
+  defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
   onExport
 }: {
   document: FinanceDocument;
+  defaultRanges?: DefaultRangeSettings;
+  defaultBehaviors?: DefaultBehaviorSettings;
   onExport(name: string, text: string): void;
 }) {
-  const [months, setMonths] = useState(12);
-  const [mode, setMode] = useState<ProjectionMode>("target");
-  const [historyMonths, setHistoryMonths] = useState(6);
+  const [months, setMonths] = useState(defaultRanges.projectionMonths);
+  const [mode, setMode] = useState<ProjectionMode>(defaultBehaviors.projectionMode);
+  const [historyMonths, setHistoryMonths] = useState(defaultRanges.projectionHistoryMonths);
   const targetRows = projection(document, months);
   const trend = netWorthTrendProjection(document, months, historyMonths);
   const rows = mode === "target" ? targetRows : trend?.rows ?? [];
@@ -81,7 +88,7 @@ export function ProjectionScreen({
                 <defs><linearGradient id="projectionGradient" x1="0" x2="0" y1="0" y2="1"><stop offset="0%" stopColor="#2dd4bf" stopOpacity={0.8} /><stop offset="100%" stopColor="#2dd4bf" stopOpacity={0.04} /></linearGradient></defs>
                 <XAxis dataKey="month" tickLine={false} axisLine={false} />
                 <YAxis tickFormatter={(value) => "€" + Math.round(value)} tickLine={false} axisLine={false} width={70} />
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
                 <Area type="monotone" dataKey="balance" stroke="#2dd4bf" strokeWidth={3} fill="url(#projectionGradient)" />
               </AreaChart>
             </ResponsiveContainer>
