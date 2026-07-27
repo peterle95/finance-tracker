@@ -1,5 +1,10 @@
-import { FileCog, Moon, RefreshCw, ShieldAlert, Sun, Upload } from "lucide-react";
+import { FileCog, Moon, RefreshCw, ShieldAlert, SlidersHorizontal, Sun, Upload } from "lucide-react";
+import { useState } from "react";
+import type { DefaultBehaviorSettings } from "../../shared/behavior-settings";
+import type { DefaultRangeSettings } from "../../shared/range-settings";
 import type { DataConnection, FinanceDocument } from "../../shared/types";
+import { DefaultBehaviorsDialog } from "./DefaultBehaviorsDialog";
+import { DefaultRangesDialog } from "./DefaultRangesDialog";
 import { Button, Card, PageHeader } from "./ui";
 
 interface SettingsScreenProps {
@@ -7,8 +12,12 @@ interface SettingsScreenProps {
   connection: DataConnection;
   theme: "dark" | "light";
   reducedMotion: boolean;
+  defaultRanges: DefaultRangeSettings;
+  defaultBehaviors: DefaultBehaviorSettings;
   onThemeChange(theme: "dark" | "light"): void;
   onReducedMotionChange(reduced: boolean): void;
+  onDefaultRangesChange(settings: DefaultRangeSettings): void;
+  onDefaultBehaviorsChange(settings: DefaultBehaviorSettings): void;
   onChooseFile(): void;
   onCreateFile(): void;
   onReload(): void;
@@ -19,12 +28,19 @@ export function SettingsScreen({
   connection,
   theme,
   reducedMotion,
+  defaultRanges,
+  defaultBehaviors,
   onThemeChange,
   onReducedMotionChange,
+  onDefaultRangesChange,
+  onDefaultBehaviorsChange,
   onChooseFile,
   onCreateFile,
   onReload
 }: SettingsScreenProps) {
+  const [defaultRangesOpen, setDefaultRangesOpen] = useState(false);
+  const [defaultBehaviorsOpen, setDefaultBehaviorsOpen] = useState(false);
+
   return (
     <div className="page">
       <PageHeader eyebrow="Application" title="Settings" description="Control where the app reads your data and how the workspace feels." />
@@ -55,7 +71,22 @@ export function SettingsScreen({
           </label>
           <p className="muted-copy">Disables springs, autoplay, and decorative transitions while keeping values and feedback visible.</p>
         </Card>
+
+        <Card>
+          <div className="card-heading"><div><p className="eyebrow">Workspace behavior</p><h2>Default ranges</h2></div><SlidersHorizontal size={22} /></div>
+          <p className="muted-copy">Choose the default periods used by projections, carryover, reports, and the net-worth journey.</p>
+          <Button variant="secondary" onClick={() => setDefaultRangesOpen(true)}><SlidersHorizontal size={16} /> Change default ranges</Button>
+        </Card>
+
+        <Card>
+          <div className="card-heading"><div><p className="eyebrow">Workspace behavior</p><h2>Default behaviors</h2></div><SlidersHorizontal size={22} /></div>
+          <p className="muted-copy">Choose carryover, projection, net-worth, and report behavior used when screens open.</p>
+          <Button variant="secondary" onClick={() => setDefaultBehaviorsOpen(true)}><SlidersHorizontal size={16} /> Change default behaviors</Button>
+        </Card>
       </div>
+
+      <DefaultRangesDialog open={defaultRangesOpen} settings={defaultRanges} onOpenChange={setDefaultRangesOpen} onSave={onDefaultRangesChange} />
+      <DefaultBehaviorsDialog open={defaultBehaviorsOpen} settings={defaultBehaviors} onOpenChange={setDefaultBehaviorsOpen} onSave={onDefaultBehaviorsChange} />
 
       <Card className="notice-card">
         <ShieldAlert size={22} />
