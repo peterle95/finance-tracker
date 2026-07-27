@@ -5,9 +5,8 @@ import {
   currentMonth,
   dailyBudgetOverview,
   formatCurrency,
-  monthTransactions,
-  netWorth,
-  sumMonthTransactions
+  monthEndFlexibleBalance,
+  netWorth
 } from "../../shared/finance";
 import type { FinanceDocument, TransactionType } from "../../shared/types";
 import { Button, Card, EmptyState, Metric, PageHeader } from "./ui";
@@ -22,9 +21,8 @@ export function DashboardScreen({
   onNavigate(page: string): void;
 }) {
   const month = currentMonth();
-  const income = sumMonthTransactions(document, "Income", month);
-  const expenses = sumMonthTransactions(document, "Expense", month);
   const available = computeNetAvailableForSpending(document, month);
+  const flexibleBalance = monthEndFlexibleBalance(document, month);
   const daily = dailyBudgetOverview(document, month, true);
   const recent = [...document.expenses, ...document.incomes]
     .sort((first, second) => second.date.localeCompare(first.date))
@@ -54,7 +52,7 @@ export function DashboardScreen({
         <Metric label="Net worth" value={formatCurrency(netWorth(document))} detail="Across all tracked balances" tone="positive" />
         <Metric label="Flexible budget" value={formatCurrency(available)} detail="After recurring costs and savings" />
         <Metric label="Today’s target" value={formatCurrency(daily.dailyTarget)} detail={daily.daysRemaining + " days remaining"} tone={daily.dailyTarget > 0 ? "positive" : "warning"} />
-        <Metric label="This month" value={formatCurrency(income - expenses)} detail={formatCurrency(expenses) + " spent"} tone={income >= expenses ? "positive" : "warning"} />
+        <Metric label="Flexible balance" value={formatCurrency(flexibleBalance)} detail="After fixed costs and savings" tone={flexibleBalance >= 0 ? "positive" : "warning"} />
       </div>
 
       <div className="dashboard-grid">
