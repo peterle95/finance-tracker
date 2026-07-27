@@ -1,4 +1,4 @@
-import { CircleDollarSign, Plus, SlidersHorizontal, Trash2 } from "lucide-react";
+import { ChevronLeft, ChevronRight, CircleDollarSign, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import {
   cloneDocument,
@@ -8,16 +8,22 @@ import {
   getActiveFixedCosts,
   getMonthlyIncomeSources,
   isoToday,
+  monthOffset,
   moneyLentFromLoans,
   roundCurrency
 } from "../../shared/finance";
+import { DEFAULT_BEHAVIOR_SETTINGS, type DefaultBehaviorSettings } from "../../shared/behavior-settings";
 import type { BudgetSettings, FinanceDocument, FixedCost, IncomeSource, Loan } from "../../shared/types";
+import { DEFAULT_RANGE_SETTINGS, type DefaultRangeSettings } from "../../shared/range-settings";
 import { Button, Card, PageHeader } from "./ui";
+import { BudgetDepletionChart } from "./BudgetDepletionChart";
+import { LoanEditor } from "./LoanEditor";
 
 interface BudgetScreenProps {
   document: FinanceDocument;
+  defaultRanges?: DefaultRangeSettings;
+  defaultBehaviors?: DefaultBehaviorSettings;
   onSave(document: FinanceDocument): void;
-  onOpenCategoryLimits(): void;
 }
 
 const emptyIncome = (): IncomeSource => ({
@@ -37,24 +43,26 @@ const emptyCost = (): FixedCost => ({
 
 const emptyLoan = () => ({ borrower: "", amount: "", description: "", date: isoToday() });
 
-export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetScreenProps) {
-  const month = currentMonth();
+export function BudgetScreen({ document, defaultRanges = DEFAULT_RANGE_SETTINGS, defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS, onSave }: BudgetScreenProps) {
+  const [month, setMonth] = useState(currentMonth());
   const settings = document.budget_settings;
-  const overview = dailyBudgetOverview(document, month, true);
-  const [includeCarryover, setIncludeCarryover] = useState(true);
+  const [includeCarryover, setIncludeCarryover] = useState(defaultBehaviors.includeNegativeCarryover);
+  const [carryoverMonths, setCarryoverMonths] = useState(defaultRanges.carryoverMonths);
   const [incomeDraft, setIncomeDraft] = useState<IncomeSource>(emptyIncome);
   const [costDraft, setCostDraft] = useState<FixedCost>(emptyCost);
   const [loanDraft, setLoanDraft] = useState(emptyLoan);
-  const [editingLoanId, setEditingLoanId] = useState<string | null>(null);
+  const [editingLoan, setEditingLoan] = useState<Loan | null>(null);
   const [editingCostIndex, setEditingCostIndex] = useState<number | null>(null);
   const [showFinishedCosts, setShowFinishedCosts] = useState(false);
+  const [balanceView, setBalanceView] = useState<"income" | "costs" | null>(null);
+  const overview = dailyBudgetOverview(document, month, true, new Date(), "transaction", carryoverMonths);
   const incomeSources = getMonthlyIncomeSources(document, month);
   const fixedCosts = getActiveFixedCosts(document, month);
   const costsWithIndexes = (settings.fixed_costs ?? []).map((cost, index) => ({ cost, index }));
   const ongoingCosts = costsWithIndexes.filter(({ cost }) => !cost.end_date || cost.end_date >= isoToday());
   const finishedCosts = costsWithIndexes.filter(({ cost }) => Boolean(cost.end_date && cost.end_date < isoToday()));
   const displayedCosts = showFinishedCosts ? [...ongoingCosts, ...finishedCosts] : ongoingCosts;
-  const visibleOverview = dailyBudgetOverview(document, month, includeCarryover);
+  const visibleOverview = dailyBudgetOverview(document, month, includeCarryover, new Date(), "transaction", carryoverMonths);
 
   function updateSettings(update: (next: BudgetSettings) => void) {
     const next = cloneDocument(document);
@@ -132,31 +140,27 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
       return;
     }
     const loan: Loan = {
-      id: editingLoanId ?? (typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())),
+      id: typeof crypto !== "undefined" && crypto.randomUUID ? crypto.randomUUID() : String(Date.now()),
       borrower: loanDraft.borrower,
       amount,
       description: loanDraft.description,
       date: loanDraft.date
     };
     updateSettings((next) => {
-      const loans = editingLoanId
-        ? (next.loans ?? []).map((entry) => entry.id === editingLoanId ? loan : entry)
-        : [...(next.loans ?? []), loan];
+      const loans = [...(next.loans ?? []), loan];
       next.loans = loans;
       next.money_lent_balance = moneyLentFromLoans(loans);
     });
     setLoanDraft(emptyLoan());
-    setEditingLoanId(null);
   }
 
-  function editLoan(loan: Loan) {
-    setEditingLoanId(loan.id);
-    setLoanDraft({
-      borrower: loan.borrower,
-      amount: String(loan.amount),
-      description: loan.description,
-      date: loan.date
+  function saveLoanChanges(loan: Loan) {
+    updateSettings((next) => {
+      const loans = (next.loans ?? []).map((entry) => entry.id === loan.id ? loan : entry);
+      next.loans = loans;
+      next.money_lent_balance = moneyLentFromLoans(loans);
     });
+    setEditingLoan(null);
   }
 
   function markLoanReturned(loan: Loan) {
@@ -165,9 +169,8 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
       next.loans = loans;
       next.money_lent_balance = moneyLentFromLoans(loans);
     });
-    if (editingLoanId === loan.id) {
-      setEditingLoanId(null);
-      setLoanDraft(emptyLoan());
+    if (editingLoan?.id === loan.id) {
+      setEditingLoan(null);
     }
   }
 
@@ -177,7 +180,15 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
         eyebrow="Monthly plan"
         title="Budget"
         description="Balance accounts, recurring commitments, flexible limits, and lending in one clear plan."
-        action={<Button variant="secondary" onClick={onOpenCategoryLimits}><SlidersHorizontal size={16} /> Category limits</Button>}
+        action={<div className="budget-month-navigation" aria-label="Budget month navigation">
+          <Button type="button" variant="ghost" aria-label="Previous month" onClick={() => setMonth(monthOffset(month, -1))}><ChevronLeft size={17} /></Button>
+          <input aria-label="Budget month" type="month" value={month} onChange={(event) => {
+            if (event.target.value) {
+              setMonth(event.target.value);
+            }
+          }} />
+          <Button type="button" variant="ghost" aria-label="Next month" onClick={() => setMonth(monthOffset(month, 1))}><ChevronRight size={17} /></Button>
+        </div>}
       />
 
       <div className="metric-grid">
@@ -198,16 +209,28 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
             <div><dt>Flexible income</dt><dd>{formatCurrency(visibleOverview.flexibleIncome)}</dd></div>
             <div><dt>Fixed costs</dt><dd>−{formatCurrency(visibleOverview.fixedCosts)}</dd></div>
             <div><dt>Monthly savings target</dt><dd>−{formatCurrency(visibleOverview.savingsGoal)}</dd></div>
-            {includeCarryover ? <div><dt>Negative carryover</dt><dd>{formatCurrency(visibleOverview.carryover)}</dd></div> : null}
+            {includeCarryover ? <div><dt>Negative carryover ({carryoverMonths} months)</dt><dd>{formatCurrency(visibleOverview.carryover)}</dd></div> : null}
           </dl>
-          <label className="check-row">
-            <input type="checkbox" checked={includeCarryover} onChange={(event) => setIncludeCarryover(event.target.checked)} />
-            <span>Include a previous-month deficit</span>
-          </label>
+          <div className="carryover-controls">
+            <label className="check-row">
+              <input type="checkbox" checked={includeCarryover} onChange={(event) => setIncludeCarryover(event.target.checked)} />
+              <span>Include previous deficits</span>
+            </label>
+            {includeCarryover ? <label className="control-label carryover-months"><span>Months back</span><input aria-label="Carryover months" type="number" min="1" max="24" value={carryoverMonths} onChange={(event) => {
+              const value = Number(event.target.value);
+              setCarryoverMonths(Number.isFinite(value) ? Math.min(24, Math.max(1, Math.floor(value))) : 1);
+            }} /></label> : null}
+          </div>
         </Card>
 
         <Card>
-          <div className="card-heading"><div><p className="eyebrow">Balances</p><h2>What you own today</h2></div></div>
+          <div className="card-heading">
+            <div><p className="eyebrow">Balances</p><h2>What you own today</h2></div>
+            <div className="button-group">
+              <Button type="button" variant="ghost" onClick={() => setBalanceView("income")}>Fixed income</Button>
+              <Button type="button" variant="ghost" onClick={() => setBalanceView("costs")}>Fixed costs</Button>
+            </div>
+          </div>
           <form className="form-grid compact-form" onSubmit={saveBalances}>
             <label><span>Bank</span><input name="bank" type="number" step="0.01" defaultValue={settings.bank_account_balance ?? 0} /></label>
             <label><span>Wallet</span><input name="wallet" type="number" step="0.01" defaultValue={settings.wallet_balance ?? 0} /></label>
@@ -226,12 +249,14 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
           {(settings.loans ?? []).length ? (settings.loans ?? []).map((loan) => (
             <div
               key={loan.id}
-              className={editingLoanId === loan.id ? "loan-row selected" : "loan-row"}
+              className="loan-row"
             >
-              <button type="button" className="loan-edit-target" aria-label={"Edit loan for " + loan.borrower} onClick={() => editLoan(loan)}>
-                <span><strong>{loan.borrower}</strong><small>{loan.description || loan.date}</small></span>
-                <strong>{formatCurrency(loan.amount)}</strong>
-              </button>
+              <span>
+                <strong>{loan.borrower}</strong>
+                <small>{loan.description || loan.date}</small>
+              </span>
+              <strong>{formatCurrency(loan.amount)}</strong>
+              <Button variant="ghost" aria-label={"Modify loan for " + loan.borrower} onClick={() => setEditingLoan(loan)}>modify</Button>
               <Button variant="ghost" onClick={() => markLoanReturned(loan)}>Returned</Button>
             </div>
           )) : <p className="muted-copy">No active loans.</p>}
@@ -241,16 +266,20 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
           <input value={loanDraft.amount} onChange={(event) => setLoanDraft({ ...loanDraft, amount: event.target.value })} type="number" step="0.01" placeholder="Amount (negative if owed)" />
           <input value={loanDraft.description} onChange={(event) => setLoanDraft({ ...loanDraft, description: event.target.value })} placeholder="Description" />
           <input value={loanDraft.date} onChange={(event) => setLoanDraft({ ...loanDraft, date: event.target.value })} type="date" />
-          <Button type="submit" variant="secondary"><Plus size={16} /> {editingLoanId ? "Save changes" : "Add loan"}</Button>
-          {editingLoanId ? <Button type="button" variant="ghost" onClick={() => {
-            setEditingLoanId(null);
-            setLoanDraft(emptyLoan());
-          }}>Cancel</Button> : null}
+          <Button type="submit" variant="secondary"><Plus size={16} /> Add loan</Button>
         </form>
       </Card>
-      <div className="two-column">
-        <Card>
-          <div className="card-heading"><div><p className="eyebrow">Recurring income</p><h2>Income sources</h2></div></div>
+      <LoanEditor
+        open={editingLoan !== null}
+        loan={editingLoan}
+        onOpenChange={(open) => { if (!open) setEditingLoan(null); }}
+        onSave={saveLoanChanges}
+      />
+      {balanceView === "income" ? <Card className="budget-detail-view">
+          <div className="card-heading">
+            <div><p className="eyebrow">Fixed income</p><h2>Income sources</h2></div>
+            <Button type="button" variant="ghost" onClick={() => setBalanceView(null)}>Close fixed income</Button>
+          </div>
           <div className="mini-list">
             {Array.isArray(settings.monthly_income) && settings.monthly_income.length ? settings.monthly_income.map((income, index) => (
               <div key={income.description + index}>
@@ -269,11 +298,12 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
             <input value={incomeDraft.end_date ?? ""} onChange={(event) => setIncomeDraft({ ...incomeDraft, end_date: event.target.value || null })} type="date" />
             <Button type="submit" variant="secondary"><Plus size={16} /> Add</Button>
           </form>
-        </Card>
+        </Card> : null}
 
-        <Card>
+      {balanceView === "costs" ? <Card className="budget-detail-view">
           <div className="card-heading">
-            <div><p className="eyebrow">Recurring costs</p><h2>Fixed costs</h2></div>
+            <div><p className="eyebrow">Fixed costs</p><h2>Recurring costs</h2></div>
+            <Button type="button" variant="ghost" onClick={() => setBalanceView(null)}>Close fixed costs</Button>
             {finishedCosts.length ? <Button type="button" variant="ghost" onClick={() => setShowFinishedCosts((value) => !value)}>
               {showFinishedCosts ? "Hide finished" : "Show finished (" + finishedCosts.length + ")"}
             </Button> : null}
@@ -302,8 +332,9 @@ export function BudgetScreen({ document, onSave, onOpenCategoryLimits }: BudgetS
               setCostDraft(emptyCost());
             }}>Cancel</Button> : null}
           </form>
-        </Card>
-      </div>
+        </Card> : null}
+
+      <BudgetDepletionChart document={document} month={month} includeNegativeCarryover={includeCarryover} carryoverMonths={carryoverMonths} />
 
     </div>
   );
