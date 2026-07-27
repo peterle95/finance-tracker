@@ -286,8 +286,11 @@ object FinanceJsonCodec {
                     replacement.copy(
                         key = loan.key,
                         id = loan.id,
-                        date = loan.date,
-                        extraJson = loan.extraJson,
+                        date = replacement.date,
+                        extraJson = buildJsonObject {
+                            loan.extraJson.forEach { (extraKey, value) -> put(extraKey, value) }
+                            replacement.extraJson.forEach { (extraKey, value) -> put(extraKey, value) }
+                        },
                     )
                 } else {
                     loan
