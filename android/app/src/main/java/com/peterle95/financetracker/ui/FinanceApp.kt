@@ -1,5 +1,6 @@
 package com.peterle95.financetracker.ui
 
+import android.net.Uri
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.List
@@ -34,14 +35,17 @@ import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.navigation.NavGraph.Companion.findStartDestination
+import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
+import androidx.navigation.navArgument
 import com.peterle95.financetracker.ui.screens.AddTransactionScreen
 import com.peterle95.financetracker.ui.screens.BudgetScreen
 import com.peterle95.financetracker.ui.screens.DashboardScreen
 import com.peterle95.financetracker.ui.screens.NetWorthScreen
+import com.peterle95.financetracker.ui.screens.LoanEditorScreen
 import com.peterle95.financetracker.ui.screens.ProjectionScreen
 import com.peterle95.financetracker.ui.screens.SavingsGoalsScreen
 import com.peterle95.financetracker.ui.screens.SettingsScreen
@@ -143,6 +147,12 @@ fun FinanceApp(viewModel: FinanceViewModel) {
         }
     }
 
+    fun closeLoanEditor() {
+        if (!navController.popBackStack()) {
+            navigateToTopLevel("budget")
+        }
+    }
+
     LaunchedEffect(viewModel) {
         viewModel.messages.collectLatest { snackbarHostState.showSnackbar(it) }
     }
@@ -179,10 +189,15 @@ fun FinanceApp(viewModel: FinanceViewModel) {
                                 Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
                             }
                         }
+                        "loan_editor/{loanKey}" -> {
+                            IconButton(onClick = { closeLoanEditor() }) {
+                                Icon(Icons.AutoMirrored.Outlined.ArrowBack, contentDescription = "Go back")
+                            }
+                        }
                     }
                 },
                 actions = {
-                    if (currentRoute != "settings" && currentRoute != "projection" && currentRoute != "savings_goals") {
+                    if (currentRoute != "settings" && currentRoute != "projection" && currentRoute != "savings_goals" && currentRoute != "loan_editor/{loanKey}") {
                         IconButton(onClick = { openProjection() }) {
                             Icon(Icons.Outlined.TrendingUp, contentDescription = "Projections")
                         }
@@ -224,11 +239,25 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             }
             composable("add") { AddTransactionScreen(viewModel) }
             composable("transactions") { TransactionsScreen(viewModel) }
-            composable("budget") { BudgetScreen(viewModel) }
+            composable("budget") {
+                BudgetScreen(viewModel) { loanKey ->
+                    navController.navigate("loan_editor/${Uri.encode(loanKey)}")
+                }
+            }
             composable("net_worth") { NetWorthScreen(viewModel) }
             composable("settings") { SettingsScreen(viewModel) }
             composable("projection") { ProjectionScreen(viewModel) }
             composable("savings_goals") { SavingsGoalsScreen(viewModel) }
+            composable(
+                route = "loan_editor/{loanKey}",
+                arguments = listOf(navArgument("loanKey") { type = NavType.StringType }),
+            ) { backStackEntry ->
+                LoanEditorScreen(
+                    viewModel = viewModel,
+                    loanKey = backStackEntry.arguments?.getString("loanKey").orEmpty(),
+                    onDone = { closeLoanEditor() },
+                )
+            }
         }
     }
 }
