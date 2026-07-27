@@ -130,6 +130,7 @@ data class Loan(
     val borrower: String = "",
     val amount: Double = 0.0,
     val description: String = "",
+    val notes: String = "",
     val date: String = "",
     val extraJson: JsonObject = buildJsonObject {},
 )
@@ -366,7 +367,7 @@ fun todayIsoDate(): String = LocalDate.now().toString()
 
 private val incomeSourceKeys = setOf("amount", "description", "start_date", "end_date")
 private val fixedCostKeys = setOf("amount", "description", "desc", "start_date", "end_date")
-private val loanKeys = setOf("id", "borrower", "amount", "description", "date")
+private val loanKeys = setOf("id", "borrower", "amount", "description", "notes", "date")
 private val savingsGoalKeys = setOf(
     "name",
     "description",
@@ -423,6 +424,7 @@ private fun JsonObject.toLoan(index: Int): Loan {
     val amount = numberValue("amount")
     val borrower = stringValue("borrower") ?: ""
     val description = stringValue("description") ?: ""
+    val notes = stringValue("notes") ?: ""
     val date = stringValue("date") ?: ""
     val id = stringValue("id") ?: stableKey("loan", index, amount, borrower, date, description)
     return Loan(
@@ -431,6 +433,7 @@ private fun JsonObject.toLoan(index: Int): Loan {
         borrower = borrower,
         amount = amount,
         description = description,
+        notes = notes,
         date = date,
         extraJson = JsonObject(filterKeys { it !in loanKeys }),
     )
@@ -514,6 +517,7 @@ private fun Loan.toJsonObject(): JsonObject =
         put("borrower", borrower)
         put("amount", amount)
         put("description", description)
+        put("notes", notes)
         put("date", date)
     }
 
