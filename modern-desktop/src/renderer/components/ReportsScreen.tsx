@@ -16,6 +16,7 @@ import {
   XAxis,
   YAxis
 } from "recharts";
+import { DEFAULT_BEHAVIOR_SETTINGS, type DefaultBehaviorSettings } from "../../shared/behavior-settings";
 import {
   categoryTotals,
   currentMonth,
@@ -27,8 +28,10 @@ import {
   monthTransactions,
   spendingPace
 } from "../../shared/finance";
+import { DEFAULT_RANGE_SETTINGS, type DefaultRangeSettings } from "../../shared/range-settings";
 import type { HistoricalBreakdownMode, TransactionDateBasis } from "../../shared/finance";
 import type { FinanceDocument, TransactionType } from "../../shared/types";
+import { tooltipStyle, tooltipTextStyle } from "./chartStyles";
 import { Button, Card, PageHeader } from "./ui";
 
 const COLORS = ["#f5c451", "#2dd4bf", "#7dd3fc", "#8b5cf6", "#fb7185", "#fb923c", "#84cc16"];
@@ -78,24 +81,30 @@ function lineRows(
 
 export function ReportsScreen({
   document,
+  defaultRanges = DEFAULT_RANGE_SETTINGS,
+  defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
   onExport
 }: {
   document: FinanceDocument;
+  defaultRanges?: DefaultRangeSettings;
+  defaultBehaviors?: DefaultBehaviorSettings;
   onExport(name: string, text: string): void;
 }) {
-  const [kind, setKind] = useState<ChartKind>("pie");
-  const [type, setType] = useState<TransactionType>("Expense");
+  const [kind, setKind] = useState<ChartKind>(defaultBehaviors.reportView);
+  const [type, setType] = useState<TransactionType>(defaultBehaviors.reportType);
   const [month, setMonth] = useState(currentMonth());
-  const [rangeStart, setRangeStart] = useState(monthOffset(currentMonth(), -5));
+  const [pieStart, setPieStart] = useState(currentMonth());
+  const [pieEnd, setPieEnd] = useState(currentMonth());
+  const [rangeStart, setRangeStart] = useState(monthOffset(currentMonth(), -(defaultRanges.reportLineMonths - 1)));
   const [rangeEnd, setRangeEnd] = useState(currentMonth());
-  const [selectedCategories, setSelectedCategories] = useState<string[]>(document.categories.Expense.slice(0, 3));
-  const [historyMonths, setHistoryMonths] = useState(6);
-  const [dateBasis, setDateBasis] = useState<TransactionDateBasis>("transaction");
-  const [historyMode, setHistoryMode] = useState<HistoryMode>("total");
-  const [historyDisplay, setHistoryDisplay] = useState<HistoryDisplay>("value");
-  const [includeRecurring, setIncludeRecurring] = useState(false);
-  const [showHistoryLabels, setShowHistoryLabels] = useState(false);
-  const pieData = categoryTotals(document, type, month, month, true, dateBasis);
+  const [selectedCategories, setSelectedCategories] = useState<string[]>(document.categories[defaultBehaviors.reportType].slice(0, 3));
+  const [historyMonths, setHistoryMonths] = useState(defaultRanges.reportHistoryMonths);
+  const [dateBasis, setDateBasis] = useState<TransactionDateBasis>(defaultBehaviors.reportDateBasis);
+  const [historyMode, setHistoryMode] = useState<HistoryMode>(defaultBehaviors.reportHistoryMode);
+  const [historyDisplay, setHistoryDisplay] = useState<HistoryDisplay>(defaultBehaviors.reportHistoryDisplay);
+  const [includeRecurring, setIncludeRecurring] = useState(defaultBehaviors.reportIncludeRecurring);
+  const [showHistoryLabels, setShowHistoryLabels] = useState(defaultBehaviors.reportShowHistoryLabels);
+  const pieData = categoryTotals(document, type, pieStart, pieEnd, includeRecurring, dateBasis);
   const historyData = historicalTotals(document, type, historyMonths, currentMonth(), dateBasis, includeRecurring);
   const historyMonthLabels = historyData.map((entry) => entry.month);
   const rawHistorySeries = historyMode === "total"
@@ -142,7 +151,7 @@ export function ReportsScreen({
   const pace = spendingPace(document, month, dateBasis);
   const reportPeriod = kind === "history"
     ? "Last " + historyMonths + " months"
-    : kind === "pie" || kind === "pace" ? month : rangeStart + " to " + rangeEnd;
+    : kind === "pie" ? pieStart + " to " + pieEnd : kind === "pace" ? month : rangeStart + " to " + rangeEnd;
   const reportValues = kind === "history"
     ? historyChartData.map((row) => row.month + ": " + historySeries
       .map((series) => series.name + " " + (historyUsesPercent ? Number(row[series.name]).toFixed(1) + "%" : formatCurrency(Number(row[series.name]))))
@@ -201,7 +210,31 @@ export function ReportsScreen({
               <option value="Income">Income</option>
             </select>
           ) : null}
-          {kind === "pie" || kind === "pace" ? <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /> : null}
+          {kind === "pace" ? <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /> : null}
+          {kind === "pie" ? (
+            <>
+              <label className="control-label">From<input aria-label="Breakdown start month" type="month" value={pieStart} onChange={(event) => {
+                const value = event.target.value;
+                if (!value) {
+                  return;
+                }
+                setPieStart(value);
+                if (value > pieEnd) {
+                  setPieEnd(value);
+                }
+              }} /></label>
+              <label className="control-label">To<input aria-label="Breakdown end month" type="month" value={pieEnd} onChange={(event) => {
+                const value = event.target.value;
+                if (!value) {
+                  return;
+                }
+                setPieEnd(value);
+                if (value < pieStart) {
+                  setPieStart(value);
+                }
+              }} /></label>
+            </>
+          ) : null}
           {kind === "history" || kind === "heatmap" ? <label className="control-label">Months<input type="number" min={kind === "history" ? 2 : 1} max="24" value={historyMonths} onChange={(event) => {
             const value = Number(event.target.value);
             const minimum = kind === "history" ? 2 : 1;
@@ -239,22 +272,28 @@ export function ReportsScreen({
               <label className="control-label">To<input type="month" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} /></label>
             </>
           ) : null}
+          {kind === "pie" ? (
+            <label className="check-row toolbar-check">
+              <input type="checkbox" checked={includeRecurring} onChange={(event) => setIncludeRecurring(event.target.checked)} />
+              <span>{type === "Expense" ? "Include fixed costs" : "Include base income"}</span>
+            </label>
+          ) : null}
         </div>
       </Card>
 
       {kind === "pie" ? (
         <Card className="chart-card report-chart">
-          <div className="card-heading"><div><p className="eyebrow">{month}</p><h2>{type} by category</h2></div><PieChartIcon size={22} /></div>
+          <div className="card-heading"><div><p className="eyebrow">{pieStart} to {pieEnd}</p><h2>{type} by category</h2></div><PieChartIcon size={22} /></div>
           {pieData.length ? (
             <ResponsiveContainer width="100%" height={420}>
               <PieChart>
                 <Pie data={pieData} dataKey="value" nameKey="name" outerRadius={145} innerRadius={75} paddingAngle={3}>
                   {pieData.map((_entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
-                <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
-          ) : <p className="muted-copy">No data for this month.</p>}
+          ) : <p className="muted-copy">No data for this range.</p>}
           <div className="legend-list">{pieData.map((entry, index) => <span key={entry.name}><i style={{ backgroundColor: COLORS[index % COLORS.length] }} />{entry.name}<strong>{formatCurrency(entry.value)}</strong></span>)}</div>
         </Card>
       ) : null}
@@ -267,7 +306,7 @@ export function ReportsScreen({
               <ComposedChart data={historyChartData}>
                 <XAxis dataKey="month" tickLine={false} axisLine={false} />
                 <YAxis tickFormatter={(value) => historyUsesPercent ? Math.round(value) + "%" : "€" + Math.round(value)} tickLine={false} axisLine={false} width={70} />
-                <Tooltip formatter={(value) => historyUsesPercent ? Number(value).toFixed(1) + "%" : formatCurrency(Number(value))} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => historyUsesPercent ? Number(value).toFixed(1) + "%" : formatCurrency(Number(value))} />
                 {historyMode !== "total" ? <Legend /> : null}
                 {historyDisplay === "percentage" && historyMode === "over-under" ? <ReferenceLine y={0} stroke="#94a3b8" /> : null}
                 {historySeries.map((series, index) => (
@@ -305,7 +344,7 @@ export function ReportsScreen({
             <LineChart data={categoryLine}>
               <XAxis dataKey="month" tickLine={false} axisLine={false} />
               <YAxis tickFormatter={(value) => "€" + Math.round(value)} tickLine={false} axisLine={false} width={70} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
               {selectedCategories.map((category, index) => <Line key={category} type="monotone" dataKey={category} stroke={COLORS[index % COLORS.length]} strokeWidth={3} dot={{ r: 3 }} />)}
             </LineChart>
           </ResponsiveContainer>

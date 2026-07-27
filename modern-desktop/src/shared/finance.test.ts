@@ -3,6 +3,7 @@ import {
   assetAllocation,
   budgetSuggestions,
   createSnapshot,
+  dailyBudgetDevelopment,
   defaultDocument,
   getActiveFixedCosts,
   getActiveMonthlyIncome,
@@ -14,7 +15,8 @@ import {
   netWorthTrendProjection,
   negativeCarryover,
   normalizeDocument,
-  rawNetAvailableForSpending
+  rawNetAvailableForSpending,
+  snapshotChanges
 } from "./finance";
 
 describe("shared finance compatibility", () => {
@@ -127,7 +129,22 @@ describe("shared finance compatibility", () => {
     expect(getActiveFixedCosts(document, "2026-06")).toHaveLength(1);
   });
 
-  it("carries only a negative previous month into the next budget", () => {
+  it("builds the daily budget depletion series with income spikes", () => {
+    const document = defaultDocument();
+    document.budget_settings.monthly_income = 310;
+    document.budget_settings.fixed_costs = [{ amount: 100, description: "Rent", start_date: "2026-07-01", end_date: null }];
+    document.incomes.push({ date: "2026-07-02", amount: 40, category: "Bonus", description: "Bonus" });
+    document.expenses.push({ date: "2026-07-02", amount: 20, category: "Food", description: "Lunch" });
+
+    const points = dailyBudgetDevelopment(document, "2026-07", false, new Date("2026-07-02T12:00:00Z"));
+
+    expect(points).toHaveLength(31);
+    expect(points[0]).toMatchObject({ day: 1, remainingBudget: 210, dailyTarget: 6.77 });
+    expect(points[1]).toMatchObject({ day: 2, remainingBudget: 230, dailyTarget: 8.33 });
+    expect(points.at(-1)).toMatchObject({ day: 31, remainingBudget: 230, dailyTarget: 230 });
+  });
+
+  it("carries the previous month balance into the next budget", () => {
     const document = defaultDocument();
     document.budget_settings.monthly_income = 100;
     document.budget_settings.fixed_costs = [];
@@ -140,6 +157,19 @@ describe("shared finance compatibility", () => {
     });
 
     expect(negativeCarryover(document, "2026-06")).toBe(-25);
+  });
+
+  it("reduces carryover with positive standalone monthly balances", () => {
+    const document = defaultDocument();
+    document.budget_settings.monthly_income = 500;
+    document.expenses.push(
+      { date: "2026-01-02", amount: 1000, category: "Food", description: "Groceries" },
+      { date: "2026-02-02", amount: 400, category: "Food", description: "Groceries" },
+      { date: "2026-03-02", amount: 200, category: "Food", description: "Groceries" },
+      { date: "2026-04-02", amount: 550, category: "Food", description: "Groceries" }
+    );
+
+    expect(negativeCarryover(document, "2026-05", 4)).toBe(-150);
   });
 
   it("exposes negative raw spending capacity for safety previews", () => {
@@ -190,6 +220,17 @@ describe("shared finance compatibility", () => {
 
     expect(snapshot.net_worth).toBe(6050);
     expect(snapshot.note).toBe("Month end");
+  });
+
+  it("calculates snapshot changes by mode", () => {
+    const history = [
+      { date: "2026-01-01", net_worth: 1000, bank_balance: 1000, wallet_balance: 0, savings_balance: 0, investment_balance: 0, money_lent_balance: 0 },
+      { date: "2026-02-01", net_worth: 1200, bank_balance: 1200, wallet_balance: 0, savings_balance: 0, investment_balance: 0, money_lent_balance: 0 },
+      { date: "2026-03-01", net_worth: 1100, bank_balance: 1100, wallet_balance: 0, savings_balance: 0, investment_balance: 0, money_lent_balance: 0 }
+    ];
+
+    expect(snapshotChanges(history).map((snapshot) => snapshot.change)).toEqual([0, 200, -100]);
+    expect(snapshotChanges(history, "from-beginning").map((snapshot) => snapshot.change)).toEqual([0, 200, 100]);
   });
 
   it("rounds signed loan balances and excludes liabilities from asset allocation", () => {

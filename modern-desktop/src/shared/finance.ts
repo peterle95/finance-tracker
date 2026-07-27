@@ -13,6 +13,7 @@ import type {
 
 export type TransactionDateBasis = "transaction" | "behavior";
 export type HistoricalBreakdownMode = "categories" | "flexible" | "over-under";
+export type SnapshotChangeMode = "month-by-month" | "from-beginning";
 
 export const DEFAULT_EXPENSE_CATEGORIES = [
   "Food",
@@ -132,6 +133,7 @@ function normalizeLoan(value: unknown): Loan | null {
     borrower: asString(value.borrower, "Unknown"),
     amount: roundCurrency(asNumber(value.amount)),
     description: asString(value.description),
+    notes: asString(value.notes),
     date: asDate(value.date, "2000-01-01") ?? "2000-01-01"
   };
 }
@@ -345,10 +347,11 @@ export function monthEndFlexibleBalance(document: FinanceDocument, month: string
     - sumMonthTransactions(document, "Expense", month);
 }
 
-export function negativeCarryover(document: FinanceDocument, month: string): number {
-  const previous = monthOffset(month, -1);
-  const balance = monthEndFlexibleBalance(document, previous);
-  return balance < 0 ? balance : 0;
+export function negativeCarryover(document: FinanceDocument, month: string, months = 1): number {
+  const lookback = Number.isFinite(months) ? Math.max(0, Math.floor(months)) : 0;
+  return roundCurrency(Array.from({ length: lookback }, (_, index) => monthOffset(month, -index - 1))
+    .map((previousMonth) => monthEndFlexibleBalance(document, previousMonth))
+    .reduce((total, balance) => total + balance, 0));
 }
 
 export interface DailyBudgetOverview {
@@ -364,18 +367,71 @@ export interface DailyBudgetOverview {
   daysRemaining: number;
 }
 
+export interface DailyBudgetDevelopmentPoint {
+  date: string;
+  day: number;
+  remainingBudget: number;
+  dailyTarget: number;
+}
+
+export function dailyBudgetDevelopment(
+  document: FinanceDocument,
+  month: string,
+  includeNegativeCarryover = false,
+  now = new Date(),
+  carryoverMonths = 1
+): DailyBudgetDevelopmentPoint[] {
+  const [year, monthNumber] = month.split("-").map(Number);
+  if (!year || !monthNumber) {
+    return [];
+  }
+
+  const dayCount = monthDays(month);
+  const dailyIncome = new Map<string, number>();
+  const dailyExpenses = new Map<string, number>();
+  monthTransactions(document, "Income", month).forEach((transaction) => {
+    dailyIncome.set(transaction.date, (dailyIncome.get(transaction.date) ?? 0) + asNumber(transaction.amount));
+  });
+  monthTransactions(document, "Expense", month).forEach((transaction) => {
+    dailyExpenses.set(transaction.date, (dailyExpenses.get(transaction.date) ?? 0) + asNumber(transaction.amount));
+  });
+
+  let remainingBudget = getActiveMonthlyIncome(document, month)
+    - sumFixedCosts(document, month)
+    - asNumber(document.budget_settings.daily_savings_goal) * dayCount;
+  if (includeNegativeCarryover) {
+    remainingBudget += negativeCarryover(document, month, carryoverMonths);
+  }
+
+  const points: DailyBudgetDevelopmentPoint[] = [];
+  for (let day = 1; day <= dayCount; day += 1) {
+    const date = month + "-" + String(day).padStart(2, "0");
+    remainingBudget += dailyIncome.get(date) ?? 0;
+    const dailyTarget = remainingBudget > 0 ? remainingBudget / (dayCount - day + 1) : 0;
+    remainingBudget -= dailyExpenses.get(date) ?? 0;
+    points.push({
+      date,
+      day,
+      remainingBudget: roundCurrency(remainingBudget),
+      dailyTarget: roundCurrency(dailyTarget)
+    });
+  }
+  return points;
+}
+
 export function dailyBudgetOverview(
   document: FinanceDocument,
   month: string,
   includeNegativeCarryover = false,
   now = new Date(),
-  dateBasis: TransactionDateBasis = "transaction"
+  dateBasis: TransactionDateBasis = "transaction",
+  carryoverMonths = 1
 ): DailyBudgetOverview {
   const baseIncome = getActiveMonthlyIncome(document, month);
   const flexibleIncome = sumMonthTransactions(document, "Income", month);
   const fixedCosts = sumFixedCosts(document, month);
   const savingsGoal = asNumber(document.budget_settings.daily_savings_goal) * monthDays(month);
-  const carryover = includeNegativeCarryover ? negativeCarryover(document, month) : 0;
+  const carryover = includeNegativeCarryover ? negativeCarryover(document, month, carryoverMonths) : 0;
   const dayCount = monthDays(month);
   const today = isoToday(now);
   const isCurrent = today.startsWith(month);
@@ -646,6 +702,19 @@ export function snapshots(document: FinanceDocument): AssetSnapshot[] {
       net_worth: roundCurrency(asNumber(snapshot.net_worth))
     }))
     .sort((first, second) => first.date.localeCompare(second.date));
+}
+
+export function snapshotChanges(history: AssetSnapshot[], mode: SnapshotChangeMode = "month-by-month") {
+  const firstNetWorth = history[0]?.net_worth ?? 0;
+
+  return history.map((snapshot, index) => ({
+    ...snapshot,
+    change: mode === "from-beginning"
+      ? roundCurrency(snapshot.net_worth - firstNetWorth)
+      : index === 0
+        ? 0
+        : roundCurrency(snapshot.net_worth - history[index - 1].net_worth)
+  }));
 }
 
 export function createSnapshot(document: FinanceDocument, date = isoToday(), note = ""): AssetSnapshot {

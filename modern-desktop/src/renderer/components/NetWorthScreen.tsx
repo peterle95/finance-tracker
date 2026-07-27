@@ -1,31 +1,35 @@
 import { Camera, LineChart as LineChartIcon, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Cell, Line, LineChart, Pie, PieChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "recharts";
-import { assetAllocation, cloneDocument, createSnapshot, formatCurrency, isoToday, netWorth, roundCurrency, snapshots } from "../../shared/finance";
+import { DEFAULT_BEHAVIOR_SETTINGS, type DefaultBehaviorSettings } from "../../shared/behavior-settings";
+import { assetAllocation, cloneDocument, createSnapshot, formatCurrency, isoToday, netWorth, roundCurrency, snapshotChanges, snapshots } from "../../shared/finance";
+import type { SnapshotChangeMode } from "../../shared/finance";
 import type { FinanceDocument } from "../../shared/types";
+import { tooltipStyle, tooltipTextStyle } from "./chartStyles";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
 
 const COLORS = ["#f5c451", "#2dd4bf", "#7dd3fc", "#8b5cf6", "#fb923c"];
-const tooltipStyle = {
-  background: "#321452",
-  border: "1px solid #8b5cf6",
-  borderRadius: 10,
-  color: "#ffffff",
-  boxShadow: "0 12px 28px rgba(0, 0, 0, 0.35)"
-};
+
+function formatSignedCurrency(value: number): string {
+  return (value >= 0 ? "+" : "-") + formatCurrency(Math.abs(value));
+}
 
 export function NetWorthScreen({
   document,
+  defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
   onSave,
   onExport
 }: {
   document: FinanceDocument;
+  defaultBehaviors?: DefaultBehaviorSettings;
   onSave(document: FinanceDocument): void;
   onExport(name: string, text: string): void;
 }) {
-  const [note, setNote] = useState("");
   const [date, setDate] = useState(isoToday());
+  const [changeMode, setChangeMode] = useState<SnapshotChangeMode>(defaultBehaviors.netWorthChangeMode);
   const history = snapshots(document);
+  const changeRows = snapshotChanges(history, changeMode);
+  const changeByDate = new Map(changeRows.map((row) => [row.date, row.change]));
   const allocation = assetAllocation(document);
   const moneyLent = roundCurrency(Number(document.budget_settings.money_lent_balance ?? 0));
   const report = useMemo(() => [
@@ -33,16 +37,15 @@ export function NetWorthScreen({
     "",
     "Current net worth: " + formatCurrency(netWorth(document)),
     "",
-    ...history.map((snapshot) => snapshot.date + ": " + formatCurrency(snapshot.net_worth) + (snapshot.note ? " — " + snapshot.note : ""))
+    ...history.map((snapshot) => snapshot.date + ": " + formatCurrency(snapshot.net_worth))
   ].join("\n"), [document, history]);
 
   function recordSnapshot() {
     const next = cloneDocument(document);
-    const snapshot = createSnapshot(document, date, note);
+    const snapshot = createSnapshot(document, date);
     const existing = snapshots(next).filter((entry) => entry.date !== date);
     next.budget_settings.asset_snapshots = [...existing, snapshot].sort((first, second) => first.date.localeCompare(second.date));
     onSave(next);
-    setNote("");
   }
 
   function removeSnapshot(snapshotDate: string) {
@@ -74,12 +77,12 @@ export function NetWorthScreen({
             <ResponsiveContainer width="100%" height={300}>
               <LineChart data={history}>
                 <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => "\u20AC" + Math.round(value)} tickLine={false} axisLine={false} width={70} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
-                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#ffffff" }} itemStyle={{ color: "#ffffff" }} formatter={(value) => formatCurrency(Number(value))} />
-                <Line type="monotone" dataKey="net_worth" stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
+                <YAxis tickFormatter={(value) => "\u20AC" + Math.round(Number(value))} tickLine={false} axisLine={false} width={70} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
+                <Line type="monotone" dataKey="net_worth" name="Net worth" stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
               </LineChart>
             </ResponsiveContainer>
-          ) : <EmptyState title="Record two snapshots to see a trend" detail="Snapshots retain your balance on the chosen day." />}
+          ) : <EmptyState title="Record two snapshots to see history" detail="Snapshots retain your balance on the chosen day." />}
         </Card>
         <Card className="chart-card">
           <div className="card-heading"><div><p className="eyebrow">Allocation</p><h2>Where your money sits</h2></div></div>
@@ -89,7 +92,7 @@ export function NetWorthScreen({
                 <Pie data={allocation.assets} dataKey="value" nameKey="name" innerRadius={65} outerRadius={100} paddingAngle={3}>
                   {allocation.assets.map((_entry, index) => <Cell key={index} fill={COLORS[index % COLORS.length]} />)}
                 </Pie>
-                <Tooltip contentStyle={tooltipStyle} labelStyle={{ color: "#ffffff" }} itemStyle={{ color: "#ffffff" }} formatter={(value) => formatCurrency(Number(value))} />
+                <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
               </PieChart>
             </ResponsiveContainer>
            ) : <EmptyState title="Add account balances" detail="Balance entries from Budget will appear here." />}
@@ -98,27 +101,49 @@ export function NetWorthScreen({
       </div>
 
       <div className="two-column">
-        <Card>
-          <div className="card-heading"><div><p className="eyebrow">Checkpoint</p><h2>Record a snapshot</h2></div><Camera size={22} /></div>
-          <div className="form-grid compact-form">
-            <label><span>Date</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-            <label><span>Current value</span><input value={formatCurrency(netWorth(document))} readOnly /></label>
-            <label className="span-two"><span>Note</span><input value={note} onChange={(event) => setNote(event.target.value)} placeholder="Month end or milestone" /></label>
-            <div className="span-two form-actions"><Button onClick={recordSnapshot}>Record snapshot</Button></div>
-          </div>
-        </Card>
-        <Card>
-          <div className="card-heading"><div><p className="eyebrow">Saved history</p><h2>Snapshots</h2></div></div>
-          <div className="mini-list">
-            {history.length ? history.slice().reverse().map((snapshot) => (
-              <div key={snapshot.date}>
-                <span><strong>{snapshot.date}</strong><small>{snapshot.note || "No note"}</small></span>
-                <strong>{formatCurrency(snapshot.net_worth)}</strong>
-                <button className="icon-button danger-icon" onClick={() => removeSnapshot(snapshot.date)} aria-label="Delete snapshot"><Trash2 size={15} /></button>
-              </div>
-            )) : <p className="muted-copy">No snapshots recorded yet.</p>}
-          </div>
-        </Card>
+      <Card>
+        <div className="card-heading"><div><p className="eyebrow">Snapshots</p><h2>Record and review snapshots</h2></div><Camera size={22} /></div>
+        <div className="card-heading"><div><p className="eyebrow">Checkpoint</p><h2>Record a snapshot</h2></div></div>
+        <div className="form-grid compact-form">
+          <label><span>Date</span><input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+          <label><span>Current value</span><input value={formatCurrency(netWorth(document))} readOnly /></label>
+          <div className="span-two form-actions"><Button onClick={recordSnapshot}>Record snapshot</Button></div>
+        </div>
+        <div className="card-heading"><div><p className="eyebrow">Saved history</p><h2>Snapshots</h2></div></div>
+        <div className="mini-list snapshot-history-list">
+          {history.length ? history.slice().reverse().map((snapshot) => (
+            <div key={snapshot.date}>
+              <span>
+                <strong>{snapshot.date}</strong>
+                <small className={snapshot.date === history[0]?.date ? "" : (changeByDate.get(snapshot.date) ?? 0) >= 0 ? "amount-income" : "amount-expense"}>
+                  {snapshot.date === history[0]?.date
+                    ? "Starting point"
+                    : (changeMode === "month-by-month" ? "Since previous: " : "Since beginning: ") + formatSignedCurrency(changeByDate.get(snapshot.date) ?? 0)}
+                </small>
+              </span>
+              <strong>{formatCurrency(snapshot.net_worth)}</strong>
+              <button className="icon-button danger-icon" onClick={() => removeSnapshot(snapshot.date)} aria-label="Delete snapshot"><Trash2 size={15} /></button>
+            </div>
+          )) : <p className="muted-copy">No snapshots recorded yet.</p>}
+        </div>
+      </Card>
+      <Card className="chart-card">
+        <div className="card-heading"><div><p className="eyebrow">Snapshot flow</p><h2>Changes over time</h2></div><LineChartIcon size={22} /></div>
+        <div className="segmented-control" aria-label="Snapshot change mode">
+          <button type="button" aria-pressed={changeMode === "month-by-month"} className={changeMode === "month-by-month" ? "selected" : ""} onClick={() => setChangeMode("month-by-month")}>Month-by-month</button>
+          <button type="button" aria-pressed={changeMode === "from-beginning"} className={changeMode === "from-beginning" ? "selected" : ""} onClick={() => setChangeMode("from-beginning")}>Since beginning</button>
+        </div>
+        {history.length > 1 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={changeRows}>
+              <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
+              <YAxis tickFormatter={(value) => (Number(value) >= 0 ? "+" : "-") + "\u20AC" + Math.round(Math.abs(Number(value)))} tickLine={false} axisLine={false} width={80} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatSignedCurrency(Number(value))} />
+              <Line type="monotone" dataKey="change" name={changeMode === "month-by-month" ? "Change from previous snapshot" : "Change since beginning"} stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : <EmptyState title="Record two snapshots to see changes" detail="Snapshots retain your balance on the chosen day." />}
+      </Card>
       </div>
     </div>
   );

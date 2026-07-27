@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { currentMonth, formatCurrency } from "../../shared/finance";
+import { currentMonth, formatCurrency, getActiveMonthlyIncome, sumFixedCosts } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
 
@@ -18,10 +18,17 @@ export function TransactionsScreen({
   onDelete
 }: TransactionsScreenProps) {
   const [type, setType] = useState<"All" | TransactionType>("All");
+  const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
   const [month, setMonth] = useState(currentMonth);
   const [sortKey, setSortKey] = useState<"date" | "amount" | "category">("date");
   const [descending, setDescending] = useState(true);
+  const categories = useMemo(() => Array.from(new Set([
+    ...document.categories.Expense,
+    ...document.categories.Income,
+    ...document.expenses.map((transaction) => transaction.category),
+    ...document.incomes.map((transaction) => transaction.category)
+  ])).sort((first, second) => first.localeCompare(second)), [document]);
 
   const transactions = useMemo(() => {
     const source: Array<{ type: TransactionType; transaction: FinanceTransaction }> = [
@@ -30,9 +37,15 @@ export function TransactionsScreen({
     ];
     return source
       .filter((entry) => type === "All" || entry.type === type)
+      .filter((entry) => category === "All" || entry.transaction.category === category)
       .filter((entry) => !month || entry.transaction.date.startsWith(month))
       .filter((entry) => {
-        const value = (entry.transaction.description + " " + entry.transaction.category).toLocaleLowerCase();
+        const value = [
+          entry.transaction.description,
+          entry.transaction.category,
+          entry.transaction.date,
+          entry.transaction.behavior_date ?? ""
+        ].join(" ").toLocaleLowerCase();
         return value.includes(query.toLocaleLowerCase());
       })
       .sort((first, second) => {
@@ -43,7 +56,17 @@ export function TransactionsScreen({
           : String(firstValue).localeCompare(String(secondValue));
         return descending ? -compared : compared;
       });
-  }, [document, type, query, month, sortKey, descending]);
+  }, [document, type, category, query, month, sortKey, descending]);
+
+  const flexibleCosts = transactions
+    .filter((entry) => entry.type === "Expense")
+    .reduce((total, entry) => total + entry.transaction.amount, 0);
+  const flexibleIncome = transactions
+    .filter((entry) => entry.type === "Income")
+    .reduce((total, entry) => total + entry.transaction.amount, 0);
+  const totalIncome = (month ? getActiveMonthlyIncome(document, month) : 0) + flexibleIncome;
+  const totalCosts = flexibleCosts + (month ? sumFixedCosts(document, month) : 0);
+  const totalIncomeDifference = totalIncome - totalCosts;
 
   function toggleSort(next: typeof sortKey) {
     if (next === sortKey) {
@@ -69,18 +92,37 @@ export function TransactionsScreen({
       />
 
       <Card className="toolbar-card">
-        <div className="toolbar">
+        <div className="toolbar transactions-toolbar">
           <label className="search-field">
             <Search size={17} />
-            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search description or category" />
+            <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search description, category, or date" />
           </label>
           <select value={type} onChange={(event) => setType(event.target.value as "All" | TransactionType)}>
             <option value="All">All types</option>
             <option value="Expense">Expenses</option>
             <option value="Income">Income</option>
           </select>
+          <select aria-label="Filter by category" value={category} onChange={(event) => setCategory(event.target.value)}>
+            <option value="All">All categories</option>
+            {categories.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
+          </select>
           <input aria-label="Filter by booking month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
-          <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setMonth(currentMonth()); }}>Clear filters</Button>
+          <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setCategory("All"); setMonth(currentMonth()); }}>Clear filters</Button>
+        </div>
+      </Card>
+
+      <Card className="transactions-summary">
+        <div>
+          <p className="eyebrow">Flexible costs</p>
+          <strong>{formatCurrency(flexibleCosts)}</strong>
+          <span>{query || type !== "All" ? "Matching filters" : month ? "In " + month : "Matching transactions"}</span>
+        </div>
+        <div>
+          <p className="eyebrow">Total income − total costs</p>
+          <strong className={totalIncomeDifference < 0 ? "amount-expense" : "amount-income"}>
+            {formatCurrency(totalIncomeDifference)}
+          </strong>
+          <span>Total income minus total costs</span>
         </div>
       </Card>
 

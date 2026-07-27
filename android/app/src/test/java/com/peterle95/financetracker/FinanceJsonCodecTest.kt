@@ -251,7 +251,7 @@ class FinanceJsonCodecTest {
         val updatedExisting = FinanceJsonCodec.updateLoan(
             document,
             "loan-1",
-            Loan(borrower = "Ana Maria", amount = 7.0, description = "Updated lunch", date = "ignored"),
+            Loan(borrower = "Ana Maria", amount = 7.0, description = "Updated lunch", notes = "Pay back Friday", date = "2026-06-20"),
         )
         val added = FinanceJsonCodec.addLoan(
             updatedExisting,
@@ -267,7 +267,8 @@ class FinanceJsonCodecTest {
         assertEquals(1, loans.size)
         assertEquals("loan-1", loans[0].jsonObject["id"]!!.jsonPrimitive.content)
         assertEquals("Ana Maria", loans[0].jsonObject["borrower"]!!.jsonPrimitive.content)
-        assertEquals("2026-06-01", loans[0].jsonObject["date"]!!.jsonPrimitive.content)
+        assertEquals("2026-06-20", loans[0].jsonObject["date"]!!.jsonPrimitive.content)
+        assertEquals("Pay back Friday", loans[0].jsonObject["notes"]!!.jsonPrimitive.content)
         assertEquals("desktop", loans[0].jsonObject["source"]!!.jsonPrimitive.content)
         assertTrue(budget["category_budgets"]!!.jsonObject.containsKey("Custom"))
     }

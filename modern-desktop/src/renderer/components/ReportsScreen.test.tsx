@@ -1,7 +1,7 @@
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { defaultDocument } from "../../shared/finance";
+import { currentMonth, defaultDocument } from "../../shared/finance";
 import { ProjectionScreen } from "./ProjectionScreen";
 import { ReportsScreen } from "./ReportsScreen";
 
@@ -24,6 +24,29 @@ describe("ReportsScreen history", () => {
     await user.selectOptions(breakdown, "flexible");
     await user.selectOptions(screen.getByLabelText("History display"), "percentage");
     expect(screen.getByRole("heading", { name: "Flexible income vs costs" })).toBeTruthy();
+  });
+});
+
+describe("ReportsScreen breakdown", () => {
+  it("excludes recurring costs by default and supports a month range", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    document.budget_settings.fixed_costs = [{ amount: 50, description: "Rent", start_date: "2026-01-01", end_date: null }];
+    document.expenses.push({ date: currentMonth() + "-15", amount: 25, category: "Food", description: "Groceries" });
+    render(<ReportsScreen document={document} onExport={vi.fn()} />);
+
+    const includeFixedCosts = screen.getByText("Include fixed costs").closest("label")?.querySelector("input");
+    expect(includeFixedCosts).toBeTruthy();
+    expect((includeFixedCosts as HTMLInputElement).checked).toBe(false);
+    expect(screen.getByText("Food")).toBeTruthy();
+    expect(screen.queryByText("Fixed Costs")).toBeNull();
+
+    await user.click(includeFixedCosts as HTMLInputElement);
+    expect(screen.getByText("Fixed Costs")).toBeTruthy();
+
+    fireEvent.change(screen.getByLabelText("Breakdown start month"), { target: { value: "2026-01" } });
+    fireEvent.change(screen.getByLabelText("Breakdown end month"), { target: { value: "2026-02" } });
+    expect(screen.getByText("2026-01 to 2026-02")).toBeTruthy();
   });
 });
 

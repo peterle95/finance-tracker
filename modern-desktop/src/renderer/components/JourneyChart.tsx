@@ -7,8 +7,10 @@ import {
   type JourneyHorizon,
   type JourneySeries
 } from "../../shared/journey";
+import type { JourneyHorizonPreset } from "../../shared/range-settings";
 import { formatCurrency, monthOffset } from "../../shared/finance";
 import type { FinanceDocument } from "../../shared/types";
+import { tooltipStyle, tooltipTextStyle } from "./chartStyles";
 import { Card } from "./ui";
 
 const horizonOptions: Array<{ value: string; label: string; horizon: JourneyHorizon }> = [
@@ -18,6 +20,10 @@ const horizonOptions: Array<{ value: string; label: string; horizon: JourneyHori
   { value: "10-years", label: "10 years · Yearly", horizon: { amount: 10, unit: "years" } },
   { value: "20-years", label: "20 years · Yearly", horizon: { amount: 20, unit: "years" } }
 ];
+
+function horizonFromPreset(preset: JourneyHorizonPreset): JourneyHorizon {
+  return horizonOptions.find((option) => option.value === preset)?.horizon ?? DEFAULT_JOURNEY_HORIZON;
+}
 
 const seriesColors: Record<JourneySeries["state"], string> = {
   actual: "#f5c451",
@@ -64,8 +70,8 @@ function seriesPoint(dataset: JourneyDataset, series: JourneySeries, date: strin
   return series.points.find((point) => point.date === date);
 }
 
-export function JourneyChart({ document, reducedMotion = false }: { document: FinanceDocument; reducedMotion?: boolean }) {
-  const [horizon, setHorizon] = useState<JourneyHorizon>(DEFAULT_JOURNEY_HORIZON);
+export function JourneyChart({ document, defaultHorizon = "12-months", reducedMotion = false }: { document: FinanceDocument; defaultHorizon?: JourneyHorizonPreset; reducedMotion?: boolean }) {
+  const [horizon, setHorizon] = useState<JourneyHorizon>(() => horizonFromPreset(defaultHorizon));
   const [selectedIndex, setSelectedIndex] = useState(0);
   const dataset = buildJourneyDataset(document, horizon);
   const rows = chartRows(dataset);
@@ -129,7 +135,7 @@ export function JourneyChart({ document, reducedMotion = false }: { document: Fi
               <CartesianGrid stroke="rgba(162, 196, 187, 0.12)" strokeDasharray="3 3" />
               <XAxis dataKey="date" tickLine={false} axisLine={false} minTickGap={24} />
               <YAxis tickFormatter={(value) => "€" + Math.round(value)} tickLine={false} axisLine={false} width={76} />
-              <Tooltip formatter={(value) => formatCurrency(Number(value))} />
+              <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
               {dataset.series.map((series) => <Line key={series.id} type="monotone" dataKey={series.id} name={series.label} stroke={seriesColors[series.state]} strokeWidth={series.state === "actual" ? 3 : 2} strokeDasharray={series.style === "dashed" ? "8 5" : series.style === "accent" ? "2 4" : undefined} dot={series.state === "scenario" ? false : { r: 3 }} connectNulls={false} isAnimationActive={!reducedMotion} animationDuration={reducedMotion ? 0 : 300} />)}
             </LineChart>
           </ResponsiveContainer>

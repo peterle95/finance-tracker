@@ -19,6 +19,7 @@ import {
   snapshots
 } from "../../shared/finance";
 import type { BudgetSuggestion, FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
+import { DEFAULT_RANGE_SETTINGS, type DefaultRangeSettings } from "../../shared/range-settings";
 import { Button, Card, Metric, PageHeader } from "./ui";
 import { JourneyChart } from "./JourneyChart";
 
@@ -53,6 +54,7 @@ const workflows = [
 
 interface ExplorationScreenProps {
   document: FinanceDocument;
+  defaultRanges?: DefaultRangeSettings;
   reducedMotion?: boolean;
   onConfirm?(document: FinanceDocument): void;
   onDirtyChange?(dirty: boolean): void;
@@ -221,6 +223,7 @@ function FocusedView({
   eventDraft,
   onBack,
   reducedMotion,
+  defaultRanges,
   onEventDraftChange,
   onAddEvent,
   onEditEvent,
@@ -243,6 +246,7 @@ function FocusedView({
   eventDraft: ScenarioEventDraft;
   onBack(): void;
   reducedMotion: boolean;
+  defaultRanges: DefaultRangeSettings;
   onEventDraftChange(update: Partial<ScenarioEventDraft>): void;
   onAddEvent(event: React.FormEvent<HTMLFormElement>): void;
   onEditEvent(event: ScenarioEventChange): void;
@@ -315,7 +319,7 @@ function FocusedView({
         </>
       ) : null}
 
-      {view === "journey" ? <JourneyChart document={document} reducedMotion={reducedMotion} /> : null}
+      {view === "journey" ? <JourneyChart document={document} defaultHorizon={defaultRanges.journeyHorizon} reducedMotion={reducedMotion} /> : null}
 
       {view === "balancer" ? (
         <Card className="exploration-draft-card">
@@ -427,7 +431,7 @@ function DraftControls({
   );
 }
 
-export function ExplorationScreen({ document, reducedMotion = false, onConfirm, onDirtyChange }: ExplorationScreenProps) {
+export function ExplorationScreen({ document, defaultRanges = DEFAULT_RANGE_SETTINGS, reducedMotion = false, onConfirm, onDirtyChange }: ExplorationScreenProps) {
   const [view, setView] = useState<ExplorationView>("landing");
   const [draft, setDraft] = useState(() => cloneDocument(document));
   const [undoStack, setUndoStack] = useState<FinanceDocument[]>([]);
@@ -476,7 +480,7 @@ export function ExplorationScreen({ document, reducedMotion = false, onConfirm, 
   const plannedPercent = roundCurrency(Object.values(budgetValues).reduce((total, value) => total + value, 0));
   const savedPlannedPercent = roundCurrency(Object.values(savedBudgetValues).reduce((total, value) => total + value, 0));
   const scenarioNet = scenarioChanges.reduce((total, event) => total + (event.type === "Income" ? event.amount : -event.amount), 0);
-  const projectionMonths = 12;
+  const projectionMonths = defaultRanges.projectionMonths;
   const projectionEndMonth = monthOffset(month, projectionMonths - 1);
   const horizonEvents = scenarioChanges.filter((event) => {
     const eventMonth = event.date.slice(0, 7);
@@ -712,6 +716,7 @@ export function ExplorationScreen({ document, reducedMotion = false, onConfirm, 
           categories={categories}
           eventCategories={document.categories}
           reducedMotion={reducedMotion}
+          defaultRanges={defaultRanges}
           scenarioEvents={scenarioChanges}
           editingEventId={editingEventId}
           eventDraft={eventDraft}
@@ -747,7 +752,7 @@ export function ExplorationScreen({ document, reducedMotion = false, onConfirm, 
         <div className="exploration-context-grid">
           <Metric label="Current net worth" value={formatCurrency(netWorth(document))} detail="Across tracked balances" tone="positive" />
           <Metric label="Scenario status" value={dirty ? "Draft changes" : "Baseline only"} detail={dirty ? "Temporary edits in memory" : "No temporary edits"} tone={dirty ? "warning" : "default"} />
-          <Metric label="Active horizon" value="12 months" detail="Default Exploration view" />
+          <Metric label="Active horizon" value={defaultRanges.journeyHorizon.replace("-", " ")} detail="Default Exploration view" />
         </div>
 
         {message ? <p className="exploration-status" role="status">{message}</p> : null}

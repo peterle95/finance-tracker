@@ -4,7 +4,6 @@ import android.content.Intent
 import android.graphics.Paint
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -67,7 +66,7 @@ import kotlin.math.min
 private val budgetGreen = Color(0xFF536F18)
 
 @Composable
-fun BudgetScreen(viewModel: FinanceViewModel) {
+fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {}) {
     val settings by viewModel.budgetSettingsModel.collectAsState()
     val transactions by viewModel.transactions.collectAsState()
     val context = LocalContext.current
@@ -193,7 +192,7 @@ fun BudgetScreen(viewModel: FinanceViewModel) {
             )
         }
         if (showBalancesSection) {
-            item { BalanceEditor(settings, viewModel) }
+            item { BalanceEditor(settings, viewModel, onModifyLoan) }
         }
         item {
             BudgetSectionButton(
@@ -375,7 +374,11 @@ private fun BudgetDepletionChart(report: BudgetReport) {
 }
 
 @Composable
-private fun BalanceEditor(settings: BudgetSettings, viewModel: FinanceViewModel) {
+private fun BalanceEditor(
+    settings: BudgetSettings,
+    viewModel: FinanceViewModel,
+    onModifyLoan: (String) -> Unit,
+) {
     val balances = settings.balances
     var bank by remember { mutableStateOf(balances.bankAccount.toFieldText()) }
     var wallet by remember { mutableStateOf(balances.wallet.toFieldText()) }
@@ -424,6 +427,7 @@ private fun BalanceEditor(settings: BudgetSettings, viewModel: FinanceViewModel)
                 loans = settings.loans,
                 totalMoneyLent = balances.moneyLent,
                 viewModel = viewModel,
+                onModifyLoan = onModifyLoan,
             )
         }
     }
@@ -434,32 +438,12 @@ private fun LendingManager(
     loans: List<Loan>,
     totalMoneyLent: Double,
     viewModel: FinanceViewModel,
+    onModifyLoan: (String) -> Unit,
 ) {
-    var selectedLoanKey by remember { mutableStateOf<String?>(null) }
     var borrower by remember { mutableStateOf("") }
     var amount by remember { mutableStateOf("") }
     var description by remember { mutableStateOf("") }
-    val selectedLoan = loans.firstOrNull { it.key == selectedLoanKey }
-
-    LaunchedEffect(selectedLoanKey, loans) {
-        if (selectedLoan != null) {
-            borrower = selectedLoan.borrower
-            amount = selectedLoan.amount.toFieldText()
-            description = selectedLoan.description
-        } else if (selectedLoanKey != null) {
-            selectedLoanKey = null
-            borrower = ""
-            amount = ""
-            description = ""
-        }
-    }
-
-    fun clearForm() {
-        selectedLoanKey = null
-        borrower = ""
-        amount = ""
-        description = ""
-    }
+    var notes by remember { mutableStateOf("") }
 
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(
@@ -480,16 +464,13 @@ private fun LendingManager(
                 loans.forEach { loan ->
                     LoanRow(
                         loan = loan,
-                        selected = loan.key == selectedLoanKey,
-                        onClick = { selectedLoanKey = loan.key },
+                        onModify = { onModifyLoan(loan.key) },
+                        onReturn = { viewModel.returnLoan(loan.key) },
                     )
                 }
             }
 
-            Text(
-                if (selectedLoan == null) "Add Loan" else "Edit Loan",
-                style = MaterialTheme.typography.titleMedium,
-            )
+            Text("Add Loan", style = MaterialTheme.typography.titleMedium)
             OutlinedTextField(
                 value = borrower,
                 onValueChange = { borrower = it },
@@ -500,7 +481,7 @@ private fun LendingManager(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 MoneyField("Amount", amount, { amount = it }, Modifier.weight(1f))
                 OutlinedTextField(
-                    value = selectedLoan?.date ?: todayIsoDate(),
+                    value = todayIsoDate(),
                     onValueChange = {},
                     label = { Text("Date") },
                     readOnly = true,
@@ -515,53 +496,34 @@ private fun LendingManager(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BudgetButton(
-                    onClick = {
-                        if (selectedLoan == null) {
-                            viewModel.addLoan(borrower, amount, description)
-                        } else {
-                            viewModel.updateLoan(selectedLoan.key, borrower, amount, description)
-                        }
-                        clearForm()
-                    },
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text(if (selectedLoan == null) "Add Loan" else "Update")
-                }
-                BudgetOutlinedButton(
-                    onClick = {
-                        selectedLoan?.let { viewModel.returnLoan(it.key) }
-                        clearForm()
-                    },
-                    enabled = selectedLoan != null,
-                    modifier = Modifier.weight(1f),
-                ) {
-                    Text("Returned")
-                }
-            }
-            if (selectedLoan != null) {
-                BudgetOutlinedButton(onClick = { clearForm() }, modifier = Modifier.fillMaxWidth()) {
-                    Text("Clear Selection")
-                }
+            OutlinedTextField(
+                value = notes,
+                onValueChange = { notes = it },
+                label = { Text("Notes") },
+                minLines = 5,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            BudgetButton(
+                onClick = {
+                    viewModel.addLoan(borrower, amount, description, notes)
+                    borrower = ""
+                    amount = ""
+                    description = ""
+                    notes = ""
+                },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Add Loan")
             }
         }
     }
 }
 
 @Composable
-private fun LoanRow(loan: Loan, selected: Boolean, onClick: () -> Unit) {
+private fun LoanRow(loan: Loan, onModify: () -> Unit, onReturn: () -> Unit) {
     Card(
         modifier = Modifier
-            .fillMaxWidth()
-            .clickable(onClick = onClick),
-        colors = CardDefaults.cardColors(
-            containerColor = if (selected) {
-                MaterialTheme.colorScheme.primaryContainer
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
-        ),
+            .fillMaxWidth(),
     ) {
         Column(
             modifier = Modifier.padding(12.dp),
@@ -572,7 +534,18 @@ private fun LoanRow(loan: Loan, selected: Boolean, onClick: () -> Unit) {
                 Text(money(loan.amount), style = MaterialTheme.typography.labelLarge)
             }
             Text(loan.description.ifBlank { "No description" }, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            if (loan.notes.isNotBlank()) {
+                Text(loan.notes, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            }
             Text(loan.date.ifBlank { "No date" }, style = MaterialTheme.typography.bodySmall)
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                BudgetOutlinedButton(onClick = onModify, modifier = Modifier.weight(1f)) {
+                    Text("modify")
+                }
+                BudgetOutlinedButton(onClick = onReturn, modifier = Modifier.weight(1f)) {
+                    Text("Returned")
+                }
+            }
         }
     }
 }

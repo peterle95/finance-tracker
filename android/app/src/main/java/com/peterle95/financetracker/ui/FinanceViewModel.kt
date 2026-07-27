@@ -303,10 +303,10 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun addLoan(borrower: String, amount: String, description: String) {
+    fun addLoan(borrower: String, amount: String, description: String, notes: String = "") {
         viewModelScope.launch {
             runCatching {
-                repository.addLoan(loanFromInput(borrower, amount, description))
+                repository.addLoan(loanFromInput(borrower, amount, description, notes = notes))
             }.onSuccess {
                 messages.emit("Loan recorded.")
             }.onFailure {
@@ -315,11 +315,11 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun updateLoan(key: String, borrower: String, amount: String, description: String) {
+    fun updateLoan(key: String, borrower: String, amount: String, description: String, date: String, notes: String) {
         viewModelScope.launch {
             runCatching {
                 require(key.isNotBlank()) { "Select a loan to update." }
-                repository.updateLoan(key, loanFromInput(borrower, amount, description))
+                repository.updateLoan(key, loanFromInput(borrower, amount, description, date, notes))
             }.onSuccess {
                 messages.emit("Loan updated.")
             }.onFailure {
@@ -500,6 +500,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         borrower: String,
         amount: String,
         description: String,
+        date: String = LocalDate.now().toString(),
+        notes: String = "",
     ): Loan {
         val trimmedBorrower = borrower.trim()
         require(trimmedBorrower.isNotBlank()) { "Borrower cannot be empty." }
@@ -509,7 +511,8 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             amount = parsedAmount,
             borrower = trimmedBorrower,
             description = description.trim(),
-            date = LocalDate.now().toString(),
+            notes = notes.trim(),
+            date = requireIsoDate(date, "Loan date"),
         )
     }
 
