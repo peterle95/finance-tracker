@@ -51,6 +51,8 @@ export function BudgetDepletionChart({
   carryoverMonths?: number;
 }) {
   const points = dailyBudgetDevelopment(document, month, includeNegativeCarryover, new Date(), carryoverMonths);
+  const today = new Date();
+  const todayMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const chartData = points.map((point) => ({
     ...point,
     positiveBalance: Math.max(point.remainingBudget, 0),
@@ -71,6 +73,7 @@ export function BudgetDepletionChart({
             <Tooltip content={<BudgetTooltip />} />
             <Legend />
             <ReferenceLine y={0} stroke="#94a3b8" />
+            {month === todayMonth && <ReferenceLine x={today.getDate()} stroke="#f5c451" strokeWidth={2} label={{ value: "Today", position: "insideTop", fill: "#f5c451" }} />}
             <Area type="monotone" dataKey="positiveBalance" name="Positive balance" stroke="transparent" fill="#2dd4bf" fillOpacity={0.16} isAnimationActive={false} />
             <Area type="monotone" dataKey="negativeBalance" name="Negative balance" stroke="transparent" fill="#fb7185" fillOpacity={0.2} isAnimationActive={false} />
             <Line type="monotone" dataKey="remainingBudget" name="Remaining budget" stroke="#2dd4bf" strokeWidth={3} dot={{ r: 3 }} isAnimationActive={false} />

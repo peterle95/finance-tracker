@@ -60,7 +60,7 @@ export function CategoryLimitsScreen({
       return;
     }
     const next = cloneDocument(document);
-    next.categories.Expense.push(category);
+    next.categories.Expense = [...next.categories.Expense, category].sort((left, right) => left.localeCompare(right));
     next.budget_settings.category_budgets = {
       ...(next.budget_settings.category_budgets ?? {}),
       Expense: {

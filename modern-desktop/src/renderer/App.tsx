@@ -16,8 +16,8 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { cloneDocument } from "../shared/finance";
-import { DEFAULT_BEHAVIOR_SETTINGS, normalizeDefaultBehaviorSettings, type DefaultBehaviorSettings } from "../shared/behavior-settings";
-import { DEFAULT_RANGE_SETTINGS, normalizeDefaultRangeSettings, type DefaultRangeSettings } from "../shared/range-settings";
+import { normalizeDefaultBehaviorSettings } from "../shared/behavior-settings";
+import { normalizeDefaultRangeSettings } from "../shared/range-settings";
 import type {
   DataConnection,
   DataLoadResult,
@@ -72,22 +72,6 @@ function initialReducedMotion(): boolean {
   return localStorage.getItem("finance-tracker-reduced-motion") === "true";
 }
 
-function initialDefaultRanges(): DefaultRangeSettings {
-  try {
-    return normalizeDefaultRangeSettings(JSON.parse(localStorage.getItem("finance-tracker-default-ranges") ?? "null"));
-  } catch {
-    return DEFAULT_RANGE_SETTINGS;
-  }
-}
-
-function initialDefaultBehaviors(): DefaultBehaviorSettings {
-  try {
-    return normalizeDefaultBehaviorSettings(JSON.parse(localStorage.getItem("finance-tracker-default-behaviors") ?? "null"));
-  } catch {
-    return DEFAULT_BEHAVIOR_SETTINGS;
-  }
-}
-
 export function App() {
   const [financeDocument, setDocument] = useState<FinanceDocument | null>(null);
   const [connection, setConnection] = useState<DataConnection>({ path: null, isConnected: false });
@@ -97,8 +81,6 @@ export function App() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
-  const [defaultRanges, setDefaultRanges] = useState<DefaultRangeSettings>(initialDefaultRanges);
-  const [defaultBehaviors, setDefaultBehaviors] = useState<DefaultBehaviorSettings>(initialDefaultBehaviors);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
   const [explorationDirty, setExplorationDirty] = useState(false);
@@ -112,14 +94,6 @@ export function App() {
     window.document.documentElement.dataset.reducedMotion = String(reducedMotion);
     localStorage.setItem("finance-tracker-reduced-motion", String(reducedMotion));
   }, [reducedMotion]);
-
-  useEffect(() => {
-    localStorage.setItem("finance-tracker-default-ranges", JSON.stringify(defaultRanges));
-  }, [defaultRanges]);
-
-  useEffect(() => {
-    localStorage.setItem("finance-tracker-default-behaviors", JSON.stringify(defaultBehaviors));
-  }, [defaultBehaviors]);
 
   useEffect(() => {
     void loadData();
@@ -249,6 +223,8 @@ export function App() {
   }
 
   const activeDocument = financeDocument;
+  const defaultRanges = normalizeDefaultRangeSettings(activeDocument.budget_settings.default_ranges);
+  const defaultBehaviors = normalizeDefaultBehaviorSettings(activeDocument.budget_settings.default_behaviors);
 
   function content() {
     switch (page) {
@@ -272,13 +248,13 @@ export function App() {
         return <ReconciliationScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "settings":
         return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onDefaultRangesChange={(next) => {
-          setDefaultRanges(next);
-          setToast("Default ranges saved.");
-          window.setTimeout(() => setToast(""), 2000);
+          const updated = cloneDocument(activeDocument);
+          updated.budget_settings.default_ranges = next;
+          void persist(updated);
         }} onDefaultBehaviorsChange={(next) => {
-          setDefaultBehaviors(next);
-          setToast("Default behaviors saved.");
-          window.setTimeout(() => setToast(""), 2000);
+          const updated = cloneDocument(activeDocument);
+          updated.budget_settings.default_behaviors = next;
+          void persist(updated);
         }} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:

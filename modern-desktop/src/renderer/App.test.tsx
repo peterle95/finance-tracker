@@ -2,7 +2,7 @@ import { cleanup, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultDocument } from "../shared/finance";
-import type { FinanceApi } from "../shared/types";
+import type { FinanceApi, FinanceDocument } from "../shared/types";
 import { App } from "./App";
 
 describe("App Exploration navigation", () => {
@@ -147,16 +147,16 @@ describe("App Exploration navigation", () => {
   it("saves default ranges and applies them to feature screens", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();
+    const saveDocument = vi.fn(async (next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
     const bridge: FinanceApi = {
       load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
       chooseDataFile: vi.fn(),
       createDataFile: vi.fn(),
-      saveDocument: vi.fn(),
+      saveDocument,
       chooseBankCsv: vi.fn(),
       exportText: vi.fn()
     };
     window.finance = bridge;
-    localStorage.removeItem("finance-tracker-default-ranges");
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
@@ -172,7 +172,11 @@ describe("App Exploration navigation", () => {
     await user.type(screen.getByLabelText("Budget carryover months"), "7");
     await user.click(screen.getByRole("button", { name: "Save ranges" }));
 
-    expect(JSON.parse(localStorage.getItem("finance-tracker-default-ranges") ?? "null")).toMatchObject({ projectionMonths: 18, carryoverMonths: 7 });
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+      budget_settings: expect.objectContaining({
+        default_ranges: expect.objectContaining({ projectionMonths: 18, carryoverMonths: 7 })
+      })
+    })));
     await user.click(screen.getByRole("button", { name: "Budget" }));
     expect((screen.getByLabelText("Carryover months") as HTMLInputElement).value).toBe("7");
     await user.click(screen.getByRole("button", { name: "Projection" }));
@@ -182,16 +186,16 @@ describe("App Exploration navigation", () => {
   it("saves default behaviors and applies them to feature screens", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();
+    const saveDocument = vi.fn(async (next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
     const bridge: FinanceApi = {
       load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
       chooseDataFile: vi.fn(),
       createDataFile: vi.fn(),
-      saveDocument: vi.fn(),
+      saveDocument,
       chooseBankCsv: vi.fn(),
       exportText: vi.fn()
     };
     window.finance = bridge;
-    localStorage.removeItem("finance-tracker-default-behaviors");
     Object.defineProperty(window, "matchMedia", {
       configurable: true,
       value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
@@ -207,12 +211,16 @@ describe("App Exploration navigation", () => {
     await user.selectOptions(screen.getByLabelText("Default report view"), "history");
     await user.click(screen.getByRole("button", { name: "Save behaviors" }));
 
-    expect(JSON.parse(localStorage.getItem("finance-tracker-default-behaviors") ?? "null")).toMatchObject({
-      includeNegativeCarryover: false,
-      projectionMode: "net-worth",
-      reportDateBasis: "behavior",
-      reportView: "history"
-    });
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+      budget_settings: expect.objectContaining({
+        default_behaviors: expect.objectContaining({
+          includeNegativeCarryover: false,
+          projectionMode: "net-worth",
+          reportDateBasis: "behavior",
+          reportView: "history"
+        })
+      })
+    })));
     await user.click(screen.getByRole("button", { name: "Budget" }));
     expect((screen.getByLabelText("Include previous deficits") as HTMLInputElement).checked).toBe(false);
     await user.click(screen.getByRole("button", { name: "Projection" }));
