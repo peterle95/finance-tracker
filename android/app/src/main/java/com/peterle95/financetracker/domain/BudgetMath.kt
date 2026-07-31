@@ -22,9 +22,6 @@ object BudgetMath {
     fun daysInMonth(month: String): Int =
         parseMonth(month)?.lengthOfMonth() ?: 30
 
-    fun previousMonth(month: String): String? =
-        parseMonth(month)?.minusMonths(1)?.toString()
-
     fun monthEndFlexibleBalance(
         settings: BudgetSettings,
         transactions: List<FinanceTransaction>,
@@ -45,15 +42,14 @@ object BudgetMath {
         return monthlyFlexibleBudget + flexibleIncome - flexibleExpenses
     }
 
-    fun negativeCarryoverFromPreviousMonth(
+    fun negativeCarryover(
         settings: BudgetSettings,
         transactions: List<FinanceTransaction>,
         month: String,
-    ): Double {
-        val previousMonth = previousMonth(month) ?: return 0.0
-        val previousBalance = monthEndFlexibleBalance(settings, transactions, previousMonth)
-        return if (previousBalance < 0.0) previousBalance else 0.0
-    }
+        months: Int = 3,
+    ): Double = (1..months.coerceAtLeast(0))
+        .mapNotNull { offset -> parseMonth(month)?.minusMonths(offset.toLong())?.toString() }
+        .sumOf { previousMonth -> monthEndFlexibleBalance(settings, transactions, previousMonth) }
 
     fun computeNetAvailableForSpending(
         settings: BudgetSettings,
@@ -76,6 +72,7 @@ object BudgetMath {
         transactions: List<FinanceTransaction>,
         month: String,
         includeNegativeCarryover: Boolean = false,
+        carryoverMonths: Int = 3,
         today: LocalDate = LocalDate.now(),
     ): BudgetReport {
         val yearMonth = parseMonth(month)
@@ -90,7 +87,7 @@ object BudgetMath {
             .sumOf { it.amount }
         val totalIncome = baseIncome + flexibleIncome
         val carryover = if (includeNegativeCarryover) {
-            negativeCarryoverFromPreviousMonth(settings, transactions, monthText)
+            negativeCarryover(settings, transactions, monthText, carryoverMonths)
         } else {
             0.0
         }
@@ -175,11 +172,15 @@ object BudgetMath {
             textReport = "",
         )
 
-        return reportWithoutText.copy(textReport = buildTextReport(reportWithoutText, yearMonth, today))
+        return reportWithoutText.copy(textReport = buildTextReport(reportWithoutText, yearMonth, today, carryoverMonths))
     }
 
-    private fun buildTextReport(report: BudgetReport, yearMonth: YearMonth, today: LocalDate): String {
-        val previousMonthLabel = previousMonth(report.month) ?: "N/A"
+    private fun buildTextReport(
+        report: BudgetReport,
+        yearMonth: YearMonth,
+        today: LocalDate,
+        carryoverMonths: Int,
+    ): String {
         return buildString {
             appendLine("=".repeat(80))
             appendLine("DAILY BUDGET REPORT - ${report.monthLabel}")
@@ -190,7 +191,7 @@ object BudgetMath {
             appendLine("-".repeat(50))
             appendLine("Monthly Savings Goal:                    -${eur(report.monthlySavingsGoal, 10)}")
             if (report.includeNegativeCarryover) {
-                appendLine("Negative Carryover ($previousMonthLabel):             ${eur(report.carryoverAmount, 10)}")
+                appendLine("Negative Carryover (last $carryoverMonths months):      ${eur(report.carryoverAmount, 10)}")
             }
             appendLine("NET MONTHLY FLEXIBLE BUDGET:              ${eur(report.netMonthlyFlexibleBudget, 10)}")
             appendLine("INITIAL DAILY SPENDING TARGET:            ${eur(report.initialDailySpendingTarget, 10)}")

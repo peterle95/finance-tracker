@@ -240,6 +240,50 @@ data class NetWorthSummary(
     val reportText: String,
 )
 
+data class SharedDefaultBehaviors(
+    val includeNegativeCarryover: Boolean = true,
+    val projectionMode: String = "target",
+    val reportView: String = "pie",
+    val reportType: String = "Expense",
+    val reportDateBasis: String = "transaction",
+    val reportHistoryMode: String = "total",
+    val reportHistoryDisplay: String = "value",
+    val reportIncludeRecurring: Boolean = false,
+    val reportShowHistoryLabels: Boolean = false,
+) {
+    companion object {
+        fun fromJson(json: JsonObject?) = SharedDefaultBehaviors(
+            includeNegativeCarryover = json.booleanValue("includeNegativeCarryover", true),
+            projectionMode = json.stringValue("projectionMode", "target").takeIf { it == "target" || it == "net-worth" } ?: "target",
+            reportView = json.stringValue("reportView", "pie").takeIf { it in setOf("pie", "history", "line", "heatmap", "pace") } ?: "pie",
+            reportType = json.stringValue("reportType", "Expense").takeIf { it == "Expense" || it == "Income" } ?: "Expense",
+            reportDateBasis = json.stringValue("reportDateBasis", "transaction").takeIf { it == "transaction" || it == "behavior" } ?: "transaction",
+            reportHistoryMode = json.stringValue("reportHistoryMode", "total").takeIf { it in setOf("total", "categories", "flexible", "over-under") } ?: "total",
+            reportHistoryDisplay = json.stringValue("reportHistoryDisplay", "value").takeIf { it == "value" || it == "percentage" } ?: "value",
+            reportIncludeRecurring = json.booleanValue("reportIncludeRecurring", false),
+            reportShowHistoryLabels = json.booleanValue("reportShowHistoryLabels", false),
+        )
+    }
+}
+
+data class SharedDefaultRanges(
+    val projectionMonths: Int = 12,
+    val projectionHistoryMonths: Int = 6,
+    val carryoverMonths: Int = 3,
+    val reportHistoryMonths: Int = 6,
+    val reportLineMonths: Int = 6,
+) {
+    companion object {
+        fun fromJson(json: JsonObject?) = SharedDefaultRanges(
+            projectionMonths = json.boundedInt("projectionMonths", 12, 3, 36),
+            projectionHistoryMonths = json.boundedInt("projectionHistoryMonths", 6, 1, 120),
+            carryoverMonths = json.boundedInt("carryoverMonths", 3, 1, 24),
+            reportHistoryMonths = json.boundedInt("reportHistoryMonths", 6, 2, 24),
+            reportLineMonths = json.boundedInt("reportLineMonths", 6, 1, 24),
+        )
+    }
+}
+
 data class BudgetSettings(
     val monthlyIncome: List<IncomeSource> = emptyList(),
     val monthlyIncomeWasLegacyNumber: Boolean = false,
@@ -252,6 +296,12 @@ data class BudgetSettings(
     val assetSnapshots: List<AssetSnapshot> = emptyList(),
     val extraJson: JsonObject = buildJsonObject {},
 ) {
+    val defaultBehaviors: SharedDefaultBehaviors
+        get() = SharedDefaultBehaviors.fromJson(extraJson["default_behaviors"] as? JsonObject)
+
+    val defaultRanges: SharedDefaultRanges
+        get() = SharedDefaultRanges.fromJson(extraJson["default_ranges"] as? JsonObject)
+
     fun toJsonObjectPreserving(raw: JsonObject = buildJsonObject {}): JsonObject =
         buildJsonObject {
             raw.forEach { (key, value) ->
@@ -364,6 +414,20 @@ data class BudgetSettings(
 }
 
 fun todayIsoDate(): String = LocalDate.now().toString()
+
+private fun JsonObject?.booleanValue(key: String, fallback: Boolean): Boolean = when (
+    this?.get(key)?.jsonPrimitiveOrNull()?.contentOrNull
+) {
+    "true" -> true
+    "false" -> false
+    else -> fallback
+}
+
+private fun JsonObject?.stringValue(key: String, fallback: String): String =
+    this?.get(key)?.jsonPrimitiveOrNull()?.contentOrNull ?: fallback
+
+private fun JsonObject?.boundedInt(key: String, fallback: Int, min: Int, max: Int): Int =
+    (this?.get(key)?.jsonPrimitiveOrNull()?.contentOrNull?.toIntOrNull() ?: fallback).coerceIn(min, max)
 
 private val incomeSourceKeys = setOf("amount", "description", "start_date", "end_date")
 private val fixedCostKeys = setOf("amount", "description", "desc", "start_date", "end_date")

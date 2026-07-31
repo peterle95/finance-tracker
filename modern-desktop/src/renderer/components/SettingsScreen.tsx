@@ -74,7 +74,7 @@ export function SettingsScreen({
 
         <Card>
           <div className="card-heading"><div><p className="eyebrow">Workspace behavior</p><h2>Default ranges</h2></div><SlidersHorizontal size={22} /></div>
-          <p className="muted-copy">Choose the default periods used by projections, carryover, reports, and the net-worth journey.</p>
+          <p className="muted-copy">Choose the default periods used by projections, carryover, and reports.</p>
           <Button variant="secondary" onClick={() => setDefaultRangesOpen(true)}><SlidersHorizontal size={16} /> Change default ranges</Button>
         </Card>
 

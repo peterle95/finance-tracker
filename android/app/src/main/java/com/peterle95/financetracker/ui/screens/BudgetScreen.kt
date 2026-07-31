@@ -71,21 +71,24 @@ fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {
     val transactions by viewModel.transactions.collectAsState()
     val context = LocalContext.current
     var month by remember { mutableStateOf(YearMonth.now().toString()) }
-    var includeCarryover by remember { mutableStateOf(false) }
+    var includeCarryover by remember(settings.defaultBehaviors.includeNegativeCarryover) {
+        mutableStateOf(settings.defaultBehaviors.includeNegativeCarryover)
+    }
+    val carryoverMonths = settings.defaultRanges.carryoverMonths
     var showDailyBreakdown by remember { mutableStateOf(false) }
     var showOverviewSection by remember { mutableStateOf(false) }
     var showReportSection by remember { mutableStateOf(false) }
     var showChartSection by remember { mutableStateOf(false) }
     var showBalancesSection by remember { mutableStateOf(false) }
-    var showSavingsSection by remember { mutableStateOf(false) }
     var showIncomeSection by remember { mutableStateOf(false) }
     var showFixedCostsSection by remember { mutableStateOf(false) }
-    val report = remember(settings, transactions, month, includeCarryover) {
+    val report = remember(settings, transactions, month, includeCarryover, carryoverMonths) {
         BudgetMath.generateDailyBudgetReport(
             settings = settings,
             transactions = transactions,
             month = month,
             includeNegativeCarryover = includeCarryover,
+            carryoverMonths = carryoverMonths,
         )
     }
 
@@ -115,7 +118,7 @@ fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {
                 }
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Checkbox(checked = includeCarryover, onCheckedChange = { includeCarryover = it })
-                    Text("Include previous month deficit", style = MaterialTheme.typography.labelLarge)
+                    Text("Include prior balances", style = MaterialTheme.typography.labelLarge)
                 }
             }
         }
@@ -193,16 +196,6 @@ fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {
         }
         if (showBalancesSection) {
             item { BalanceEditor(settings, viewModel, onModifyLoan) }
-        }
-        item {
-            BudgetSectionButton(
-                title = "Daily Savings Goal",
-                expanded = showSavingsSection,
-                onClick = { showSavingsSection = !showSavingsSection },
-            )
-        }
-        if (showSavingsSection) {
-            item { DailySavingsEditor(settings.dailySavingsGoal, viewModel) }
         }
         item {
             BudgetSectionButton(
@@ -408,6 +401,7 @@ private fun BalanceEditor(
                     MoneyField("Savings", savings, { savings = it }, Modifier.weight(1f))
                     MoneyField("Investments", investments, { investments = it }, Modifier.weight(1f))
                 }
+                DailySavingsEditor(settings.dailySavingsGoal, viewModel)
                 BudgetOutlinedButton(
                     onClick = { showLendingManager = !showLendingManager },
                     modifier = Modifier.fillMaxWidth(),
@@ -556,16 +550,13 @@ private fun DailySavingsEditor(value: Double, viewModel: FinanceViewModel) {
     LaunchedEffect(value) {
         amount = value.toFieldText()
     }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.padding(14.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            MoneyField("Daily Savings Goal", amount, { amount = it }, Modifier.weight(1f))
-            BudgetButton(onClick = { viewModel.setDailySavingsGoal(amount) }) {
-                Text("Save")
-            }
+    Row(
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        MoneyField("Daily Savings Goal", amount, { amount = it }, Modifier.weight(1f))
+        BudgetButton(onClick = { viewModel.setDailySavingsGoal(amount) }) {
+            Text("Save")
         }
     }
 }

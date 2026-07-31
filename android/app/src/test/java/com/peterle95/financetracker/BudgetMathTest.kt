@@ -88,7 +88,7 @@ class BudgetMathTest {
     }
 
     @Test
-    fun negativeCarryoverIncludesOnlyPreviousMonthDeficit() {
+    fun negativeCarryoverIncludesPreviousMonthDeficit() {
         val settings = budgetSettings(
             """
             {
@@ -104,7 +104,7 @@ class BudgetMathTest {
             FinanceTransaction("may", "may", TransactionType.Expense, "2026-05-10", 1200.0, "Food", "May", null),
         )
 
-        val carryover = BudgetMath.negativeCarryoverFromPreviousMonth(settings, rows, "2026-06")
+        val carryover = BudgetMath.negativeCarryover(settings, rows, "2026-06", 1)
         val report = BudgetMath.generateDailyBudgetReport(
             settings = settings,
             transactions = rows,
@@ -115,6 +115,29 @@ class BudgetMathTest {
 
         assertEquals(-200.0, carryover, 0.0)
         assertEquals(800.0, report.netMonthlyFlexibleBudget, 0.0)
+    }
+
+    @Test
+    fun negativeCarryoverOffsetsDeficitsWithEarlierSurpluses() {
+        val settings = budgetSettings(
+            """
+            {
+              "monthly_income": [
+                { "amount": 500, "description": "Salary", "start_date": "2026-01-01", "end_date": null }
+              ],
+              "fixed_costs": [],
+              "daily_savings_goal": 0
+            }
+            """.trimIndent(),
+        )
+        val rows = listOf(
+            FinanceTransaction("jan", "jan", TransactionType.Expense, "2026-01-02", 1000.0, "Food", "January", null),
+            FinanceTransaction("feb", "feb", TransactionType.Expense, "2026-02-02", 400.0, "Food", "February", null),
+            FinanceTransaction("mar", "mar", TransactionType.Expense, "2026-03-02", 200.0, "Food", "March", null),
+            FinanceTransaction("apr", "apr", TransactionType.Expense, "2026-04-02", 550.0, "Food", "April", null),
+        )
+
+        assertEquals(-150.0, BudgetMath.negativeCarryover(settings, rows, "2026-05", 4), 0.0)
     }
 
     private fun budgetSettings(content: String): BudgetSettings =
