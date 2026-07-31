@@ -75,6 +75,32 @@ Android reads and writes the budget and net-worth subset of `budget_settings` wh
 - `daily_savings_goal`: per-day savings target used by the daily budget report.
 - `category_budgets.Expense`: percent limits by expense category.
 - `asset_snapshots`: net-worth snapshots.
+- `default_behaviors`, `default_ranges`: shared screen defaults written only by modern desktop. Android applies supported values and preserves the complete objects unchanged.
+
+```json
+{
+  "default_behaviors": {
+    "includeNegativeCarryover": true,
+    "projectionMode": "target",
+    "netWorthChangeMode": "month-by-month",
+    "reportView": "pie",
+    "reportType": "Expense",
+    "reportDateBasis": "transaction",
+    "reportHistoryMode": "total",
+    "reportHistoryDisplay": "value",
+    "reportIncludeRecurring": false,
+    "reportShowHistoryLabels": false
+  },
+  "default_ranges": {
+    "projectionMonths": 12,
+    "projectionHistoryMonths": 6,
+    "carryoverMonths": 3,
+    "reportHistoryMonths": 6,
+    "reportLineMonths": 6,
+    "journeyHorizon": "12-months"
+  }
+}
+```
 
 Unknown budget settings fields remain desktop-owned and are preserved by Android mutations.
 

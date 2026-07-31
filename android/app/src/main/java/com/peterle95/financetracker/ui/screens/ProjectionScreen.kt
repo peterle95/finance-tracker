@@ -36,9 +36,21 @@ fun ProjectionScreen(viewModel: FinanceViewModel) {
     val settings by viewModel.budgetSettingsModel.collectAsState()
     val context = LocalContext.current
 
-    var numMonths by remember { mutableStateOf("12") }
-    var mode by remember { mutableStateOf(ProjectionMode.TargetSavings) }
-    var historyMonths by remember { mutableStateOf("12") }
+    var numMonths by remember(settings.defaultRanges.projectionMonths) {
+        mutableStateOf(settings.defaultRanges.projectionMonths.toString())
+    }
+    var mode by remember(settings.defaultBehaviors.projectionMode) {
+        mutableStateOf(
+            if (settings.defaultBehaviors.projectionMode == "net-worth") {
+                ProjectionMode.NetWorthTrend
+            } else {
+                ProjectionMode.TargetSavings
+            },
+        )
+    }
+    var historyMonths by remember(settings.defaultRanges.projectionHistoryMonths) {
+        mutableStateOf(settings.defaultRanges.projectionHistoryMonths.toString())
+    }
     var reportText by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
@@ -108,7 +120,7 @@ fun ProjectionScreen(viewModel: FinanceViewModel) {
                         budgetSettings = settings,
                         numMonths = months,
                         mode = mode,
-                        historyMonths = hist ?: 12,
+                        historyMonths = hist ?: settings.defaultRanges.projectionHistoryMonths,
                     )
                 },
             ) {

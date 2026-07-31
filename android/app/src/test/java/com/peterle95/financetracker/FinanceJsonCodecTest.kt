@@ -141,12 +141,60 @@ class FinanceJsonCodecTest {
         val updated = FinanceJsonCodec.updateCategories(
             document = document,
             type = TransactionType.Expense,
-            categories = listOf("Groceries", "Travel", "Groceries"),
+            categories = listOf("Travel", "Sweets", "Sparkasse", "Sweets"),
         )
         val root = Json.parseToJsonElement(FinanceJsonCodec.encode(updated)).jsonObject
         val categories = root["categories"]!!.jsonObject["Expense"]!!.jsonArray.map { it.jsonPrimitive.content }
 
-        assertEquals(listOf("Groceries", "Travel"), categories)
+        assertEquals(listOf("Sparkasse", "Sweets", "Travel"), categories)
+    }
+
+    @Test
+    fun sharedDesktopDefaultsAreAvailableToAndroid() {
+        val document = FinanceJsonCodec.parse(
+            """
+            {
+              "expenses": [],
+              "incomes": [],
+              "budget_settings": {
+                "default_behaviors": {
+                  "includeNegativeCarryover": false,
+                  "projectionMode": "net-worth",
+                  "reportView": "history",
+                  "reportType": "Income",
+                  "reportDateBasis": "behavior",
+                  "reportHistoryMode": "over-under",
+                  "reportHistoryDisplay": "percentage",
+                  "reportIncludeRecurring": true,
+                  "reportShowHistoryLabels": true
+                },
+                "default_ranges": {
+                  "projectionMonths": 18,
+                  "projectionHistoryMonths": 9,
+                  "carryoverMonths": 7,
+                  "reportHistoryMonths": 8,
+                  "reportLineMonths": 5
+                }
+              },
+              "categories": {}
+            }
+            """.trimIndent(),
+        )
+
+        assertFalse(document.budgetSettingsModel.defaultBehaviors.includeNegativeCarryover)
+        assertEquals("net-worth", document.budgetSettingsModel.defaultBehaviors.projectionMode)
+        assertEquals("history", document.budgetSettingsModel.defaultBehaviors.reportView)
+        assertEquals("Income", document.budgetSettingsModel.defaultBehaviors.reportType)
+        assertEquals("behavior", document.budgetSettingsModel.defaultBehaviors.reportDateBasis)
+        assertEquals("over-under", document.budgetSettingsModel.defaultBehaviors.reportHistoryMode)
+        assertEquals("percentage", document.budgetSettingsModel.defaultBehaviors.reportHistoryDisplay)
+        assertTrue(document.budgetSettingsModel.defaultBehaviors.reportIncludeRecurring)
+        assertTrue(document.budgetSettingsModel.defaultBehaviors.reportShowHistoryLabels)
+        assertEquals(18, document.budgetSettingsModel.defaultRanges.projectionMonths)
+        assertEquals(9, document.budgetSettingsModel.defaultRanges.projectionHistoryMonths)
+        assertEquals(7, document.budgetSettingsModel.defaultRanges.carryoverMonths)
+        assertEquals(8, document.budgetSettingsModel.defaultRanges.reportHistoryMonths)
+        assertEquals(5, document.budgetSettingsModel.defaultRanges.reportLineMonths)
     }
 
     @Test

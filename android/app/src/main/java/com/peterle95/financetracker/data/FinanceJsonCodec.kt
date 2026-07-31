@@ -471,6 +471,7 @@ object FinanceJsonCodec {
         map { it.trim() }
             .filter { it.isNotEmpty() }
             .distinctBy { it.lowercase() }
+            .sorted()
             .ifEmpty { defaults }
 
     private fun List<String>.toJsonArray(): JsonArray =

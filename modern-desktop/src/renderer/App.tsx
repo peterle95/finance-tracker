@@ -28,7 +28,6 @@ import type {
 import { BudgetScreen } from "./components/BudgetScreen";
 import { CategoryLimitsScreen } from "./components/CategoryLimitsScreen";
 import { DashboardScreen } from "./components/DashboardScreen";
-import { ExplorationScreen } from "./components/ExplorationScreen";
 import { GoalsScreen } from "./components/GoalsScreen";
 import { NetWorthScreen } from "./components/NetWorthScreen";
 import { ProjectionScreen } from "./components/ProjectionScreen";
@@ -39,7 +38,7 @@ import { TransactionEditor } from "./components/TransactionEditor";
 import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
 
-type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "exploration" | "projection" | "reconciliation" | "settings";
+type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
 type Theme = "dark" | "light";
 
 const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboard }> = [
@@ -50,7 +49,6 @@ const navigation: Array<{ page: Page; label: string; icon: typeof LayoutDashboar
   { page: "goals", label: "Goals", icon: Target },
   { page: "reports", label: "Reports", icon: BarChart3 },
   { page: "net-worth", label: "Net worth", icon: LineChart },
-  { page: "exploration", label: "Exploration", icon: TrendingUp },
   { page: "projection", label: "Projection", icon: TrendingUp },
   { page: "reconciliation", label: "Reconciliation", icon: FileCheck2 }
 ];
@@ -83,7 +81,6 @@ export function App() {
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
-  const [explorationDirty, setExplorationDirty] = useState(false);
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
@@ -189,12 +186,6 @@ export function App() {
   }
 
   function navigate(next: Page) {
-    if (page === "exploration" && next !== "exploration" && explorationDirty) {
-      if (!window.confirm("Exploration has unsaved drafts. Leave without saving?")) {
-        return;
-      }
-      setExplorationDirty(false);
-    }
     setPage(next);
   }
 
@@ -240,8 +231,6 @@ export function App() {
         return <ReportsScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onExport={(name, text) => void exportText(name, text)} />;
       case "net-worth":
         return <NetWorthScreen document={activeDocument} defaultBehaviors={defaultBehaviors} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
-      case "exploration":
-        return <ExplorationScreen document={activeDocument} defaultRanges={defaultRanges} reducedMotion={reducedMotion} onConfirm={(next) => void persist(next)} onDirtyChange={setExplorationDirty} />;
       case "projection":
         return <ProjectionScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onExport={(name, text) => void exportText(name, text)} />;
       case "reconciliation":

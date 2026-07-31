@@ -94,19 +94,42 @@ fun DashboardScreen(
 ) {
     val transactions by viewModel.transactions.collectAsState()
     val budgetSettings by viewModel.budgetSettings.collectAsState()
+    val sharedDefaults by viewModel.budgetSettingsModel.collectAsState()
     val categories by viewModel.categories.collectAsState()
     val nowMonth = remember { YearMonth.now() }
     val currentMonth = nowMonth.toString()
-    val defaultStartMonth = remember { nowMonth.minusMonths(3).toString() }
+    val defaultStartMonth = remember(sharedDefaults.defaultRanges.reportHistoryMonths) {
+        nowMonth.minusMonths(sharedDefaults.defaultRanges.reportHistoryMonths.toLong()).toString()
+    }
     var dashboardMonth by remember { mutableStateOf(currentMonth) }
     val dashboard = remember(transactions, budgetSettings, dashboardMonth) {
         val parsedMonth = runCatching { YearMonth.parse(dashboardMonth) }.getOrDefault(nowMonth)
         FinanceAggregator.buildDashboardSummary(transactions, budgetSettings, parsedMonth)
     }
 
-    var chartStyle by remember { mutableStateOf(DashboardChartStyle.Pie) }
-    var reportDateMode by remember { mutableStateOf(ReportDateMode.BNPL) }
-    var dataType by remember { mutableStateOf(TransactionType.Expense) }
+    var chartStyle by remember(sharedDefaults.defaultBehaviors.reportView) {
+        mutableStateOf(
+            when (sharedDefaults.defaultBehaviors.reportView) {
+                "history" -> DashboardChartStyle.HistoricalBar
+                "line" -> DashboardChartStyle.Line
+                "heatmap" -> DashboardChartStyle.DayOfWeek
+                "pace" -> DashboardChartStyle.SpendingPace
+                else -> DashboardChartStyle.Pie
+            },
+        )
+    }
+    var reportDateMode by remember(sharedDefaults.defaultBehaviors.reportDateBasis) {
+        mutableStateOf(
+            if (sharedDefaults.defaultBehaviors.reportDateBasis == "behavior") {
+                ReportDateMode.BNPL
+            } else {
+                ReportDateMode.Normal
+            },
+        )
+    }
+    var dataType by remember(sharedDefaults.defaultBehaviors.reportType) {
+        mutableStateOf(TransactionType.fromLabel(sharedDefaults.defaultBehaviors.reportType))
+    }
 
     var pieMonth by remember { mutableStateOf(currentMonth) }
     var pieRange by remember { mutableStateOf(false) }
@@ -116,18 +139,46 @@ fun DashboardScreen(
     var sortPie by remember { mutableStateOf(true) }
     var showBudgetStatus by remember { mutableStateOf(false) }
 
-    var includeFixedCosts by remember { mutableStateOf(false) }
-    var includeBaseIncome by remember { mutableStateOf(false) }
-    var barMonths by remember { mutableStateOf("6") }
-    var showBarLabels by remember { mutableStateOf(false) }
-    var barBreakdownMode by remember { mutableStateOf(BarBreakdownMode.Total) }
-    var barDisplayMode by remember { mutableStateOf(ChartDisplayMode.Value) }
+    var includeFixedCosts by remember(sharedDefaults.defaultBehaviors.reportIncludeRecurring) {
+        mutableStateOf(sharedDefaults.defaultBehaviors.reportIncludeRecurring)
+    }
+    var includeBaseIncome by remember(sharedDefaults.defaultBehaviors.reportIncludeRecurring) {
+        mutableStateOf(sharedDefaults.defaultBehaviors.reportIncludeRecurring)
+    }
+    var barMonths by remember(sharedDefaults.defaultRanges.reportHistoryMonths) {
+        mutableStateOf(sharedDefaults.defaultRanges.reportHistoryMonths.toString())
+    }
+    var showBarLabels by remember(sharedDefaults.defaultBehaviors.reportShowHistoryLabels) {
+        mutableStateOf(sharedDefaults.defaultBehaviors.reportShowHistoryLabels)
+    }
+    var barBreakdownMode by remember(sharedDefaults.defaultBehaviors.reportHistoryMode) {
+        mutableStateOf(
+            when (sharedDefaults.defaultBehaviors.reportHistoryMode) {
+                "flexible" -> BarBreakdownMode.Flexible
+                "over-under" -> BarBreakdownMode.OverUnder
+                else -> BarBreakdownMode.Total
+            },
+        )
+    }
+    var barDisplayMode by remember(sharedDefaults.defaultBehaviors.reportHistoryDisplay) {
+        mutableStateOf(
+            if (sharedDefaults.defaultBehaviors.reportHistoryDisplay == "percentage") {
+                ChartDisplayMode.Percentage
+            } else {
+                ChartDisplayMode.Value
+            },
+        )
+    }
 
-    var lineStartMonth by remember { mutableStateOf(defaultStartMonth) }
+    var lineStartMonth by remember(sharedDefaults.defaultRanges.reportLineMonths) {
+        mutableStateOf(nowMonth.minusMonths(sharedDefaults.defaultRanges.reportLineMonths.toLong()).toString())
+    }
     var lineEndMonth by remember { mutableStateOf(currentMonth) }
     var selectedLineCategories by remember { mutableStateOf<Set<String>>(emptySet()) }
 
-    var dowMonths by remember { mutableStateOf("3") }
+    var dowMonths by remember(sharedDefaults.defaultRanges.reportHistoryMonths) {
+        mutableStateOf(sharedDefaults.defaultRanges.reportHistoryMonths.toString())
+    }
     var paceMonth by remember { mutableStateOf(currentMonth) }
 
     LazyColumn(
