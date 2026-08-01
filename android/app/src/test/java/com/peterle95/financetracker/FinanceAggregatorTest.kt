@@ -7,6 +7,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import org.junit.Assert.assertEquals
 import org.junit.Test
+import java.time.LocalDate
 import java.time.YearMonth
 
 class FinanceAggregatorTest {
@@ -81,5 +82,33 @@ class FinanceAggregatorTest {
         assertEquals(10.0, january.expenses, 0.0)
         assertEquals("2026-02", february.currentMonth)
         assertEquals(20.0, february.expenses, 0.0)
+    }
+
+    @Test
+    fun dashboardSummaryAppliesConfiguredCarryoverToNetAndDailyBudget() {
+        val currentMonth = YearMonth.now()
+        val previousMonth = currentMonth.minusMonths(1)
+        val budgetSettings = Json.parseToJsonElement(
+            """
+            {
+              "monthly_income": [{ "amount": 1000, "description": "Base", "start_date": "2000-01-01", "end_date": null }],
+              "fixed_costs": [],
+              "default_behaviors": { "includeNegativeCarryover": true },
+              "default_ranges": { "carryoverMonths": 1 }
+            }
+            """.trimIndent(),
+        ).jsonObject
+        val transactions = listOf(
+            FinanceTransaction("previous", "previous", TransactionType.Expense, "${previousMonth}-10", 1200.0, "Food", "Previous", null),
+        )
+
+        val summary = FinanceAggregator.buildDashboardSummary(
+            transactions = transactions,
+            budgetSettings = budgetSettings,
+            currentMonth = currentMonth,
+        )
+
+        assertEquals(800.0, summary.net, 0.0)
+        assertEquals(800.0 / (currentMonth.lengthOfMonth() - LocalDate.now().dayOfMonth + 1), summary.remainingDailyBudget, 0.001)
     }
 }
