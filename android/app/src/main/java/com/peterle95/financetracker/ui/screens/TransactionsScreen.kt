@@ -32,8 +32,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.peterle95.financetracker.domain.CategoryState
+import com.peterle95.financetracker.domain.DashboardCharts
 import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.TransactionUiLogic
 import com.peterle95.financetracker.domain.TransactionType
@@ -51,7 +53,9 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
     var typeFilter by remember { mutableStateOf<TransactionType?>(null) }
     var categoryFilter by remember { mutableStateOf("") }
     var search by remember { mutableStateOf("") }
+    var showTransactions by remember { mutableStateOf(false) }
     var editingTransaction by remember { mutableStateOf<FinanceTransaction?>(null) }
+    val budgetSettings by viewModel.budgetSettings.collectAsState()
     val monthOptions = listOf(TransactionUiLogic.ALL_MONTHS_KEY) +
         TransactionUiLogic.availableMonthKeys(rows, currentMonth)
     val monthLabels = monthOptions.associateWith { TransactionUiLogic.monthLabel(it) }
@@ -65,6 +69,20 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
         typeFilter = typeFilter,
         searchText = search,
     )
+    val selectedMonth = selectedMonthKey.takeUnless { it == TransactionUiLogic.ALL_MONTHS_KEY }
+    val flexibleCosts = filtered
+        .filter { it.type == TransactionType.Expense }
+        .sumOf { it.amount }
+    val flexibleIncome = filtered
+        .filter { it.type == TransactionType.Income }
+        .sumOf { it.amount }
+    val totalIncome = flexibleIncome + (selectedMonth?.let {
+        DashboardCharts.activeMonthlyIncome(budgetSettings, it)
+    } ?: 0.0)
+    val totalCosts = flexibleCosts + (selectedMonth?.let {
+        DashboardCharts.activeFixedCosts(budgetSettings, it).sumOf { cost -> cost.amount }
+    } ?: 0.0)
+    val totalIncomeDifference = totalIncome - totalCosts
 
     editingTransaction?.let { transaction ->
         EditTransactionDialog(
@@ -129,13 +147,65 @@ fun TransactionsScreen(viewModel: FinanceViewModel) {
                 )
             }
         }
-        items(filtered, key = { it.uiKey }) { transaction ->
-            TransactionRow(
-                transaction = transaction,
-                onDelete = { viewModel.deleteTransaction(transaction.exportId) },
-                onModify = { editingTransaction = transaction },
-            )
+        item {
+            Card {
+                Column(
+                    modifier = Modifier.padding(14.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    SummaryValue(
+                        label = "Flexible costs",
+                        value = money(flexibleCosts),
+                        detail = if (search.isNotBlank() || typeFilter != null || categoryFilter.isNotBlank()) {
+                            "Matching filters"
+                        } else {
+                            selectedMonth?.let { "In $it" } ?: "Matching transactions"
+                        },
+                    )
+                    SummaryValue(
+                        label = "Total income - total costs",
+                        value = money(totalIncomeDifference),
+                        detail = "Total income minus total costs",
+                        valueColor = if (totalIncomeDifference < 0.0) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            Color(0xFF2E7D32)
+                        },
+                    )
+                }
+            }
         }
+        item {
+            Button(
+                onClick = { showTransactions = !showTransactions },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(if (showTransactions) "Hide transactions" else "Show transactions")
+            }
+        }
+        if (showTransactions) {
+            items(filtered, key = { it.uiKey }) { transaction ->
+                TransactionRow(
+                    transaction = transaction,
+                    onDelete = { viewModel.deleteTransaction(transaction.exportId) },
+                    onModify = { editingTransaction = transaction },
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SummaryValue(
+    label: String,
+    value: String,
+    detail: String,
+    valueColor: Color = Color.Unspecified,
+) {
+    Column {
+        Text(label, style = MaterialTheme.typography.labelLarge)
+        Text(value, style = MaterialTheme.typography.headlineSmall, color = valueColor)
+        Text(detail, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
 }
 
@@ -171,7 +241,11 @@ private fun TransactionRow(
                 }
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(money(transaction.amount), style = MaterialTheme.typography.labelLarge)
+                Text(
+                    money(transaction.amount),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = if (transaction.type == TransactionType.Expense) MaterialTheme.colorScheme.error else Color(0xFF2E7D32),
+                )
                 OutlinedButton(onClick = onModify) {
                     Text("Modify")
                 }
