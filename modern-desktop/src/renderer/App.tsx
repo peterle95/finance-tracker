@@ -247,7 +247,7 @@ export function App() {
         }} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
-        return <DashboardScreen document={activeDocument} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
+        return <DashboardScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
     }
   }
 
