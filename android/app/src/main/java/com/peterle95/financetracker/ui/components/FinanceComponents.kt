@@ -16,12 +16,18 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
 fun money(value: Double): String = "€%,.2f".format(value)
 
 @Composable
-fun MetricCard(title: String, value: String, modifier: Modifier = Modifier) {
+fun MetricCard(
+    title: String,
+    value: String,
+    modifier: Modifier = Modifier,
+    valueColor: Color = Color.Unspecified,
+) {
     Card(
         modifier = modifier,
         shape = CardDefaults.shape,
@@ -29,7 +35,7 @@ fun MetricCard(title: String, value: String, modifier: Modifier = Modifier) {
     ) {
         Column(Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.labelLarge)
-            Text(value, style = MaterialTheme.typography.headlineSmall)
+            Text(value, style = MaterialTheme.typography.headlineSmall, color = valueColor)
         }
     }
 }
