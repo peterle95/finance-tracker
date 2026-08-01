@@ -5,25 +5,38 @@ import {
   currentMonth,
   dailyBudgetOverview,
   formatCurrency,
-  monthEndFlexibleBalance,
   netWorth
 } from "../../shared/finance";
+import { DEFAULT_BEHAVIOR_SETTINGS, type DefaultBehaviorSettings } from "../../shared/behavior-settings";
+import { DEFAULT_RANGE_SETTINGS, type DefaultRangeSettings } from "../../shared/range-settings";
 import type { FinanceDocument, TransactionType } from "../../shared/types";
 import { Button, Card, EmptyState, Metric, PageHeader } from "./ui";
 
 export function DashboardScreen({
   document,
+  defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
+  defaultRanges = DEFAULT_RANGE_SETTINGS,
   onAddTransaction,
   onNavigate
 }: {
   document: FinanceDocument;
+  defaultBehaviors?: DefaultBehaviorSettings;
+  defaultRanges?: DefaultRangeSettings;
   onAddTransaction(type: TransactionType): void;
   onNavigate(page: string): void;
 }) {
   const month = currentMonth();
   const available = computeNetAvailableForSpending(document, month);
-  const flexibleBalance = monthEndFlexibleBalance(document, month);
-  const daily = dailyBudgetOverview(document, month, true);
+  const daily = dailyBudgetOverview(
+    document,
+    month,
+    defaultBehaviors.includeNegativeCarryover,
+    new Date(),
+    "transaction",
+    defaultRanges.carryoverMonths
+  );
+  const flexibleBalance = daily.remainingBudget;
+  const currentNetWorth = netWorth(document);
   const recent = [...document.expenses, ...document.incomes]
     .sort((first, second) => second.date.localeCompare(first.date))
     .slice(0, 6);
@@ -49,10 +62,10 @@ export function DashboardScreen({
       />
 
       <div className="metric-grid">
-        <Metric label="Net worth" value={formatCurrency(netWorth(document))} detail="Across all tracked balances" tone="positive" />
+        <Metric label="Net worth" value={formatCurrency(currentNetWorth)} detail="Across all tracked balances" tone={currentNetWorth > 0 ? "positive" : currentNetWorth < 0 ? "warning" : undefined} />
         <Metric label="Flexible budget" value={formatCurrency(available)} detail="After recurring costs and savings" />
         <Metric label="Today’s target" value={formatCurrency(daily.dailyTarget)} detail={daily.daysRemaining + " days remaining"} tone={daily.dailyTarget > 0 ? "positive" : "warning"} />
-        <Metric label="Flexible balance" value={formatCurrency(flexibleBalance)} detail="After fixed costs and savings" tone={flexibleBalance >= 0 ? "positive" : "warning"} />
+        <Metric label="Flexible balance" value={formatCurrency(flexibleBalance)} detail={defaultBehaviors.includeNegativeCarryover ? "After fixed costs, savings, and carryover" : "After fixed costs and savings"} tone={flexibleBalance > 0 ? "positive" : flexibleBalance < 0 ? "warning" : undefined} />
       </div>
 
       <div className="dashboard-grid">
