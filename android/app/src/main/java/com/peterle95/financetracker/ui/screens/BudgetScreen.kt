@@ -76,7 +76,6 @@ fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {
     }
     val carryoverMonths = settings.defaultRanges.carryoverMonths
     var showDailyBreakdown by remember { mutableStateOf(false) }
-    var showOverviewSection by remember { mutableStateOf(false) }
     var showReportSection by remember { mutableStateOf(false) }
     var showChartSection by remember { mutableStateOf(false) }
     var showBalancesSection by remember { mutableStateOf(false) }
@@ -122,15 +121,16 @@ fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {
                 }
             }
         }
+        item { BudgetOverview(report) }
         item {
             BudgetSectionButton(
-                title = "Overview",
-                expanded = showOverviewSection,
-                onClick = { showOverviewSection = !showOverviewSection },
+                title = "Balances",
+                expanded = showBalancesSection,
+                onClick = { showBalancesSection = !showBalancesSection },
             )
         }
-        if (showOverviewSection) {
-            item { BudgetOverview(report) }
+        if (showBalancesSection) {
+            item { BalanceEditor(settings, viewModel, onModifyLoan) }
         }
         item {
             BudgetSectionButton(
@@ -186,16 +186,6 @@ fun BudgetScreen(viewModel: FinanceViewModel, onModifyLoan: (String) -> Unit = {
         }
         if (showChartSection) {
             item { BudgetDepletionChart(report) }
-        }
-        item {
-            BudgetSectionButton(
-                title = "Balances",
-                expanded = showBalancesSection,
-                onClick = { showBalancesSection = !showBalancesSection },
-            )
-        }
-        if (showBalancesSection) {
-            item { BalanceEditor(settings, viewModel, onModifyLoan) }
         }
         item {
             BudgetSectionButton(
@@ -262,8 +252,18 @@ private fun BudgetOverview(report: BudgetReport) {
             MetricCard("Flexible budget", money(report.netMonthlyFlexibleBudget), Modifier.weight(1f))
         }
         Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            MetricCard("Adjusted target", money(report.adjustedDailyTarget), Modifier.weight(1f))
-            MetricCard("Remaining", money(report.remainingFlexibleBudget), Modifier.weight(1f))
+            MetricCard(
+                "Daily Budget",
+                money(report.adjustedDailyTarget),
+                Modifier.weight(1f),
+                if (report.adjustedDailyTarget <= 0.0) MaterialTheme.colorScheme.error else Color.Unspecified,
+            )
+            MetricCard(
+                "Flexible Balance",
+                money(report.remainingFlexibleBudget),
+                Modifier.weight(1f),
+                if (report.remainingFlexibleBudget < 0.0) MaterialTheme.colorScheme.error else Color.Unspecified,
+            )
         }
     }
 }
