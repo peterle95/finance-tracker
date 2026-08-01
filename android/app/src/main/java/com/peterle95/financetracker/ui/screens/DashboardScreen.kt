@@ -101,10 +101,8 @@ fun DashboardScreen(
     val defaultStartMonth = remember(sharedDefaults.defaultRanges.reportHistoryMonths) {
         nowMonth.minusMonths(sharedDefaults.defaultRanges.reportHistoryMonths.toLong()).toString()
     }
-    var dashboardMonth by remember { mutableStateOf(currentMonth) }
-    val dashboard = remember(transactions, budgetSettings, dashboardMonth) {
-        val parsedMonth = runCatching { YearMonth.parse(dashboardMonth) }.getOrDefault(nowMonth)
-        FinanceAggregator.buildDashboardSummary(transactions, budgetSettings, parsedMonth)
+    val dashboard = remember(transactions, budgetSettings, nowMonth) {
+        FinanceAggregator.buildDashboardSummary(transactions, budgetSettings, nowMonth)
     }
 
     var chartStyle by remember(sharedDefaults.defaultBehaviors.reportView) {
@@ -191,21 +189,6 @@ fun DashboardScreen(
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("Dashboard", style = MaterialTheme.typography.headlineMedium)
                 Text(dashboard.currentMonth, style = MaterialTheme.typography.titleMedium)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedTextField(
-                        value = dashboardMonth,
-                        onValueChange = { dashboardMonth = it },
-                        label = { Text("Month") },
-                        singleLine = true,
-                        modifier = Modifier.weight(1f),
-                    )
-                    OutlinedButton(onClick = { runCatching { YearMonth.parse(dashboardMonth).minusMonths(1).toString() }.onSuccess { dashboardMonth = it } }) {
-                        Text("Prev")
-                    }
-                    OutlinedButton(onClick = { runCatching { YearMonth.parse(dashboardMonth).plusMonths(1).toString() }.onSuccess { dashboardMonth = it } }) {
-                        Text("Next")
-                    }
-                }
             }
         }
         item {
@@ -216,15 +199,30 @@ fun DashboardScreen(
         }
         item {
             Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                MetricCard("Net", money(dashboard.net), Modifier.weight(1f))
+                MetricCard(
+                    "Flexible Balance",
+                    money(dashboard.net),
+                    Modifier.weight(1f),
+                    if (dashboard.net <= 0.0) MaterialTheme.colorScheme.error else Color.Unspecified,
+                )
                 dashboard.balanceEstimate?.let {
                     MetricCard("Net Worth", money(it), Modifier.weight(1f))
-                } ?: MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.weight(1f))
+                } ?: MetricCard(
+                    "Daily Budget",
+                    money(dashboard.remainingDailyBudget),
+                    Modifier.weight(1f),
+                    if (dashboard.remainingDailyBudget <= 0.0) MaterialTheme.colorScheme.error else Color.Unspecified,
+                )
             }
         }
         if (dashboard.balanceEstimate != null) {
             item {
-                MetricCard("Daily Budget", money(dashboard.remainingDailyBudget), Modifier.fillMaxWidth())
+                MetricCard(
+                    "Daily Budget",
+                    money(dashboard.remainingDailyBudget),
+                    Modifier.fillMaxWidth(),
+                    if (dashboard.remainingDailyBudget <= 0.0) MaterialTheme.colorScheme.error else Color.Unspecified,
+                )
             }
         }
         item {
