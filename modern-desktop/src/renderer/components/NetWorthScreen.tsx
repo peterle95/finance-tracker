@@ -31,6 +31,7 @@ export function NetWorthScreen({
   const changeRows = snapshotChanges(history, changeMode);
   const changeByDate = new Map(changeRows.map((row) => [row.date, row.change]));
   const allocation = assetAllocation(document);
+  const currentNetWorth = netWorth(document);
   const moneyLent = roundCurrency(Number(document.budget_settings.money_lent_balance ?? 0));
   const report = useMemo(() => [
     "NET WORTH REPORT",
@@ -64,7 +65,7 @@ export function NetWorthScreen({
       />
 
       <div className="metric-grid">
-        <Card className="metric metric-positive"><p>Net worth</p><strong>{formatCurrency(netWorth(document))}</strong><span>Live account total</span></Card>
+        <Card className={"metric " + (currentNetWorth > 0 ? "metric-positive" : currentNetWorth < 0 ? "metric-warning" : "")}><p>Net worth</p><strong>{formatCurrency(currentNetWorth)}</strong><span>Live account total</span></Card>
         <Card className="metric"><p>Savings</p><strong>{formatCurrency(Number(document.budget_settings.savings_balance ?? 0))}</strong><span>Allocated to goals separately</span></Card>
         <Card className="metric"><p>Investments</p><strong>{formatCurrency(Number(document.budget_settings.investment_balance ?? 0))}</strong><span>Current entered balance</span></Card>
         <Card className={"metric " + (moneyLent < 0 ? "metric-warning" : "")}><p>{moneyLent < 0 ? "Money owed" : "Money lent"}</p><strong>{formatCurrency(moneyLent)}</strong><span>{history.length} historical snapshot(s)</span></Card>
