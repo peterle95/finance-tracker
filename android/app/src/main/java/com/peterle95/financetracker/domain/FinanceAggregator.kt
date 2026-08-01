@@ -73,12 +73,18 @@ object FinanceAggregator {
     ): DashboardSummary {
         val summary = buildInsightsSummary(transactions, budgetSettings, currentMonth, monthsBack = 1)
         val settings = BudgetSettings.fromJson(budgetSettings)
-        val report = BudgetMath.generateDailyBudgetReport(settings, transactions, currentMonth.toString())
+        val report = BudgetMath.generateDailyBudgetReport(
+            settings = settings,
+            transactions = transactions,
+            month = currentMonth.toString(),
+            includeNegativeCarryover = settings.defaultBehaviors.includeNegativeCarryover,
+            carryoverMonths = settings.defaultRanges.carryoverMonths,
+        )
         return DashboardSummary(
             currentMonth = currentMonth.toString(),
             income = summary.totals.income,
             expenses = summary.totals.expenses,
-            net = summary.totals.net,
+            net = report.remainingFlexibleBudget,
             balanceEstimate = settings.balances.netWorth.takeIf { settings.balances.hasAnyBalanceField },
             remainingDailyBudget = report.adjustedDailyTarget,
         )
