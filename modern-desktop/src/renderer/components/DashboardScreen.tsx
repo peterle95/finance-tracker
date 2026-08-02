@@ -64,7 +64,7 @@ export function DashboardScreen({
       <div className="metric-grid">
         <Metric label="Net worth" value={formatCurrency(currentNetWorth)} detail="Across all tracked balances" tone={currentNetWorth > 0 ? "positive" : currentNetWorth < 0 ? "warning" : undefined} />
         <Metric label="Flexible budget" value={formatCurrency(available)} detail="After recurring costs and savings" />
-        <Metric label="Today’s target" value={formatCurrency(daily.dailyTarget)} detail={daily.daysRemaining + " days remaining"} tone={daily.dailyTarget > 0 ? "positive" : "warning"} />
+        <Metric label="Today's Target" value={formatCurrency(daily.dailyTarget)} detail={daily.daysRemaining + " days remaining"} tone={daily.dailyTarget > 0 ? "positive" : "warning"} />
         <Metric label="Flexible balance" value={formatCurrency(flexibleBalance)} detail={defaultBehaviors.includeNegativeCarryover ? "After fixed costs, savings, and carryover" : "After fixed costs and savings"} tone={flexibleBalance > 0 ? "positive" : flexibleBalance < 0 ? "warning" : undefined} />
       </div>
 

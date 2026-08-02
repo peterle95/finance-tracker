@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { currentMonth, formatCurrency, getActiveMonthlyIncome, sumFixedCosts } from "../../shared/finance";
+import { currentMonth, formatCurrency, getActiveMonthlyIncome, monthOffset, sumFixedCosts } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
 
@@ -20,7 +20,8 @@ export function TransactionsScreen({
   const [type, setType] = useState<"All" | TransactionType>("All");
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
-  const [month, setMonth] = useState(currentMonth);
+  const [startMonth, setStartMonth] = useState(currentMonth);
+  const [endMonth, setEndMonth] = useState(currentMonth);
   const [sortKey, setSortKey] = useState<"date" | "amount" | "category">("date");
   const [descending, setDescending] = useState(true);
   const categories = useMemo(() => Array.from(new Set([
@@ -29,6 +30,16 @@ export function TransactionsScreen({
     ...document.expenses.map((transaction) => transaction.category),
     ...document.incomes.map((transaction) => transaction.category)
   ])).sort((first, second) => first.localeCompare(second)), [document]);
+  const selectedMonths = useMemo(() => {
+    if (!startMonth || !endMonth || startMonth > endMonth) {
+      return [];
+    }
+    const months: string[] = [];
+    for (let month = startMonth; month <= endMonth; month = monthOffset(month, 1)) {
+      months.push(month);
+    }
+    return months;
+  }, [startMonth, endMonth]);
 
   const transactions = useMemo(() => {
     const source: Array<{ type: TransactionType; transaction: FinanceTransaction }> = [
@@ -38,7 +49,8 @@ export function TransactionsScreen({
     return source
       .filter((entry) => type === "All" || entry.type === type)
       .filter((entry) => category === "All" || entry.transaction.category === category)
-      .filter((entry) => !month || entry.transaction.date.startsWith(month))
+       .filter((entry) => (!startMonth || entry.transaction.date.slice(0, 7) >= startMonth)
+         && (!endMonth || entry.transaction.date.slice(0, 7) <= endMonth))
       .filter((entry) => {
         const value = [
           entry.transaction.description,
@@ -56,7 +68,7 @@ export function TransactionsScreen({
           : String(firstValue).localeCompare(String(secondValue));
         return descending ? -compared : compared;
       });
-  }, [document, type, category, query, month, sortKey, descending]);
+  }, [document, type, category, query, startMonth, endMonth, sortKey, descending]);
 
   const flexibleCosts = transactions
     .filter((entry) => entry.type === "Expense")
@@ -64,8 +76,10 @@ export function TransactionsScreen({
   const flexibleIncome = transactions
     .filter((entry) => entry.type === "Income")
     .reduce((total, entry) => total + entry.transaction.amount, 0);
-  const totalIncome = (month ? getActiveMonthlyIncome(document, month) : 0) + flexibleIncome;
-  const totalCosts = flexibleCosts + (month ? sumFixedCosts(document, month) : 0);
+  const recurringIncome = selectedMonths.reduce((total, month) => total + getActiveMonthlyIncome(document, month), 0);
+  const recurringCosts = selectedMonths.reduce((total, month) => total + sumFixedCosts(document, month), 0);
+  const totalIncome = recurringIncome + flexibleIncome;
+  const totalCosts = flexibleCosts + recurringCosts;
   const totalIncomeDifference = totalIncome - totalCosts;
 
   function toggleSort(next: typeof sortKey) {
@@ -106,8 +120,9 @@ export function TransactionsScreen({
             <option value="All">All categories</option>
             {categories.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
           </select>
-          <input aria-label="Filter by booking month" type="month" value={month} onChange={(event) => setMonth(event.target.value)} />
-          <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setCategory("All"); setMonth(currentMonth()); }}>Clear filters</Button>
+           <input aria-label="Filter from booking month" type="month" value={startMonth} onChange={(event) => setStartMonth(event.target.value)} />
+           <input aria-label="Filter to booking month" type="month" value={endMonth} onChange={(event) => setEndMonth(event.target.value)} />
+           <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setCategory("All"); setStartMonth(""); setEndMonth(""); }}>Clear filters</Button>
         </div>
       </Card>
 
@@ -115,7 +130,7 @@ export function TransactionsScreen({
         <div>
           <p className="eyebrow">Flexible costs</p>
           <strong>{formatCurrency(flexibleCosts)}</strong>
-          <span>{query || type !== "All" ? "Matching filters" : month ? "In " + month : "Matching transactions"}</span>
+           <span>{query || type !== "All" ? "Matching filters" : startMonth || endMonth ? "In selected months" : "Matching transactions"}</span>
         </div>
         <div>
           <p className="eyebrow">Total income − total costs</p>

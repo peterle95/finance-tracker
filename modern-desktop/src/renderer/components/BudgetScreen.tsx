@@ -194,7 +194,7 @@ export function BudgetScreen({ document, defaultRanges = DEFAULT_RANGE_SETTINGS,
       <div className="metric-grid">
         <Card className="metric"><p>Base income</p><strong>{formatCurrency(overview.baseIncome)}</strong><span>{incomeSources.length} active source(s)</span></Card>
         <Card className="metric"><p>Fixed costs</p><strong>{formatCurrency(overview.fixedCosts)}</strong><span>{fixedCosts.length} active commitment(s)</span></Card>
-        <Card className="metric"><p>Remaining today</p><strong>{formatCurrency(visibleOverview.dailyTarget)}</strong><span>{visibleOverview.daysRemaining} days left</span></Card>
+        <Card className={"metric " + (visibleOverview.dailyTarget > 0 ? "metric-positive" : "metric-warning")}><p>Today's Target</p><strong>{formatCurrency(visibleOverview.dailyTarget)}</strong><span>{visibleOverview.daysRemaining} days left</span></Card>
         <Card className={"metric " + (visibleOverview.remainingBudget < 0 ? "metric-warning" : "metric-positive")}><p>Flexible balance</p><strong>{formatCurrency(visibleOverview.remainingBudget)}</strong><span>{includeCarryover ? "Negative carryover included" : "No carryover"}</span></Card>
       </div>
 
