@@ -35,7 +35,7 @@ import finance_tracker.services.budget_calculator as bc
 # It means cumulative balance is 34.23.
 # The table shows previous days too. The user screenshot cuts them off.
 # Assume day 1-8 had spending or income such that day 9 starts with ~34.23.
-# Or simpler:
+# Or impler:
 # Base income = 34.23 * (28/20)? No.
 
 # Let's just monkeypatch the helper functions to return simple values
