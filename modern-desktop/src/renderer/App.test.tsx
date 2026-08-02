@@ -123,4 +123,45 @@ describe("App navigation", () => {
     expect(screen.getByRole("button", { name: "History" }).className).toContain("selected");
     expect((screen.getByLabelText("Report date basis") as HTMLSelectElement).value).toBe("behavior");
   });
+
+  it("replaces an edited legacy transaction without an id", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    document.categories.Expense = ["Travel", "Flights/Trains"];
+    document.expenses = [{
+      date: new Date().toISOString().slice(0, 10),
+      amount: 447.26,
+      category: "Travel",
+      description: "BKK-BLN"
+    }];
+    const saveDocument = vi.fn(async (next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
+    window.finance = {
+      load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
+      chooseDataFile: vi.fn(),
+      createDataFile: vi.fn(),
+      saveDocument,
+      chooseBankCsv: vi.fn(),
+      exportText: vi.fn()
+    };
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
+    });
+
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Transactions" }));
+    await user.click(screen.getByRole("button", { name: "Edit transaction" }));
+    await user.selectOptions(screen.getByLabelText("Category"), "Flights/Trains");
+    await user.click(screen.getByRole("button", { name: "Save changes" }));
+
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+      expenses: [{
+        date: document.expenses[0].date,
+        amount: 447.26,
+        category: "Flights/Trains",
+        description: "BKK-BLN",
+        behavior_date: undefined
+      }]
+    })));
+  });
 });

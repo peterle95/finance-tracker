@@ -144,13 +144,16 @@ export function App() {
     }
   }
 
-  function saveTransaction(type: TransactionType, transaction: FinanceTransaction) {
+  function saveTransaction(type: TransactionType, transaction: FinanceTransaction, original?: FinanceTransaction) {
     if (!financeDocument) {
       return;
     }
+    const currentSource = type === "Expense" ? financeDocument.expenses : financeDocument.incomes;
     const next = cloneDocument(financeDocument);
     const source = type === "Expense" ? next.expenses : next.incomes;
-    const index = source.findIndex((entry) => entry.id && entry.id === transaction.id);
+    const index = transaction.id
+      ? source.findIndex((entry) => entry.id === transaction.id)
+      : original ? currentSource.indexOf(original) : -1;
     if (index >= 0) {
       source[index] = transaction;
     } else {

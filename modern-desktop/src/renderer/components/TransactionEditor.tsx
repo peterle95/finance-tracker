@@ -11,7 +11,7 @@ interface TransactionEditorProps {
   type: TransactionType;
   transaction?: FinanceTransaction;
   onOpenChange(open: boolean): void;
-  onSubmit(type: TransactionType, transaction: FinanceTransaction): void;
+  onSubmit(type: TransactionType, transaction: FinanceTransaction, original?: FinanceTransaction): void;
 }
 
 export function TransactionEditor({
@@ -60,7 +60,11 @@ export function TransactionEditor({
         behavior_date: bnpl ? date : undefined
       }
       : makeTransaction(type, values, bnpl);
-    onSubmit(type, saved);
+    if (transaction) {
+      onSubmit(type, saved, transaction);
+    } else {
+      onSubmit(type, saved);
+    }
     onOpenChange(false);
   }
 
