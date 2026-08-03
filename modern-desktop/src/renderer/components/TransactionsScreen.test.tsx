@@ -1,7 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
-import { currentMonth, defaultDocument } from "../../shared/finance";
+import { currentMonth, defaultDocument, monthOffset } from "../../shared/finance";
 import { TransactionsScreen } from "./TransactionsScreen";
 
 describe("TransactionsScreen summary", () => {
@@ -55,6 +55,23 @@ describe("TransactionsScreen summary", () => {
     expect((screen.getByLabelText("Filter to booking month") as HTMLInputElement).value).toBe("");
   });
 
+  it("navigates default transaction month with one click", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    const month = currentMonth();
+    document.expenses = [
+      { date: month + "-06", amount: 35, category: "Food", description: "This month" },
+      { date: "2020-01-06", amount: 20, category: "Food", description: "Older transaction" }
+    ];
+
+    render(<TransactionsScreen document={document} onAdd={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
+
+    const monthInput = screen.getByLabelText("Transaction month") as HTMLInputElement;
+    expect(monthInput.value).toBe(month);
+    await user.click(screen.getByRole("button", { name: "Previous transaction month" }));
+    expect(monthInput.value).toBe(monthOffset(month, -1));
+  });
+
   it("filters transactions by an inclusive month range", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();
@@ -66,9 +83,13 @@ describe("TransactionsScreen summary", () => {
     ];
 
     render(<TransactionsScreen document={document} onAdd={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
-    await user.click(screen.getByRole("button", { name: "Clear filters" }));
-    await user.type(screen.getByLabelText("Filter from booking month"), "2020-02");
-    await user.type(screen.getByLabelText("Filter to booking month"), "2020-03");
+    await user.click(screen.getByRole("button", { name: "Range" }));
+    const startMonth = screen.getByLabelText("Filter from booking month");
+    const endMonth = screen.getByLabelText("Filter to booking month");
+    await user.clear(startMonth);
+    await user.clear(endMonth);
+    await user.type(startMonth, "2020-02");
+    await user.type(endMonth, "2020-03");
 
     expect(screen.queryByText("Before range")).toBeNull();
     expect(screen.getByText("Start month")).toBeTruthy();

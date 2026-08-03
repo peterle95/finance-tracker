@@ -1,4 +1,4 @@
-import { ArrowDownRight, ArrowUpRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
+import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { currentMonth, formatCurrency, getActiveMonthlyIncome, monthOffset, sumFixedCosts } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
@@ -20,6 +20,8 @@ export function TransactionsScreen({
   const [type, setType] = useState<"All" | TransactionType>("All");
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
+  const [dateFilterMode, setDateFilterMode] = useState<"month" | "range">("month");
+  const [month, setMonth] = useState(currentMonth);
   const [startMonth, setStartMonth] = useState(currentMonth);
   const [endMonth, setEndMonth] = useState(currentMonth);
   const [sortKey, setSortKey] = useState<"date" | "amount" | "category">("date");
@@ -30,16 +32,18 @@ export function TransactionsScreen({
     ...document.expenses.map((transaction) => transaction.category),
     ...document.incomes.map((transaction) => transaction.category)
   ])).sort((first, second) => first.localeCompare(second)), [document]);
+  const rangeStart = dateFilterMode === "month" ? month : startMonth;
+  const rangeEnd = dateFilterMode === "month" ? month : endMonth;
   const selectedMonths = useMemo(() => {
-    if (!startMonth || !endMonth || startMonth > endMonth) {
+    if (!rangeStart || !rangeEnd || rangeStart > rangeEnd) {
       return [];
     }
     const months: string[] = [];
-    for (let month = startMonth; month <= endMonth; month = monthOffset(month, 1)) {
-      months.push(month);
+    for (let selected = rangeStart; selected <= rangeEnd; selected = monthOffset(selected, 1)) {
+      months.push(selected);
     }
     return months;
-  }, [startMonth, endMonth]);
+  }, [rangeStart, rangeEnd]);
 
   const transactions = useMemo(() => {
     const source: Array<{ type: TransactionType; transaction: FinanceTransaction }> = [
@@ -49,8 +53,8 @@ export function TransactionsScreen({
     return source
       .filter((entry) => type === "All" || entry.type === type)
       .filter((entry) => category === "All" || entry.transaction.category === category)
-       .filter((entry) => (!startMonth || entry.transaction.date.slice(0, 7) >= startMonth)
-         && (!endMonth || entry.transaction.date.slice(0, 7) <= endMonth))
+       .filter((entry) => (!rangeStart || entry.transaction.date.slice(0, 7) >= rangeStart)
+          && (!rangeEnd || entry.transaction.date.slice(0, 7) <= rangeEnd))
       .filter((entry) => {
         const value = [
           entry.transaction.description,
@@ -68,7 +72,7 @@ export function TransactionsScreen({
           : String(firstValue).localeCompare(String(secondValue));
         return descending ? -compared : compared;
       });
-  }, [document, type, category, query, startMonth, endMonth, sortKey, descending]);
+  }, [document, type, category, query, rangeStart, rangeEnd, sortKey, descending]);
 
   const flexibleCosts = transactions
     .filter((entry) => entry.type === "Expense")
@@ -120,9 +124,21 @@ export function TransactionsScreen({
             <option value="All">All categories</option>
             {categories.map((entry) => <option key={entry} value={entry}>{entry}</option>)}
           </select>
-           <input aria-label="Filter from booking month" type="month" value={startMonth} onChange={(event) => setStartMonth(event.target.value)} />
-           <input aria-label="Filter to booking month" type="month" value={endMonth} onChange={(event) => setEndMonth(event.target.value)} />
-           <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setCategory("All"); setStartMonth(""); setEndMonth(""); }}>Clear filters</Button>
+          <div className="segmented-control" aria-label="Transaction date filter">
+            <button className={dateFilterMode === "month" ? "selected" : ""} onClick={() => setDateFilterMode("month")}>Month</button>
+            <button className={dateFilterMode === "range" ? "selected" : ""} onClick={() => setDateFilterMode("range")}>Range</button>
+          </div>
+          {dateFilterMode === "month" ? (
+            <div className="budget-month-navigation" aria-label="Transaction month navigation">
+              <Button type="button" variant="ghost" aria-label="Previous transaction month" onClick={() => setMonth(monthOffset(month, -1))}><ChevronLeft size={17} /></Button>
+              <input aria-label="Transaction month" type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
+              <Button type="button" variant="ghost" aria-label="Next transaction month" onClick={() => setMonth(monthOffset(month, 1))}><ChevronRight size={17} /></Button>
+            </div>
+          ) : <>
+            <input aria-label="Filter from booking month" type="month" value={startMonth} onChange={(event) => setStartMonth(event.target.value)} />
+            <input aria-label="Filter to booking month" type="month" value={endMonth} onChange={(event) => setEndMonth(event.target.value)} />
+          </>}
+          <Button variant="ghost" onClick={() => { setQuery(""); setType("All"); setCategory("All"); setDateFilterMode("range"); setStartMonth(""); setEndMonth(""); }}>Clear filters</Button>
         </div>
       </Card>
 
@@ -130,7 +146,7 @@ export function TransactionsScreen({
         <div>
           <p className="eyebrow">Flexible costs</p>
           <strong>{formatCurrency(flexibleCosts)}</strong>
-           <span>{query || type !== "All" ? "Matching filters" : startMonth || endMonth ? "In selected months" : "Matching transactions"}</span>
+            <span>{query || type !== "All" ? "Matching filters" : dateFilterMode === "month" ? "In " + month : startMonth || endMonth ? "In selected months" : "Matching transactions"}</span>
         </div>
         <div>
           <p className="eyebrow">Total income − total costs</p>
