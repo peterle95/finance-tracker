@@ -41,7 +41,7 @@ describe("App navigation", () => {
   it("saves default ranges and applies them to feature screens", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();
-    const saveDocument = vi.fn(async (next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
+    const saveDocument = vi.fn(async (_previous: FinanceDocument, next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
     const bridge: FinanceApi = {
       load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
       chooseDataFile: vi.fn(),
@@ -66,7 +66,7 @@ describe("App navigation", () => {
     await user.type(screen.getByLabelText("Budget carryover months"), "7");
     await user.click(screen.getByRole("button", { name: "Save ranges" }));
 
-    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       budget_settings: expect.objectContaining({
         default_ranges: expect.objectContaining({ projectionMonths: 18, carryoverMonths: 7 })
       })
@@ -80,7 +80,7 @@ describe("App navigation", () => {
   it("saves default behaviors and applies them to feature screens", async () => {
     const user = userEvent.setup();
     const document = defaultDocument();
-    const saveDocument = vi.fn(async (next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
+    const saveDocument = vi.fn(async (_previous: FinanceDocument, next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
     const bridge: FinanceApi = {
       load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
       chooseDataFile: vi.fn(),
@@ -105,7 +105,7 @@ describe("App navigation", () => {
     await user.selectOptions(screen.getByLabelText("Default report view"), "history");
     await user.click(screen.getByRole("button", { name: "Save behaviors" }));
 
-    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       budget_settings: expect.objectContaining({
         default_behaviors: expect.objectContaining({
           includeNegativeCarryover: false,
@@ -134,7 +134,7 @@ describe("App navigation", () => {
       category: "Travel",
       description: "BKK-BLN"
     }];
-    const saveDocument = vi.fn(async (next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
+    const saveDocument = vi.fn(async (_previous: FinanceDocument, next: FinanceDocument) => ({ document: next, connection: { path: "finance_data.json", isConnected: true } }));
     window.finance = {
       load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
       chooseDataFile: vi.fn(),
@@ -154,7 +154,7 @@ describe("App navigation", () => {
     await user.selectOptions(screen.getByLabelText("Category"), "Flights/Trains");
     await user.click(screen.getByRole("button", { name: "Save changes" }));
 
-    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.objectContaining({
+    await waitFor(() => expect(saveDocument).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({
       expenses: [{
         date: document.expenses[0].date,
         amount: 447.26,
@@ -163,5 +163,29 @@ describe("App navigation", () => {
         behavior_date: undefined
       }]
     })));
+  });
+
+  it("shows category deletion errors and restores the category", async () => {
+    const user = userEvent.setup();
+    const document = defaultDocument();
+    window.finance = {
+      load: vi.fn().mockResolvedValue({ document, connection: { path: "data", isConnected: true } }),
+      chooseDataFile: vi.fn(),
+      createDataFile: vi.fn(),
+      saveDocument: vi.fn().mockRejectedValue(new Error("Cannot delete category \"Food\" because it has transactions.")),
+      chooseBankCsv: vi.fn(),
+      exportText: vi.fn()
+    };
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
+    });
+
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Category limits" }));
+    await user.click(screen.getByRole("button", { name: "Remove Food" }));
+
+    expect((await screen.findByRole("status")).textContent).toContain("Cannot delete category");
+    expect(screen.getByText("Food")).toBeTruthy();
   });
 });

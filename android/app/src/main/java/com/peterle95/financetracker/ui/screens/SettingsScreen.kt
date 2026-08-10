@@ -38,8 +38,8 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
     var type by remember { mutableStateOf(TransactionType.Expense) }
     var newCategory by remember { mutableStateOf("") }
     val current = categories.forType(type)
-    val connectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(viewModel::connectSyncedFile)
+    val connectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let(viewModel::connectSyncedDirectory)
     }
 
     Column(
@@ -59,16 +59,16 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
             }
         }
         Button(
-            onClick = { connectLauncher.launch(arrayOf("application/json")) },
+            onClick = { connectLauncher.launch(null) },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Connect synced finance_data.json")
+            Text("Connect synced finance data directory")
         }
         Button(
             onClick = { viewModel.reloadFromSyncedFile() },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Reload from synced file")
+            Text("Reload from synced directory")
         }
         Card {
             Column(
@@ -77,11 +77,12 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("Synced file", style = MaterialTheme.typography.titleMedium)
-                Text("Connected file: ${syncStatus.fileName ?: "Not connected"}")
+                Text("Synced directory", style = MaterialTheme.typography.titleMedium)
+                Text("Connected directory: ${syncStatus.fileName ?: "Not connected"}")
                 Text("Last loaded: ${syncStatus.lastLoadedAt ?: "Never"}")
                 Text("Last written: ${syncStatus.lastWrittenAt ?: "Never"}")
                 syncStatus.lastError?.let { Text("Last error: $it", color = MaterialTheme.colorScheme.error) }
+                syncStatus.warnings.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {

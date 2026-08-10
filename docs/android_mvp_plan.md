@@ -2,68 +2,58 @@
 
 ## Summary
 
-The Android app lives in `/android` as a standalone Kotlin project. It does not import or rewrite the Python/Tkinter desktop app, but it shares the `finance_data.json` contract documented in `/shared/finance_data_schema.md`.
-
-The MVP uses Jetpack Compose, Material 3, DataStore, Android's Storage Access Framework, and kotlinx.serialization.
+The standalone `android/` app uses Kotlin, Jetpack Compose, Material 3, Preferences DataStore, Android Storage Access Framework (SAF), and kotlinx.serialization. It shares the split JSON directory contract in [`../shared/finance_data_schema.md`](../shared/finance_data_schema.md) with both desktop clients.
 
 ## Architecture
 
-- `data/`: DataStore app settings, synced-file state, JSON read/write, and repository orchestration.
-- `domain/`: transaction models, category defaults, dashboard aggregation, and shared finance calculations.
-- `ui/`: Compose navigation shell, theme, components, screens, and the Android view model.
+- `data/`: persisted tree URI, SAF directory access, split-file store, JSON compatibility, and repository orchestration.
+- `domain/`: transactions, categories, budgets, goals, net worth, reports, and calculations.
+- `ui/`: Compose navigation, screens, components, theme, and view model.
 
-`finance_data.json` is the source of truth. DataStore stores only app settings such as the persisted Storage Access Framework URI.
+The selected synchronized directory is the financial source of truth. DataStore stores only app settings, including the persisted SAF tree URI.
 
 ## Screens
 
-- Dashboard: current-month income, expenses, net, daily budget, balance estimate, and desktop-style interactive charts.
-- Add Transaction: Expense/Income toggle, amount, category, description, ISO date input, optional BNPL / pay-next-month expense toggle, and synced JSON write.
-- Transactions: list with month/category/type/search filters and delete action.
-- Settings: connect synced file, reload synced file, connection status, and category editing.
+- Dashboard: current-month totals, daily budget, balance estimate, charts, loans, goals, and net worth.
+- Add Transaction: type, amount, category, description, date, and optional BNPL booking.
+- Transactions: filters plus transaction update/delete.
+- Settings: connect/reload directory, status/warnings, categories, budgets, and balances.
 
-## Compatibility Rules
+## Compatibility rules
 
-- Android connects to an existing synced `finance_data.json` through Settings.
-- The selected URI is persisted with read/write permission.
-- On app start and resume, Android reloads the selected file.
-- Before every add, delete, or category edit, Android reads the latest file, applies the change, writes the whole JSON document back, and refreshes UI state.
-- Android preserves unknown root fields and unknown transaction fields.
-- Android-created rows include a UUID `id`.
-- Android BNPL expenses mirror desktop semantics by writing the booked `date` as the 1st of the next month and the original spending date as `behavior_date`.
-- Transaction month filtering uses the booked `date`, not `behavior_date`.
-- Deletes use exported JSON `id`, not a local database id.
-- Advanced desktop settings are not edited by Android in MVP.
+- Settings launches `OpenDocumentTree`; users select the synchronized directory, not a JSON file.
+- Android takes persistent read/write permission and reloads on app start, resume, and manual request.
+- Mutations read their current owner files, preserve unknown fields, write only required owners, verify each write, and refresh state.
+- Android-created transactions use UUID `id`; legacy missing IDs are assigned and persisted on load.
+- BNPL stores the first of next month in `date` and real spend date in `behavior_date`.
+- Category `file_key` values are stable lowercase ASCII kebab identifiers. Rename retains the key; populated-category deletion is blocked; transaction moves keep IDs and unknown fields.
+- Unknown legacy settings/root data lives in `preferences.json._extra.legacy_budget_settings` and `.legacy_root`.
+- Conflict and orphan files are reported and left untouched. Missing registered transaction files are recreated; missing static files block loading.
 
-## Syncthing Setup
+SAF writes directly to a document and verifies the result; it cannot guarantee atomic replacement. Multi-file category edits, moves, migration, and loan/balance changes are also not atomic.
 
-Recommended folder name: `FinanceTrackerData`.
+## Syncthing setup
 
-Only sync `finance_data.json` in that folder. Enable Syncthing file versioning for safety. Avoid editing from desktop and Android at the exact same second because Syncthing syncs at file granularity.
+1. Create a folder such as `FinanceTrackerData` and enable versioning.
+2. Synchronize the complete split file set directly in that folder, not only legacy `finance_data.json`.
+3. In Android Settings, connect the folder through the directory picker.
+4. Point both desktop clients at the same directory.
+5. Wait for synchronization before switching clients and resolve warnings manually.
 
-Desktop can use the synced file with:
+If only a legacy `finance_data.json` exists, Android migrates it once, verifies the split result, and writes `categories.json` last. The legacy source remains unchanged; no second backup is created.
 
-```bash
-export FINANCE_DATA_FILE="$HOME/Syncthing/FinanceTrackerData/finance_data.json"
-python run.py
+## Verification
+
+```powershell
+cd android
+.\gradlew.bat test assembleDebug
 ```
-
-## Test Strategy
-
-JVM unit tests cover:
-
-- JSON import from desktop-style files.
-- JSON document mutation back to desktop-compatible shape.
-- BNPL booking-date calculation and `behavior_date` export.
-- Transaction month filtering by booked date, including BNPL rows.
-- Monthly totals including fixed costs and base monthly income.
-- Category totals and flexible transaction counts.
-- Reloading Android app state from changed file text.
 
 Manual acceptance:
 
-1. Open `/android` in Android Studio.
-2. Sync and build the project.
-3. Run unit tests.
-4. Connect a Syncthing-managed `finance_data.json` in Android Settings.
-5. Add/delete/edit categories on Android and confirm the same file updates.
-6. Load the same file from desktop with `FINANCE_DATA_FILE`.
+1. Connect a Syncthing-managed directory in Settings.
+2. Add, edit, move, and delete transactions; confirm only category-owner files change.
+3. Create, rename, and delete an empty category; confirm `file_key` stays stable on rename.
+4. Confirm populated-category deletion is blocked.
+5. Edit budgets, loans, goals, and balances; confirm desktop clients read the changes.
+6. Confirm conflict/orphan warnings and app-start/resume reload behavior.

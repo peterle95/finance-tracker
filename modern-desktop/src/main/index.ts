@@ -37,7 +37,7 @@ app.whenReady().then(() => {
   app.setAppUserModelId("com.molze.financetracker");
   const developmentDefault = app.isPackaged
     ? null
-    : resolve(app.getAppPath(), "..", "finance_data.json");
+    : resolve(app.getAppPath(), "..", "shared");
   dataStore = new DataStore(
     join(app.getPath("userData"), "finance-tracker-modern.json"),
     developmentDefault
@@ -46,7 +46,7 @@ app.whenReady().then(() => {
   ipcMain.handle("finance:load", () => dataStore.load());
   ipcMain.handle("finance:chooseDataFile", () => dataStore.chooseDataFile(mainWindow ?? undefined));
   ipcMain.handle("finance:createDataFile", () => dataStore.createDataFile(mainWindow ?? undefined));
-  ipcMain.handle("finance:saveDocument", (_event, document: FinanceDocument) => dataStore.saveDocument(document));
+  ipcMain.handle("finance:saveDocument", (_event, previous: FinanceDocument, document: FinanceDocument) => dataStore.saveDocument(previous, document));
   ipcMain.handle("finance:chooseBankCsv", () => dataStore.chooseBankCsv(mainWindow ?? undefined));
   ipcMain.handle("finance:exportText", (_event, defaultName: string, text: string) => {
     return dataStore.exportText(defaultName, text, mainWindow ?? undefined);

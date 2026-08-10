@@ -31,7 +31,7 @@ test("opens the shared data file and saves an expense", async () => {
     args: [join(process.cwd(), "out", "main", "index.js")],
     env: {
       ...process.env,
-      FINANCE_DATA_FILE: dataPath,
+      FINANCE_DATA_DIR: directory,
       FINANCE_TRACKER_USER_DATA: userDataPath
     }
   });
@@ -44,8 +44,12 @@ test("opens the shared data file and saves an expense", async () => {
     await window.getByLabel("Description").fill("E2E lunch");
     await window.getByRole("button", { name: "Add transaction" }).click();
     await expect.poll(async () => {
-      const saved = JSON.parse(await readFile(dataPath, "utf8")) as { expenses: unknown[] };
-      return saved.expenses.length;
+      const categories = JSON.parse(await readFile(join(directory, "categories.json"), "utf8")) as {
+        Expense: Array<{ name: string; file_key: string }>;
+      };
+      const key = categories.Expense.find((category) => category.name === "Food")?.file_key;
+      const saved = JSON.parse(await readFile(join(directory, `transactions_expense_${key}.json`), "utf8")) as unknown[];
+      return saved.length;
     }).toBe(1);
     await window.getByRole("button", { name: "Net worth" }).click();
     await expect(window.getByText("Money owed").first()).toBeVisible();
