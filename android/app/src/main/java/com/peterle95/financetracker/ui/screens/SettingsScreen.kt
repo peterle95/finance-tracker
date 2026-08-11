@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -20,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,6 +39,7 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
     val syncStatus by viewModel.syncStatus.collectAsState()
     var type by remember { mutableStateOf(TransactionType.Expense) }
     var newCategory by remember { mutableStateOf("") }
+    var categoryToDelete by remember { mutableStateOf<String?>(null) }
     val current = categories.forType(type)
     val connectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
         uri?.let(viewModel::connectSyncedDirectory)
@@ -115,12 +118,34 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(category, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { viewModel.setCategories(type, current - category) }) {
+                        IconButton(onClick = { categoryToDelete = category }) {
                             Icon(Icons.Outlined.Delete, contentDescription = "Delete")
                         }
                     }
                 }
             }
         }
+    }
+    categoryToDelete?.let { category ->
+        AlertDialog(
+            onDismissRequest = { categoryToDelete = null },
+            title = { Text("Delete category?") },
+            text = { Text("Delete $category? Its empty transaction file will be removed.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setCategories(type, current - category)
+                        categoryToDelete = null
+                    },
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { categoryToDelete = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }

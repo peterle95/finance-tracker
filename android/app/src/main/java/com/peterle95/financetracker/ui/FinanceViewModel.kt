@@ -166,7 +166,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             }.onSuccess {
                 messages.emit("Categories updated.")
             }.onFailure {
-                messages.emit(it.message ?: "Could not update categories.")
+                messages.emit(
+                    if (it.message?.startsWith("Cannot delete category with transactions:") == true) {
+                        "Move or delete this category's transactions first."
+                    } else {
+                        it.message ?: "Could not update categories."
+                    },
+                )
             }
         }
     }
