@@ -54,12 +54,14 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         category: String,
         description: String,
         behaviorDate: String?,
+        transactionId: String = UUID.randomUUID().toString(),
     ) {
+        require(transactionId.isNotBlank()) { "Transaction id is required." }
         val target = categoryRecord(type, category)
         val filename = transactionFilename(type, target.fileKey)
         val rows = readArray(filename).toMutableList()
         rows += buildJsonObject {
-            put("id", UUID.randomUUID().toString())
+            put("id", transactionId)
             put("date", date)
             put("amount", amount)
             put("category", target.name)
@@ -77,6 +79,10 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         writeVerified(location.filename, JsonArray(updated))
         publishLatest()
     }
+
+    suspend fun containsTransaction(exportId: String): Boolean = runCatching {
+        findTransaction(exportId)
+    }.isSuccess
 
     suspend fun updateTransaction(
         exportId: String,

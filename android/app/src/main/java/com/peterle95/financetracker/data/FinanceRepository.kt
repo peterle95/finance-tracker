@@ -13,6 +13,9 @@ import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionType
+import com.peterle95.financetracker.protocol.AcknowledgementStatus
+import com.peterle95.financetracker.protocol.TransactionAcknowledgement
+import com.peterle95.financetracker.protocol.TransactionSubmission
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -27,10 +30,12 @@ class FinanceRepository(context: Context) {
     private val appContext = context.applicationContext
     private val contentResolver = appContext.contentResolver
     private val settingsDataStore = SettingsDataStore(appContext)
-    private val mutex = Mutex()
+    private val mutex = sharedMutex
     private val document = MutableStateFlow(FinanceDocument.empty())
     private val _syncStatus = MutableStateFlow(SyncedFileStatus())
     private var store: FinanceDirectoryStore? = null
+    private var watchIntake: PhoneTransactionIntake? = null
+    private val watchLedger = SharedPreferencesSubmissionLedger(appContext)
 
     val transactions: Flow<List<FinanceTransaction>> = document.map { it.transactions }
     val categories: Flow<CategoryState> = document.map { it.categories }
@@ -63,6 +68,7 @@ class FinanceRepository(context: Context) {
         runCatching { candidate.reload() }.onSuccess { result ->
             settingsDataStore.setSyncedTreeUri(uri.toString())
             store = candidate
+            watchIntake = null
             document.value = result.document
             _syncStatus.value = SyncedFileStatus(
                 uri = uri.toString(),
@@ -82,6 +88,7 @@ class FinanceRepository(context: Context) {
         val activeStore = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
         runCatching { activeStore.reload() }.onSuccess { result ->
             store = activeStore
+            watchIntake = null
             document.value = result.document
             _syncStatus.value = _syncStatus.value.copy(
                 uri = uri.toString(),
@@ -128,6 +135,37 @@ class FinanceRepository(context: Context) {
 
     suspend fun setCategories(type: TransactionType, categories: List<String>) = mutate {
         it.setCategories(type, categories)
+    }
+
+    suspend fun intakeWatchSubmission(submission: TransactionSubmission): TransactionAcknowledgement = mutex.withLock {
+        try {
+            val uri = requireConfiguredTreeUri()
+            val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also {
+                it.reload()
+                store = it
+            }
+            val acknowledgement = (watchIntake ?: PhoneTransactionIntake(activeStore, watchLedger).also { watchIntake = it })
+                .intake(submission)
+            document.value = activeStore.document.value
+            if (acknowledgement.status != AcknowledgementStatus.Rejected) {
+                _syncStatus.value = _syncStatus.value.copy(
+                    uri = uri.toString(),
+                    fileName = displayName(uri),
+                    lastLoadedAt = nowText(),
+                    lastWrittenAt = if (acknowledgement.status == AcknowledgementStatus.Accepted) nowText() else _syncStatus.value.lastWrittenAt,
+                    lastError = null,
+                    warnings = activeStore.warnings(),
+                )
+            }
+            acknowledgement
+        } catch (error: Throwable) {
+            TransactionAcknowledgement(
+                submissionId = submission.submissionId,
+                status = AcknowledgementStatus.Rejected,
+                code = "write_failed",
+                message = error.message ?: "Could not write transaction.",
+            )
+        }
     }
 
     suspend fun updateBalances(bank: Double, wallet: Double, savings: Double, investments: Double) =
@@ -251,4 +289,8 @@ class FinanceRepository(context: Context) {
 
     private fun nowText(): String =
         LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"))
+
+    private companion object {
+        val sharedMutex = Mutex()
+    }
 }
