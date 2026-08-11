@@ -20,9 +20,11 @@ import androidx.work.WorkManager
 import androidx.work.WorkerParameters
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
-import com.google.android.gms.wearable.Wearable
+import com.google.android.gms.wearable.DataEvent
 import com.google.android.gms.wearable.DataEventBuffer
+import com.google.android.gms.wearable.Wearable
 import com.peterle95.financetracker.protocol.AcknowledgementStatus
+import com.peterle95.financetracker.protocol.CATEGORIES_PATH
 import com.peterle95.financetracker.protocol.TRANSACTION_ACKNOWLEDGEMENTS_PATH
 import com.peterle95.financetracker.protocol.TRANSACTION_SUBMISSIONS_PATH
 import com.peterle95.financetracker.protocol.TransactionAcknowledgement
@@ -197,10 +199,9 @@ class WatchOutbox(context: Context) {
         val payload = preferences.getString(PENDING_SUBMISSION, null)
         val legacyStatus = preferences.getString(LEGACY_STATUS, null)
         if (payload == null && legacyStatus == null) return@withLock
-        payload?.let {
-            TransactionProtocolCodec.decodeSubmission(it.encodeToByteArray())?.let { submission ->
-                dao.insert(WatchOutboxRow(submission.submissionId.toString(), it))
-            }
+        if (payload != null) {
+            val submission = TransactionProtocolCodec.decodeSubmission(payload.encodeToByteArray()) ?: return@withLock
+            dao.insert(WatchOutboxRow(submission.submissionId.toString(), payload))
         }
         preferences.edit().apply {
             legacyStatus?.let { putString(STATUS, it) }
@@ -243,7 +244,8 @@ class WatchSubmissionSender(private val context: Context, private val outbox: Wa
             DELIVERY_TIMEOUT_SECONDS,
             TimeUnit.SECONDS,
         )
-        val node = capability.nodes.firstOrNull() ?: return@withContext false
+        val node = selectPhoneNode(capability.nodes.map { ReachablePhoneNode(it.id, it.isNearby) })
+            ?: return@withContext false
         submissions.forEach { submission ->
             Tasks.await(
                 Wearable.getMessageClient(context).sendMessage(
@@ -258,6 +260,11 @@ class WatchSubmissionSender(private val context: Context, private val outbox: Wa
         true
     }
 }
+
+internal data class ReachablePhoneNode(val id: String, val isNearby: Boolean)
+
+internal fun selectPhoneNode(nodes: Collection<ReachablePhoneNode>): ReachablePhoneNode? =
+    nodes.minWithOrNull(compareByDescending<ReachablePhoneNode> { it.isNearby }.thenBy { it.id })
 
 object WatchDeliveryScheduler {
     fun schedule(context: Context) {
@@ -322,8 +329,13 @@ class WearAcknowledgementListenerService : com.google.android.gms.wearable.Weara
     }
 
     override fun onDataChanged(dataEvents: DataEventBuffer) {
-        if (WatchCategoryCache.accept(applicationContext, dataEvents)) {
-            categoryRefreshScope.launch { runCatching { WatchCategoryCache.refresh(applicationContext) } }
+        val payloads = dataEvents
+            .filter { it.type == DataEvent.TYPE_CHANGED && it.dataItem.uri.path == CATEGORIES_PATH }
+            .mapNotNull { it.dataItem.data }
+        categoryRefreshScope.launch {
+            if (WatchCategoryCache.accept(applicationContext, payloads)) {
+                runCatching { WatchCategoryCache.refresh(applicationContext) }
+            }
         }
     }
 

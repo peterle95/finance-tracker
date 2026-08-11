@@ -2,8 +2,6 @@ package com.peterle95.financetracker.wear
 
 import android.content.Context
 import com.google.android.gms.tasks.Tasks
-import com.google.android.gms.wearable.DataEvent
-import com.google.android.gms.wearable.DataEventBuffer
 import com.google.android.gms.wearable.Wearable
 import com.peterle95.financetracker.protocol.CATEGORIES_PATH
 import com.peterle95.financetracker.protocol.CategorySnapshot
@@ -58,14 +56,11 @@ object WatchCategoryCache {
         }
     }
 
-    fun accept(context: Context, events: DataEventBuffer): Boolean {
+    fun accept(context: Context, payloads: Iterable<ByteArray>): Boolean {
         var refreshNeeded = false
-        events.filter { it.type == DataEvent.TYPE_CHANGED && it.dataItem.uri.path == CATEGORIES_PATH }
-            .forEach { event ->
-                event.dataItem.data?.let {
-                    refreshNeeded = accept(context, it, authoritative = false) == CategorySnapshotAcceptance.Stale || refreshNeeded
-                }
-            }
+        payloads.forEach {
+            refreshNeeded = accept(context, it, authoritative = false) == CategorySnapshotAcceptance.Stale || refreshNeeded
+        }
         return refreshNeeded
     }
 

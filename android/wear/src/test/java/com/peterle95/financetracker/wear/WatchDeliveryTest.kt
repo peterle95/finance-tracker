@@ -7,11 +7,47 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.UUID
 
 class WatchDeliveryTest {
+    @Test
+    fun selectsNoPhoneFromEmptyNodes() {
+        assertNull(selectPhoneNode(emptyList()))
+    }
+
+    @Test
+    fun selectsOnlyPhone() {
+        val phone = ReachablePhoneNode("phone-b", isNearby = false)
+
+        assertEquals(phone, selectPhoneNode(listOf(phone)))
+    }
+
+    @Test
+    fun selectsNearbyPhoneThenStableId() {
+        assertEquals(
+            ReachablePhoneNode("phone-b", isNearby = true),
+            selectPhoneNode(
+                listOf(
+                    ReachablePhoneNode("phone-a", isNearby = false),
+                    ReachablePhoneNode("phone-c", isNearby = true),
+                    ReachablePhoneNode("phone-b", isNearby = true),
+                ),
+            ),
+        )
+        assertEquals(
+            ReachablePhoneNode("phone-a", isNearby = false),
+            selectPhoneNode(
+                listOf(
+                    ReachablePhoneNode("phone-b", isNearby = false),
+                    ReachablePhoneNode("phone-a", isNearby = false),
+                ),
+            ),
+        )
+    }
+
     @Test
     fun outcomeQueueDoesNotConflateRapidAcknowledgements() = runBlocking {
         val queue = WatchOutcomeQueue()

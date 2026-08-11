@@ -35,6 +35,14 @@ cd android
 - If a Gradle command times out, inspect `./gradlew.bat --status` before starting another one. Do not run duplicate builds while its daemon is active.
 - Run Gradle from the main agent session, not a subagent, so compile progress and failures remain visible.
 
+### Windows ADB
+
+- Do not use `adb devices` as the first ADB command. Its automatic server startup can retain the agent output pipe and appear stuck.
+- Start the server separately with redirected output, then list devices: `& "$env:ANDROID_HOME\platform-tools\adb.exe" start-server *> "$env:TEMP\finance-adb-start.log"` followed by `& "$env:ANDROID_HOME\platform-tools\adb.exe" devices -l`.
+- Use a 15-second timeout for each ADB command. Verified cold start is about 2 seconds and device listing about 50 ms here.
+- An `offline` device is a result, not a reason to wait. Report it and do not run install or hardware-validation commands until it becomes `device`.
+- Run ADB from the main agent session, not a subagent, so startup and device state remain visible.
+
 ## Conventions
 
 - Python: PEP 8, Tkinter GUI, matplotlib charts, shared `AppState`

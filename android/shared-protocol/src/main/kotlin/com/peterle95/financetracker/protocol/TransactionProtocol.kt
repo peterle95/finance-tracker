@@ -141,20 +141,23 @@ object TransactionProtocolCodec {
             put("status", acknowledgement.status.name)
             acknowledgement.code?.let { put("code", it) }
             acknowledgement.message?.let { put("message", it) }
-        }).encodeToByteArray()
+        }).encodeToByteArray().also { require(it.size <= MAX_DATA_LAYER_PAYLOAD_BYTES) }
     }
 
-    fun decodeAcknowledgement(payload: ByteArray): TransactionAcknowledgement? = runCatching {
-        val value = json.parseToJsonElement(payload.decodeToString()) as? JsonObject ?: return null
-        if (!value.keys.all { it in acknowledgementKeys } || !requiredAcknowledgementKeys.all { it in value }) return null
-        TransactionAcknowledgement(
-            protocolVersion = value.int("protocolVersion") ?: return null,
-            submissionId = UUID.fromString(value.string("submissionId") ?: return null),
-            status = AcknowledgementStatus.entries.firstOrNull { it.name == value.string("status") } ?: return null,
-            code = value.string("code"),
-            message = value.string("message"),
-        ).takeIf { TransactionProtocolValidator.acknowledgementError(it) == null }
-    }.getOrNull()
+    fun decodeAcknowledgement(payload: ByteArray): TransactionAcknowledgement? {
+        if (payload.size > MAX_DATA_LAYER_PAYLOAD_BYTES) return null
+        return runCatching {
+            val value = json.parseToJsonElement(payload.decodeToString()) as? JsonObject ?: return null
+            if (!value.keys.all { it in acknowledgementKeys } || !requiredAcknowledgementKeys.all { it in value }) return null
+            TransactionAcknowledgement(
+                protocolVersion = value.int("protocolVersion") ?: return null,
+                submissionId = UUID.fromString(value.string("submissionId") ?: return null),
+                status = AcknowledgementStatus.entries.firstOrNull { it.name == value.string("status") } ?: return null,
+                code = value.string("code"),
+                message = value.string("message"),
+            ).takeIf { TransactionProtocolValidator.acknowledgementError(it) == null }
+        }.getOrNull()
+    }
 
     fun encodeCategories(snapshot: CategorySnapshot): ByteArray {
         require(CategorySnapshotValidator.error(snapshot) == null)

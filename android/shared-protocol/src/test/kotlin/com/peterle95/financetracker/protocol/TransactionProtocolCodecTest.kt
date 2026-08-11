@@ -101,6 +101,25 @@ class TransactionProtocolCodecTest {
     }
 
     @Test
+    fun acknowledgementPayloadAllowsLimitAndRejectsOversize() {
+        val acknowledgement = TransactionAcknowledgement(
+            submissionId = UUID.fromString("d2719dc4-0b6f-4a9f-a7ba-7bad97f57958"),
+            status = AcknowledgementStatus.Rejected,
+            message = "",
+        )
+        val overhead = TransactionProtocolCodec.encodeAcknowledgement(acknowledgement).size
+        val atLimit = acknowledgement.copy(message = "x".repeat(100_000 - overhead))
+        val payload = TransactionProtocolCodec.encodeAcknowledgement(atLimit)
+
+        assertEquals(100_000, payload.size)
+        assertEquals(atLimit, TransactionProtocolCodec.decodeAcknowledgement(payload))
+        assertThrows(IllegalArgumentException::class.java) {
+            TransactionProtocolCodec.encodeAcknowledgement(atLimit.copy(message = atLimit.message + "x"))
+        }
+        assertNull(TransactionProtocolCodec.decodeAcknowledgement(payload + ' '.code.toByte()))
+    }
+
+    @Test
     fun categorySnapshotRoundTripsStrictSchema() {
         val snapshot = CategorySnapshot(
             revision = 7,
@@ -127,5 +146,6 @@ class TransactionProtocolCodecTest {
                 ),
             )
         }
+        assertNull(TransactionProtocolCodec.decodeCategories(ByteArray(100_001)))
     }
 }
