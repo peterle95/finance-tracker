@@ -60,6 +60,7 @@ class AppState:
         self._extra_owners = {}
         self._preference_extra = {}
         self._last_persisted = {}
+        self._pending_category_deletions = []
         self.load()
 
     def load(self):
@@ -257,12 +258,16 @@ class AppState:
     def save(self):
         desired = self._desired_files()
         previous = self._last_persisted
+        deleted_transaction_files = {
+            filename for filename in previous.keys() - desired.keys()
+            if filename.startswith("transactions_")
+        }
+        self._revalidate_category_deletions(deleted_transaction_files)
+        for filename in deleted_transaction_files:
+            (self.data_dir / filename).unlink(missing_ok=True)
         for filename, data in desired.items():
             if data != previous.get(filename):
                 self._atomic_write(self.data_dir / filename, data)
-        for filename in previous.keys() - desired.keys():
-            if filename.startswith("transactions_"):
-                (self.data_dir / filename).unlink(missing_ok=True)
         self._last_persisted = deepcopy(desired)
 
     def _desired_files(self):
@@ -346,6 +351,7 @@ class AppState:
             self._category_records[trans_type] = records
 
     def _validate_category_deletions(self):
+        self._pending_category_deletions = []
         for trans_type in ("Expense", "Income"):
             current = {name.casefold() for name in self.categories[trans_type]}
             unused = [record for record in self._category_records[trans_type]
@@ -358,16 +364,42 @@ class AppState:
                 continue
             target = self.expenses if trans_type == "Expense" else self.incomes
             for record in unused:
-                if any(str(item.get("category", "")).casefold() == record["name"].casefold()
-                       for item in target):
-                    index = self._category_records[trans_type].index(record)
-                    self.categories[trans_type].insert(index, record["name"])
-                    persisted = self._last_persisted.get("budget.json", {}).get(
-                        "category_budgets", {}).get(trans_type, {})
-                    if record["name"] in persisted:
-                        self.budget_settings["category_budgets"].setdefault(trans_type, {})[
-                            record["name"]] = deepcopy(persisted[record["name"]])
+                index = self._category_records[trans_type].index(record)
+                self._pending_category_deletions.append((trans_type, record, index))
+                if (any(str(item.get("category", "")).casefold() == record["name"].casefold()
+                        for item in target)
+                        or not self._transaction_file_is_empty(trans_type, record)):
+                    self._restore_category_deletion(trans_type, record, index)
                     raise ValueError(f"Cannot delete category with transactions: {record['name']}")
+
+    def _revalidate_category_deletions(self, deleted_transaction_files):
+        for trans_type, record, index in self._pending_category_deletions:
+            filename = self._transaction_filename(trans_type, record["file_key"])
+            if filename in deleted_transaction_files and not self._transaction_file_is_empty(trans_type, record):
+                self._restore_category_deletion(trans_type, record, index)
+                raise ValueError(f"Cannot delete category with transactions: {record['name']}")
+
+    def _restore_category_deletion(self, trans_type, record, index):
+        categories = self.categories[trans_type]
+        if not any(name.casefold() == record["name"].casefold() for name in categories):
+            categories.insert(index, record["name"])
+        records = self._category_records[trans_type]
+        if not any(item["file_key"] == record["file_key"] for item in records):
+            records.insert(index, record)
+        persisted = self._last_persisted.get("budget.json", {}).get(
+            "category_budgets", {}).get(trans_type, {})
+        if record["name"] in persisted:
+            self.budget_settings["category_budgets"].setdefault(trans_type, {})[
+                record["name"]] = deepcopy(persisted[record["name"]])
+
+    def _transaction_file_is_empty(self, trans_type, record):
+        path = self.data_dir / self._transaction_filename(trans_type, record["file_key"])
+        try:
+            with path.open("r", encoding="utf-8") as file:
+                transactions = json.load(file)
+        except (OSError, ValueError):
+            return False
+        return isinstance(transactions, list) and not transactions
 
     def _rename_transaction_categories(self, trans_type, old_name, new_name):
         target = self.expenses if trans_type == "Expense" else self.incomes

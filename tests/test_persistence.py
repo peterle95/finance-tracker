@@ -92,6 +92,31 @@ class PersistenceTests(unittest.TestCase):
         self.assertIn("Food", state.categories["Expense"])
         self.assertEqual(state.budget_settings["category_budgets"]["Expense"]["Food"], 30)
 
+    def test_category_deletion_rejects_external_transaction_after_load(self):
+        state = self.state()
+        food_path = self.data_dir / "transactions_expense_food.json"
+        self.assertEqual(self.read_json("transactions_expense_food.json"), [])
+        state.budget_settings["category_budgets"]["Expense"]["Food"] = 30
+        state.save()
+        external_transaction = [{
+            "id": "external-food-1", "date": "2026-01-02", "amount": 5,
+            "category": "Food", "description": "Lunch", "behavior_date": "2026-01-01",
+        }]
+        raw = json.dumps(external_transaction, indent=2)
+        food_path.write_text(raw, encoding="utf-8")
+
+        state.categories["Expense"].remove("Food")
+        del state.budget_settings["category_budgets"]["Expense"]["Food"]
+
+        with self.assertRaisesRegex(
+                ValueError, r"^Cannot delete category with transactions: Food$"):
+            state.save()
+
+        self.assertEqual(food_path.read_text(encoding="utf-8"), raw)
+        self.assertTrue(food_path.exists())
+        self.assertIn("Food", state.categories["Expense"])
+        self.assertEqual(state.budget_settings["category_budgets"]["Expense"]["Food"], 30)
+
     def test_missing_registry_does_not_overwrite_existing_files(self):
         original = '{"wallet_balance": 321}'
         (self.data_dir / "net_worth.json").write_text(original, encoding="utf-8")
