@@ -9,6 +9,7 @@ import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.work.BackoffPolicy
 import androidx.work.Constraints
 import androidx.work.CoroutineWorker
@@ -24,15 +25,19 @@ import com.google.android.gms.wearable.DataEventBuffer
 import com.peterle95.financetracker.protocol.AcknowledgementStatus
 import com.peterle95.financetracker.protocol.TRANSACTION_ACKNOWLEDGEMENTS_PATH
 import com.peterle95.financetracker.protocol.TRANSACTION_SUBMISSIONS_PATH
+import com.peterle95.financetracker.protocol.TransactionAcknowledgement
 import com.peterle95.financetracker.protocol.TransactionProtocolCodec
 import com.peterle95.financetracker.protocol.TransactionSubmission
+import com.peterle95.financetracker.watchcapture.WatchCaptureFormLogic
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
@@ -53,7 +58,10 @@ data class WatchOutboxRow(
 @Dao
 abstract class WatchOutboxDao {
     @Insert(onConflict = OnConflictStrategy.IGNORE)
-    abstract suspend fun insert(row: WatchOutboxRow)
+    abstract suspend fun insert(row: WatchOutboxRow): Long
+
+    @Query("SELECT * FROM watch_submission_outbox WHERE submissionId = :submissionId")
+    abstract suspend fun row(submissionId: String): WatchOutboxRow?
 
     @Query("SELECT * FROM watch_submission_outbox WHERE state = :state ORDER BY rowid")
     abstract suspend fun rows(state: String): List<WatchOutboxRow>
@@ -64,11 +72,25 @@ abstract class WatchOutboxDao {
     @Query("SELECT * FROM watch_submission_outbox WHERE state = :state ORDER BY rowid")
     abstract fun rowsFlow(state: String): Flow<List<WatchOutboxRow>>
 
-    @Query("UPDATE watch_submission_outbox SET state = :state, message = :message WHERE submissionId = :submissionId")
-    abstract suspend fun reject(submissionId: String, state: String, message: String?)
+    @Query("SELECT * FROM watch_submission_outbox WHERE state = :state ORDER BY rowid DESC LIMIT 1")
+    abstract fun latestRowFlow(state: String): Flow<WatchOutboxRow?>
 
-    @Query("UPDATE watch_submission_outbox SET state = :state, payload = NULL, message = NULL WHERE submissionId = :submissionId")
-    abstract suspend fun complete(submissionId: String, state: String)
+    @Query("UPDATE watch_submission_outbox SET state = :state, message = :message WHERE submissionId = :submissionId")
+    abstract suspend fun reject(submissionId: String, state: String, message: String?): Int
+
+    @Query("DELETE FROM watch_submission_outbox WHERE submissionId = :submissionId")
+    abstract suspend fun delete(submissionId: String): Int
+
+    @Query("DELETE FROM watch_submission_outbox WHERE submissionId = :submissionId AND state = :state")
+    abstract suspend fun delete(submissionId: String, state: String): Int
+
+    @Transaction
+    open suspend fun replaceRejected(oldSubmissionId: String, row: WatchOutboxRow): Boolean {
+        if (this.row(oldSubmissionId)?.state != REJECTED) return false
+        if (delete(oldSubmissionId, REJECTED) != 1) return false
+        require(insert(row) != -1L) { "Correction submission ID already exists." }
+        return true
+    }
 }
 
 @Database(entities = [WatchOutboxRow::class], version = 1, exportSchema = false)
@@ -95,6 +117,16 @@ class WatchOutbox(context: Context) {
         dao.insert(WatchOutboxRow(submission.submissionId.toString(), TransactionProtocolCodec.encodeSubmission(submission).decodeToString()))
     }
 
+    suspend fun replaceRejected(rejectedSubmissionId: String, submission: TransactionSubmission): Boolean {
+        migrateLegacy()
+        val replaced = dao.replaceRejected(
+            rejectedSubmissionId,
+            WatchOutboxRow(submission.submissionId.toString(), TransactionProtocolCodec.encodeSubmission(submission).decodeToString()),
+        )
+        if (replaced) setStatus("Sending transaction...")
+        return replaced
+    }
+
     suspend fun pending(): List<TransactionSubmission> {
         migrateLegacy()
         return dao.rows(PENDING).mapNotNull { row ->
@@ -114,23 +146,51 @@ class WatchOutbox(context: Context) {
         })
     }
 
+    fun outcomes(recoverySubmissionId: String?): Flow<TransactionAcknowledgement> = flow {
+        val recovered = preferences.getString(OUTCOME, null)?.encodeToByteArray()
+            ?.let(TransactionProtocolCodec::decodeAcknowledgement)
+            ?.takeIf { it.submissionId.toString() == recoverySubmissionId }
+        if (recovered != null) {
+            preferences.edit().remove(OUTCOME).commit()
+            emit(recovered)
+        }
+        emitAll(outcomeQueue.outcomes())
+    }
+
+    fun outcomeObserved(outcome: TransactionAcknowledgement) {
+        val persistedId = preferences.getString(OUTCOME, null)?.encodeToByteArray()
+            ?.let(TransactionProtocolCodec::decodeAcknowledgement)?.submissionId
+        if (persistedId == outcome.submissionId) preferences.edit().remove(OUTCOME).apply()
+    }
+
+    fun latestRejected(): Flow<WatchOutboxRow?> = dao.latestRowFlow(REJECTED)
+
     suspend fun acknowledge(payload: ByteArray) {
         migrateLegacy()
         val acknowledgement = TransactionProtocolCodec.decodeAcknowledgement(payload) ?: return
-        when (acknowledgement.status) {
+        val changed = transitionAcknowledgementRow(
+            acknowledgement,
+            row = { dao.row(it) },
+            delete = { dao.delete(it) == 1 },
+            reject = { id, message -> dao.reject(id, REJECTED, message) == 1 },
+        )
+        if (!changed) return
+        val status = when (acknowledgement.status) {
             AcknowledgementStatus.Accepted -> {
-                setStatus("Accepted")
-                dao.complete(acknowledgement.submissionId.toString(), ACCEPTED)
+                "Accepted"
             }
             AcknowledgementStatus.Duplicate -> {
-                setStatus("Already accepted")
-                dao.complete(acknowledgement.submissionId.toString(), DUPLICATE)
+                "Already accepted"
             }
             AcknowledgementStatus.Rejected -> {
-                setStatus(acknowledgement.message ?: "Rejected")
-                dao.reject(acknowledgement.submissionId.toString(), REJECTED, acknowledgement.message)
+                WatchCaptureFormLogic.rejectionText(acknowledgement.code, acknowledgement.message)
             }
         }
+        preferences.edit()
+            .putString(STATUS, status)
+            .putString(OUTCOME, TransactionProtocolCodec.encodeAcknowledgement(acknowledgement).decodeToString())
+            .commit()
+        outcomeQueue.send(acknowledgement)
     }
 
     private suspend fun migrateLegacy() = migrationMutex.withLock {
@@ -158,7 +218,19 @@ class WatchOutbox(context: Context) {
         const val PENDING_SUBMISSION = "pending_submission"
         const val LEGACY_STATUS = "status"
         const val STATUS = "delivery_status"
+        const val OUTCOME = "delivery_outcome"
         val migrationMutex = Mutex()
+        val outcomeQueue = WatchOutcomeQueue()
+    }
+}
+
+internal class WatchOutcomeQueue {
+    private val channel = Channel<TransactionAcknowledgement>(Channel.UNLIMITED)
+
+    fun outcomes(): Flow<TransactionAcknowledgement> = channel.receiveAsFlow()
+
+    fun send(outcome: TransactionAcknowledgement) {
+        check(channel.trySend(outcome).isSuccess)
     }
 }
 
@@ -220,6 +292,23 @@ class WatchSubmissionWorker(context: Context, parameters: WorkerParameters) : Co
 internal enum class DeliveryAttempt { NotNeeded, Failed, Succeeded }
 internal enum class DeliveryResult { Success, Retry }
 
+internal suspend fun transitionAcknowledgementRow(
+    acknowledgement: TransactionAcknowledgement,
+    row: suspend (String) -> WatchOutboxRow?,
+    delete: suspend (String) -> Boolean,
+    reject: suspend (String, String) -> Boolean,
+): Boolean {
+    val id = acknowledgement.submissionId.toString()
+    if (row(id) == null) return false
+    return when (acknowledgement.status) {
+        AcknowledgementStatus.Accepted, AcknowledgementStatus.Duplicate -> delete(id)
+        AcknowledgementStatus.Rejected -> reject(
+            id,
+            WatchCaptureFormLogic.rejectionText(acknowledgement.code, acknowledgement.message),
+        )
+    }
+}
+
 internal fun deliveryResult(attempt: DeliveryAttempt, hasPending: Boolean) =
     if (attempt != DeliveryAttempt.Failed && !hasPending) DeliveryResult.Success else DeliveryResult.Retry
 
@@ -245,7 +334,5 @@ class WearAcknowledgementListenerService : com.google.android.gms.wearable.Weara
 
 private const val PENDING = "pending"
 private const val REJECTED = "rejected"
-private const val ACCEPTED = "accepted"
-private const val DUPLICATE = "duplicate"
 private const val DELIVERY_WORK = "watch_submission_delivery"
 private const val DELIVERY_TIMEOUT_SECONDS = 20L

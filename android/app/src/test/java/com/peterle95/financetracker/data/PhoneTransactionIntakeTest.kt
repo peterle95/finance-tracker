@@ -154,9 +154,18 @@ class PhoneTransactionIntakeTest {
         )
 
         assertEquals(AcknowledgementStatus.Rejected, acknowledgement?.status)
+        assertEquals("invalid_submission", acknowledgement?.code)
+        assertEquals("Amount must be a positive finite number.", acknowledgement?.message)
         assertTrue(directory.writes.isEmpty())
         assertEquals(SubmissionOutcome.Rejected, ledger.entry(submission.submissionId)?.outcome)
         assertNull(ledger.entry(submission.submissionId)?.payload)
+
+        directory.clearWrites()
+        val retry = PhoneTransactionIntake(store, ledger).intake(submission)
+        assertEquals(AcknowledgementStatus.Rejected, retry?.status)
+        assertEquals("invalid_submission", retry?.code)
+        assertEquals("Amount must be a positive finite number.", retry?.message)
+        assertTrue(directory.writes.isEmpty())
     }
 
     @Test

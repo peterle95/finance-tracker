@@ -1,8 +1,10 @@
 package com.peterle95.financetracker.watchcapture
 
+import com.peterle95.financetracker.protocol.AcknowledgementStatus
 import com.peterle95.financetracker.protocol.CategorySnapshot
 import com.peterle95.financetracker.protocol.CategorySnapshotDefaults
 import com.peterle95.financetracker.protocol.SubmissionType
+import com.peterle95.financetracker.protocol.TransactionAcknowledgement
 import com.peterle95.financetracker.protocol.TransactionProtocolValidator
 import com.peterle95.financetracker.protocol.TransactionSubmission
 import java.time.LocalDate
@@ -31,6 +33,11 @@ object WatchCaptureSubmission {
         TransactionProtocolValidator.submissionError(submission)?.let { throw IllegalArgumentException(it) }
         return submission
     }
+
+    fun correct(input: WatchCaptureInput, rejectedSubmissionId: UUID, submissionId: UUID = UUID.randomUUID()): TransactionSubmission {
+        require(submissionId != rejectedSubmissionId) { "Correction must use a new submission ID." }
+        return create(input, submissionId)
+    }
 }
 
 data class WatchCaptureForm(
@@ -57,6 +64,28 @@ object WatchCaptureFormLogic {
     fun refreshCategory(form: WatchCaptureForm, snapshot: CategorySnapshot): WatchCaptureForm {
         val categories = categories(form, snapshot)
         return if (form.category in categories) form else form.copy(category = categories.firstOrNull().orEmpty())
+    }
+
+    fun applyOutcome(
+        form: WatchCaptureForm,
+        acknowledgement: TransactionAcknowledgement,
+        categories: CategorySnapshot,
+        today: String = LocalDate.now().toString(),
+    ) = if (acknowledgement.status == AcknowledgementStatus.Accepted) initial(categories, today) else form
+
+    fun shouldApplyOutcome(current: WatchCaptureForm, submitted: WatchCaptureForm) = current == submitted
+
+    fun shouldRestoreRejected(activeSubmissionId: String?, formTouched: Boolean) =
+        activeSubmissionId == null && !formTouched
+
+    fun rejectionText(code: String?, phoneMessage: String?): String {
+        val message = phoneMessage?.trim()?.takeUnless { it.equals("Rejected", ignoreCase = true) || it.equals("Rejected.", ignoreCase = true) }
+        return message ?: when (code) {
+            "invalid_submission" -> "Check the amount, category, date, and BNPL setting."
+            "unsupported_protocol" -> "Update the watch and phone apps."
+            null -> "Transaction rejected."
+            else -> "Transaction rejected ($code)."
+        }
     }
 
     fun amountError(value: String): String? =
