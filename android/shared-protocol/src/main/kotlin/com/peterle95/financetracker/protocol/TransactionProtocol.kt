@@ -1,6 +1,7 @@
 package com.peterle95.financetracker.protocol
 
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -14,7 +15,9 @@ import java.util.UUID
 
 const val TRANSACTION_SUBMISSIONS_PATH = "/finance/v1/transaction-submissions"
 const val TRANSACTION_ACKNOWLEDGEMENTS_PATH = "/finance/v1/transaction-acknowledgements"
+const val CATEGORIES_PATH = "/finance/v1/categories"
 const val PROTOCOL_VERSION = 1
+const val CATEGORY_SCHEMA_VERSION = 1
 
 enum class SubmissionType { Expense, Income }
 
@@ -38,6 +41,40 @@ data class TransactionAcknowledgement(
     val code: String? = null,
     val message: String? = null,
 )
+
+data class CategorySnapshot(
+    val schemaVersion: Int = CATEGORY_SCHEMA_VERSION,
+    val revision: Long,
+    val expenseCategories: List<String>,
+    val incomeCategories: List<String>,
+)
+
+object CategorySnapshotDefaults {
+    val expenseCategories = listOf("Food", "Transportation", "Entertainment", "Utilities", "Shopping", "Healthcare", "Money Lent", "Other")
+    val incomeCategories = listOf("Salary", "Side Gig", "Bonus", "Gift", "Investment", "Other")
+
+    fun snapshot() = CategorySnapshot(
+        revision = 0,
+        expenseCategories = expenseCategories,
+        incomeCategories = incomeCategories,
+    )
+}
+
+object CategorySnapshotValidator {
+    fun error(snapshot: CategorySnapshot): String? = when {
+        snapshot.schemaVersion != CATEGORY_SCHEMA_VERSION -> "Unsupported category schema version."
+        snapshot.revision < 0 -> "Category revision must not be negative."
+        invalid(snapshot.expenseCategories) || invalid(snapshot.incomeCategories) ->
+            "Categories must be unique, nonblank strings no longer than 100 characters."
+        else -> null
+    }
+
+    private fun invalid(categories: List<String>) =
+        categories.any { it.isBlank() || it.length > MAX_CATEGORY_LENGTH } ||
+            categories.distinctBy(String::lowercase).size != categories.size
+
+    private const val MAX_CATEGORY_LENGTH = 100
+}
 
 object TransactionProtocolValidator {
     fun submissionError(submission: TransactionSubmission): String? = when {
@@ -73,25 +110,28 @@ object TransactionProtocolCodec {
             put("description", submission.description.trim())
             put("transactionDate", submission.transactionDate)
             put("isBnpl", submission.isBnpl)
-        }).encodeToByteArray()
+        }).encodeToByteArray().also { require(it.size <= MAX_DATA_LAYER_PAYLOAD_BYTES) }
     }
 
-    fun decodeSubmission(payload: ByteArray): TransactionSubmission? = runCatching {
-        val value = json.parseToJsonElement(payload.decodeToString()) as? JsonObject ?: return null
-        if (value.keys != submissionKeys) return null
-        val amount = value["amount"]?.jsonPrimitive ?: return null
-        if (amount.isString) return null
-        TransactionSubmission(
-            protocolVersion = value.int("protocolVersion") ?: return null,
-            submissionId = UUID.fromString(value.string("submissionId") ?: return null),
-            type = SubmissionType.entries.firstOrNull { it.name == value.string("type") } ?: return null,
-            amount = amount.doubleOrNull ?: return null,
-            category = value.string("category") ?: return null,
-            description = value.string("description")?.trim() ?: return null,
-            transactionDate = value.string("transactionDate") ?: return null,
-            isBnpl = value["isBnpl"]?.jsonPrimitive?.booleanOrNull ?: return null,
-        ).takeIf { TransactionProtocolValidator.submissionError(it) == null }
-    }.getOrNull()
+    fun decodeSubmission(payload: ByteArray): TransactionSubmission? {
+        if (payload.size > MAX_DATA_LAYER_PAYLOAD_BYTES) return null
+        return runCatching {
+            val value = json.parseToJsonElement(payload.decodeToString()) as? JsonObject ?: return null
+            if (value.keys != submissionKeys) return null
+            val amount = value["amount"]?.jsonPrimitive ?: return null
+            if (amount.isString) return null
+            TransactionSubmission(
+                protocolVersion = value.int("protocolVersion") ?: return null,
+                submissionId = UUID.fromString(value.string("submissionId") ?: return null),
+                type = SubmissionType.entries.firstOrNull { it.name == value.string("type") } ?: return null,
+                amount = amount.doubleOrNull ?: return null,
+                category = value.string("category") ?: return null,
+                description = value.string("description")?.trim() ?: return null,
+                transactionDate = value.string("transactionDate") ?: return null,
+                isBnpl = value["isBnpl"]?.jsonPrimitive?.booleanOrNull ?: return null,
+            )
+        }.getOrNull()
+    }
 
     fun encodeAcknowledgement(acknowledgement: TransactionAcknowledgement): ByteArray {
         require(TransactionProtocolValidator.acknowledgementError(acknowledgement) == null)
@@ -116,15 +156,49 @@ object TransactionProtocolCodec {
         ).takeIf { TransactionProtocolValidator.acknowledgementError(it) == null }
     }.getOrNull()
 
+    fun encodeCategories(snapshot: CategorySnapshot): ByteArray {
+        require(CategorySnapshotValidator.error(snapshot) == null)
+        return json.encodeToString(JsonObject.serializer(), buildJsonObject {
+            put("schemaVersion", snapshot.schemaVersion)
+            put("revision", snapshot.revision)
+            put("expenseCategories", JsonArray(snapshot.expenseCategories.map(::JsonPrimitive)))
+            put("incomeCategories", JsonArray(snapshot.incomeCategories.map(::JsonPrimitive)))
+        }).encodeToByteArray().also { require(it.size <= MAX_DATA_LAYER_PAYLOAD_BYTES) }
+    }
+
+    fun decodeCategories(payload: ByteArray): CategorySnapshot? {
+        if (payload.size > MAX_DATA_LAYER_PAYLOAD_BYTES) return null
+        return runCatching {
+            val value = json.parseToJsonElement(payload.decodeToString()) as? JsonObject ?: return null
+            if (value.keys != categoryKeys) return null
+            CategorySnapshot(
+                schemaVersion = value.int("schemaVersion") ?: return null,
+                revision = value.long("revision") ?: return null,
+                expenseCategories = value.strings("expenseCategories") ?: return null,
+                incomeCategories = value.strings("incomeCategories") ?: return null,
+            ).takeIf { CategorySnapshotValidator.error(it) == null }
+        }.getOrNull()
+    }
+
     private fun JsonObject.string(name: String): String? =
         this[name]?.jsonPrimitive?.takeIf { it.isString }?.contentOrNull
 
     private fun JsonObject.int(name: String): Int? =
         this[name]?.jsonPrimitive?.takeUnless(JsonPrimitive::isString)?.contentOrNull?.toIntOrNull()
 
+    private fun JsonObject.long(name: String): Long? =
+        this[name]?.jsonPrimitive?.takeUnless(JsonPrimitive::isString)?.contentOrNull?.toLongOrNull()
+
+    private fun JsonObject.strings(name: String): List<String>? {
+        val values = this[name] as? JsonArray ?: return null
+        return values.map { it.jsonPrimitive.takeIf(JsonPrimitive::isString)?.contentOrNull ?: return null }
+    }
+
     private val submissionKeys = setOf(
         "protocolVersion", "submissionId", "type", "amount", "category", "description", "transactionDate", "isBnpl",
     )
     private val requiredAcknowledgementKeys = setOf("protocolVersion", "submissionId", "status")
     private val acknowledgementKeys = requiredAcknowledgementKeys + setOf("code", "message")
+    private val categoryKeys = setOf("schemaVersion", "revision", "expenseCategories", "incomeCategories")
+    private const val MAX_DATA_LAYER_PAYLOAD_BYTES = 100_000
 }

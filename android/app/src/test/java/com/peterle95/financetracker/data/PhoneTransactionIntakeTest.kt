@@ -160,6 +160,24 @@ class PhoneTransactionIntakeTest {
     }
 
     @Test
+    fun incomeUsesIncomeCategoryAndRejectsBnpl() = runBlocking {
+        val directory = InMemoryFinanceDirectory(mutableMapOf("finance_data.json" to legacy()))
+        val store = FinanceDirectoryStore(directory)
+        store.reload()
+        val intake = PhoneTransactionIntake(store, InMemorySubmissionLedger())
+        val income = submission(category = "Old income").copy(type = SubmissionType.Income, description = "  Pay  ")
+
+        assertEquals(AcknowledgementStatus.Accepted, intake.intake(income)?.status)
+        val row = directory.element("transactions_income_old-income.json").jsonArray.single().jsonObject
+        assertEquals("2026-08-11", row["date"]!!.jsonPrimitive.content)
+        assertEquals("Pay", row["description"]!!.jsonPrimitive.content)
+        assertEquals(
+            AcknowledgementStatus.Rejected,
+            intake.intake(income.copy(submissionId = UUID.randomUUID(), isBnpl = true))?.status,
+        )
+    }
+
+    @Test
     fun legacyLedgerRowsPreserveIdsAsPendingWithoutPayload() {
         val submissionId = UUID.randomUUID()
 

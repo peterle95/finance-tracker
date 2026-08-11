@@ -33,6 +33,7 @@ cd android
 - Do not add `--no-daemon`: this project still forks a single-use daemon for its JVM settings, making a cold run slower.
 - Allow 120 seconds before treating a compile as stuck. Initial Kotlin/KSP compilation takes 34-70 seconds here and can be silent while compiling.
 - If a Gradle command times out, inspect `./gradlew.bat --status` before starting another one. Do not run duplicate builds while its daemon is active.
+- Run Gradle from the main agent session, not a subagent, so compile progress and failures remain visible.
 
 ## Conventions
 

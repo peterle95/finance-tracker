@@ -16,10 +16,14 @@ import com.peterle95.financetracker.domain.TransactionType
 import com.peterle95.financetracker.protocol.AcknowledgementStatus
 import com.peterle95.financetracker.protocol.TransactionAcknowledgement
 import com.peterle95.financetracker.protocol.TransactionSubmission
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.serialization.json.JsonObject
@@ -36,6 +40,7 @@ class FinanceRepository(context: Context) {
     private var store: FinanceDirectoryStore? = null
     private var watchIntake: PhoneTransactionIntake? = null
     private val watchLedger = RoomSubmissionLedger(appContext)
+    private val categoryPublisher = CategorySnapshotPublisher(appContext)
 
     val transactions: Flow<List<FinanceTransaction>> = document.map { it.transactions }
     val categories: Flow<CategoryState> = document.map { it.categories }
@@ -70,6 +75,7 @@ class FinanceRepository(context: Context) {
             store = candidate
             watchIntake = null
             document.value = result.document
+            publishCategories(result.document.categories)
             _syncStatus.value = SyncedFileStatus(
                 uri = uri.toString(),
                 fileName = displayName(uri),
@@ -90,6 +96,7 @@ class FinanceRepository(context: Context) {
             store = activeStore
             watchIntake = null
             document.value = result.document
+            publishCategories(result.document.categories)
             _syncStatus.value = _syncStatus.value.copy(
                 uri = uri.toString(),
                 fileName = displayName(uri),
@@ -148,6 +155,7 @@ class FinanceRepository(context: Context) {
                 .intake(submission)
                 ?: return@withLock null
             document.value = activeStore.document.value
+            publishCategories(activeStore.document.value.categories)
             if (acknowledgement.status != AcknowledgementStatus.Rejected) {
                 _syncStatus.value = _syncStatus.value.copy(
                     uri = uri.toString(),
@@ -252,6 +260,7 @@ class FinanceRepository(context: Context) {
         val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also { store = it }
         runCatching { block(activeStore) }.onSuccess {
             document.value = activeStore.document.value
+            publishCategories(activeStore.document.value.categories)
             _syncStatus.value = _syncStatus.value.copy(
                 uri = uri.toString(),
                 fileName = displayName(uri),
@@ -281,6 +290,14 @@ class FinanceRepository(context: Context) {
     private suspend fun requireConfiguredTreeUri(): Uri = configuredTreeUriOrNull()
         ?: error("Connect a synced finance data directory in Settings first.")
 
+    private fun publishCategories(categories: CategoryState) {
+        check(categoryPublicationRequestSequence < Long.MAX_VALUE) { "Category publication request sequence exhausted." }
+        val requestSequence = ++categoryPublicationRequestSequence
+        publicationScope.launch {
+            runCatching { categoryPublisher.publish(categories, requestSequence) }
+        }
+    }
+
     private fun displayName(uri: Uri): String = uri.lastPathSegment?.substringAfterLast(':') ?: "Finance data directory"
 
     private fun nowText(): String =
@@ -288,5 +305,7 @@ class FinanceRepository(context: Context) {
 
     private companion object {
         val sharedMutex = Mutex()
+        val publicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+        var categoryPublicationRequestSequence = 0L
     }
 }

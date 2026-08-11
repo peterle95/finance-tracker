@@ -20,16 +20,20 @@ import androidx.work.WorkerParameters
 import com.google.android.gms.tasks.Tasks
 import com.google.android.gms.wearable.CapabilityClient
 import com.google.android.gms.wearable.Wearable
+import com.google.android.gms.wearable.DataEventBuffer
 import com.peterle95.financetracker.protocol.AcknowledgementStatus
 import com.peterle95.financetracker.protocol.TRANSACTION_ACKNOWLEDGEMENTS_PATH
 import com.peterle95.financetracker.protocol.TRANSACTION_SUBMISSIONS_PATH
 import com.peterle95.financetracker.protocol.TransactionProtocolCodec
 import com.peterle95.financetracker.protocol.TransactionSubmission
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -87,7 +91,7 @@ class WatchOutbox(context: Context) {
 
     suspend fun save(submission: TransactionSubmission) {
         migrateLegacy()
-        setStatus("Sending expense...")
+        setStatus("Sending transaction...")
         dao.insert(WatchOutboxRow(submission.submissionId.toString(), TransactionProtocolCodec.encodeSubmission(submission).decodeToString()))
     }
 
@@ -106,7 +110,7 @@ class WatchOutbox(context: Context) {
     fun status(): Flow<String> = flow {
         migrateLegacy()
         emitAll(dao.rowsFlow(PENDING).map { pending ->
-            if (pending.isNotEmpty()) "Sending expense..." else preferences.getString(STATUS, "Ready") ?: "Ready"
+            if (pending.isNotEmpty()) "Sending transaction..." else preferences.getString(STATUS, "Ready") ?: "Ready"
         })
     }
 
@@ -226,6 +230,16 @@ class WearAcknowledgementListenerService : com.google.android.gms.wearable.Weara
                 WatchOutbox(applicationContext).acknowledge(messageEvent.data)
             }
         }
+    }
+
+    override fun onDataChanged(dataEvents: DataEventBuffer) {
+        if (WatchCategoryCache.accept(applicationContext, dataEvents)) {
+            categoryRefreshScope.launch { runCatching { WatchCategoryCache.refresh(applicationContext) } }
+        }
+    }
+
+    private companion object {
+        private val categoryRefreshScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     }
 }
 
