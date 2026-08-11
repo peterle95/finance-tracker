@@ -24,19 +24,22 @@ import com.peterle95.financetracker.protocol.SubmissionType
 import com.peterle95.financetracker.watchcapture.WatchCaptureCategories
 import com.peterle95.financetracker.watchcapture.WatchCaptureInput
 import com.peterle95.financetracker.watchcapture.WatchCaptureSubmission
-import kotlinx.coroutines.delay
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 import java.time.LocalDate
 
 class WearMainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        val pending = PendingSubmissionStore(applicationContext)
-        val sender = WatchSubmissionSender(applicationContext, pending)
+        val outbox = WatchOutbox(applicationContext)
+        WatchDeliveryScheduler.schedule(applicationContext)
         setContent {
             var amount by rememberSaveable { mutableStateOf("") }
             var category by rememberSaveable { mutableStateOf(WatchCaptureCategories.expense.first()) }
-            var status by remember { mutableStateOf(pending.status()) }
-            var hasPending by remember { mutableStateOf(pending.pending() != null) }
+            var status by remember { mutableStateOf("Ready") }
+            var saving by remember { mutableStateOf(false) }
             MaterialTheme {
                 LazyColumn(modifier = Modifier.padding(8.dp)) {
                     item { Text("Record expense") }
@@ -55,6 +58,8 @@ class WearMainActivity : ComponentActivity() {
                     item {
                         Button(
                             onClick = {
+                                if (saving) return@Button
+                                saving = true
                                 runCatching {
                                     WatchCaptureSubmission.create(
                                         WatchCaptureInput(
@@ -64,30 +69,45 @@ class WearMainActivity : ComponentActivity() {
                                             description = "",
                                             date = LocalDate.now().toString(),
                                         ),
-                                    ).also(pending::save)
-                                }.onSuccess {
-                                    status = "Sending expense..."
-                                    hasPending = true
+                                    )
+                                }.onSuccess { submission ->
+                                    deliveryScope.launch {
+                                        runCatching {
+                                            outbox.save(submission)
+                                            WatchDeliveryScheduler.schedule(applicationContext)
+                                        }.onSuccess {
+                                            runOnUiThread {
+                                                if (!isDestroyed) {
+                                                    status = "Sending expense..."
+                                                    saving = false
+                                                }
+                                            }
+                                        }.onFailure {
+                                            runOnUiThread {
+                                                if (!isDestroyed) {
+                                                    status = it.message ?: "Could not save expense."
+                                                    saving = false
+                                                }
+                                            }
+                                        }
+                                    }
                                 }.onFailure {
                                     status = it.message ?: "Invalid expense."
+                                    saving = false
                                 }
                             },
-                            enabled = !hasPending,
+                            enabled = !saving,
                             modifier = Modifier.fillMaxWidth(),
                         ) { Text("Submit") }
                     }
                     item { Text(status, modifier = Modifier.padding(top = 8.dp)) }
                 }
             }
-            LaunchedEffect(hasPending) {
-                if (!hasPending) return@LaunchedEffect
-                status = runCatching { sender.sendPending() }.getOrElse { it.message ?: "Phone unavailable." }
-                while (pending.pending() != null) {
-                    delay(500)
-                    status = pending.status()
-                }
-                hasPending = false
+            LaunchedEffect(Unit) {
+                outbox.status().collect { status = it }
             }
         }
     }
 }
+
+private val deliveryScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)

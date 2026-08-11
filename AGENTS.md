@@ -27,6 +27,13 @@ cd android
 .\gradlew.bat test assembleDebug
 ```
 
+### Windows Gradle
+
+- Start with the smallest relevant task, for example: `.\gradlew.bat :app:testDebugUnitTest --tests com.peterle95.financetracker.data.PhoneTransactionIntakeTest --console=plain`.
+- Do not add `--no-daemon`: this project still forks a single-use daemon for its JVM settings, making a cold run slower.
+- Allow 120 seconds before treating a compile as stuck. Initial Kotlin/KSP compilation takes 34-70 seconds here and can be silent while compiling.
+- If a Gradle command times out, inspect `./gradlew.bat --status` before starting another one. Do not run duplicate builds while its daemon is active.
+
 ## Conventions
 
 - Python: PEP 8, Tkinter GUI, matplotlib charts, shared `AppState`

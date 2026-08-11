@@ -44,6 +44,7 @@ object TransactionProtocolValidator {
         submission.protocolVersion != PROTOCOL_VERSION -> "Unsupported protocol version."
         !submission.amount.isFinite() || submission.amount <= 0.0 -> "Amount must be a positive finite number."
         submission.category.isBlank() -> "Category is required."
+        submission.category.length > MAX_CATEGORY_LENGTH -> "Category is too long."
         !isIsoDate(submission.transactionDate) -> "Date must use YYYY-MM-DD."
         submission.isBnpl && submission.type != SubmissionType.Expense -> "BNPL is only available for expenses."
         else -> null
@@ -54,6 +55,8 @@ object TransactionProtocolValidator {
 
     private fun isIsoDate(value: String): Boolean =
         value.matches(Regex("\\d{4}-\\d{2}-\\d{2}")) && runCatching { LocalDate.parse(value) }.isSuccess
+
+    private const val MAX_CATEGORY_LENGTH = 100
 }
 
 object TransactionProtocolCodec {

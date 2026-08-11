@@ -41,6 +41,22 @@ class TransactionProtocolCodecTest {
     }
 
     @Test
+    fun categoryAllowsStaleLabelsButBoundsUntrustedInput() {
+        val submission = TransactionSubmission(
+            submissionId = UUID.randomUUID(),
+            type = SubmissionType.Expense,
+            amount = 1.0,
+            category = "Stale category",
+            description = "",
+            transactionDate = "2026-08-11",
+            isBnpl = false,
+        )
+
+        assertNull(TransactionProtocolValidator.submissionError(submission))
+        assertEquals("Category is too long.", TransactionProtocolValidator.submissionError(submission.copy(category = "a".repeat(101))))
+    }
+
+    @Test
     fun acknowledgementRoundTripsAndRejectsUnknownStatus() {
         val acknowledgement = TransactionAcknowledgement(
             submissionId = UUID.fromString("d2719dc4-0b6f-4a9f-a7ba-7bad97f57958"),

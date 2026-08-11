@@ -55,9 +55,10 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         description: String,
         behaviorDate: String?,
         transactionId: String = UUID.randomUUID().toString(),
+        allowUnregisteredCategory: Boolean = false,
     ) {
         require(transactionId.isNotBlank()) { "Transaction id is required." }
-        val target = categoryRecord(type, category)
+        val target = categoryRecord(type, category, allowUnregisteredCategory)
         val filename = transactionFilename(type, target.fileKey)
         val rows = readArray(filename).toMutableList()
         rows += buildJsonObject {
@@ -80,9 +81,15 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         publishLatest()
     }
 
-    suspend fun containsTransaction(exportId: String): Boolean = runCatching {
-        findTransaction(exportId)
-    }.isSuccess
+    suspend fun containsTransaction(exportId: String): Boolean {
+        val categories = readObject(CATEGORIES_FILE)
+        for (type in TransactionType.entries) {
+            for (record in categoryRecords(categories, type)) {
+                if (readArray(transactionFilename(type, record.fileKey)).any { it.idOrNull() == exportId }) return true
+            }
+        }
+        return false
+    }
 
     suspend fun updateTransaction(
         exportId: String,
@@ -398,9 +405,20 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         error("Transaction not found.")
     }
 
-    private suspend fun categoryRecord(type: TransactionType, name: String): CategoryRecord =
-        categoryRecords(readObject(CATEGORIES_FILE), type).firstOrNull { it.name.equals(name, true) }
-            ?: error("Unknown ${type.label} category: $name")
+    private suspend fun categoryRecord(type: TransactionType, name: String, allowUnregistered: Boolean = false): CategoryRecord {
+        val root = readObject(CATEGORIES_FILE)
+        val records = categoryRecords(root, type)
+        val trimmedName = name.trim()
+        records.firstOrNull { it.name.equals(trimmedName, true) }?.let { return it }
+        require(allowUnregistered) { "Unknown ${type.label} category: $name" }
+        val record = CategoryRecord(trimmedName, newFileKey(trimmedName, records))
+        writeVerified(transactionFilename(type, record.fileKey), JsonArray(emptyList()))
+        writeVerified(CATEGORIES_FILE, buildJsonObject {
+            root.forEach { (key, value) -> if (key != type.label) put(key, value) }
+            put(type.label, JsonArray((records + record).map(CategoryRecord::toJson)))
+        })
+        return record
+    }
 
     private suspend fun writeSettingsOwner(filename: String, keys: Set<String>, settings: JsonObject) {
         if (keys.isEmpty()) return

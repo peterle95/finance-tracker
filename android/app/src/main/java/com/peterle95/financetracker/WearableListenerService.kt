@@ -17,7 +17,7 @@ class WearableListenerService : com.google.android.gms.wearable.WearableListener
         if (messageEvent.path != TRANSACTION_SUBMISSIONS_PATH) return
         val submission = TransactionProtocolCodec.decodeSubmission(messageEvent.data) ?: return
         CoroutineScope(Dispatchers.IO).launch {
-            val acknowledgement = repository.intakeWatchSubmission(submission)
+            val acknowledgement = repository.intakeWatchSubmission(submission) ?: return@launch
             Wearable.getMessageClient(applicationContext).sendMessage(
                 messageEvent.sourceNodeId,
                 TRANSACTION_ACKNOWLEDGEMENTS_PATH,

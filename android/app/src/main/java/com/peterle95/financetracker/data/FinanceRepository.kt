@@ -35,7 +35,7 @@ class FinanceRepository(context: Context) {
     private val _syncStatus = MutableStateFlow(SyncedFileStatus())
     private var store: FinanceDirectoryStore? = null
     private var watchIntake: PhoneTransactionIntake? = null
-    private val watchLedger = SharedPreferencesSubmissionLedger(appContext)
+    private val watchLedger = RoomSubmissionLedger(appContext)
 
     val transactions: Flow<List<FinanceTransaction>> = document.map { it.transactions }
     val categories: Flow<CategoryState> = document.map { it.categories }
@@ -137,7 +137,7 @@ class FinanceRepository(context: Context) {
         it.setCategories(type, categories)
     }
 
-    suspend fun intakeWatchSubmission(submission: TransactionSubmission): TransactionAcknowledgement = mutex.withLock {
+    suspend fun intakeWatchSubmission(submission: TransactionSubmission): TransactionAcknowledgement? = mutex.withLock {
         try {
             val uri = requireConfiguredTreeUri()
             val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also {
@@ -146,6 +146,7 @@ class FinanceRepository(context: Context) {
             }
             val acknowledgement = (watchIntake ?: PhoneTransactionIntake(activeStore, watchLedger).also { watchIntake = it })
                 .intake(submission)
+                ?: return@withLock null
             document.value = activeStore.document.value
             if (acknowledgement.status != AcknowledgementStatus.Rejected) {
                 _syncStatus.value = _syncStatus.value.copy(
@@ -159,12 +160,7 @@ class FinanceRepository(context: Context) {
             }
             acknowledgement
         } catch (error: Throwable) {
-            TransactionAcknowledgement(
-                submissionId = submission.submissionId,
-                status = AcknowledgementStatus.Rejected,
-                code = "write_failed",
-                message = error.message ?: "Could not write transaction.",
-            )
+            null
         }
     }
 
