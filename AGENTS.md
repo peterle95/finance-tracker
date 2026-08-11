@@ -2,7 +2,7 @@
 
 ## Project
 
-Personal finance tracker — Python/Tkinter desktop + Android (Kotlin/Jetpack Compose). Shared `finance_data.json` via Syncthing.
+Personal finance tracker with Python/Tkinter, Electron/React, and Android clients. They share a synchronized split JSON directory.
 
 ## Commands
 
@@ -10,14 +10,30 @@ Personal finance tracker — Python/Tkinter desktop + Android (Kotlin/Jetpack Co
 # Desktop
 pip install -r requirements.txt
 python run.py
-FINANCE_DATA_FILE=/path/to/data.json python run.py
+FINANCE_DATA_DIR=/path/to/FinanceTrackerData python run.py
+
+# Python persistence tests
+python -m unittest tests.test_persistence
+
+# Modern desktop
+cd modern-desktop
+npm install
+npm run typecheck
+npm test
+npm run build
+
+# Android (Windows; use ./gradlew on Unix)
+cd android
+.\gradlew.bat test assembleDebug
 ```
 
 ## Conventions
 
-- Python: PEP 8, single `FinanceTracker` class, tkinter GUI, matplotlib charts
+- Python: PEP 8, Tkinter GUI, matplotlib charts, shared `AppState`
+- Modern desktop: Electron 43, React 19, TypeScript, Vite, Tailwind
 - Android: Kotlin + Jetpack Compose + Material 3, MVVM, kotlinx.serialization
 - Data schema shared: `/shared/finance_data_schema.md`
+- Live data is the complete shared directory; `finance_data.json` and `FINANCE_DATA_FILE` are migration compatibility only
 - BNPL: `date` = 1st of next month, `behavior_date` = real spend date
 - No emoji in code/commits
 - Keep responses short, caveman-style when possible
@@ -27,16 +43,18 @@ FINANCE_DATA_FILE=/path/to/data.json python run.py
 | File | Purpose |
 |------|---------|
 | `run.py` | Desktop entry point |
-| `finance_tracker/` | Desktop app package |
+| `finance_tracker/state.py` | Python split-data persistence |
+| `modern-desktop/` | Electron/React desktop client |
 | `android/` | Android app |
+| `android/app/src/main/java/com/peterle95/financetracker/data/FinanceDirectoryStore.kt` | Android split-data persistence |
 | `shared/finance_data_schema.md` | Cross-platform data contract |
-| `finance_data.json` | Data (gitignored) |
+| `categories.json` | Live category registry and transaction-file map (gitignored) |
 
 ## Rules
 
 - Read relevant files before editing
 - Match existing code style — don't add comments
-- Verify with `python run.py` or Android Studio build
+- Verify the affected client with the commands above
 - Never commit unless asked
 
 ## Agent skills

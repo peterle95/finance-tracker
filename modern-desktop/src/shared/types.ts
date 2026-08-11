@@ -97,6 +97,7 @@ export interface DataConnection {
 export interface DataLoadResult {
   document: FinanceDocument | null;
   connection: DataConnection;
+  warnings?: string[];
 }
 
 export type ReconciliationStatus = "matched" | "possible" | "missing";
@@ -131,7 +132,7 @@ export interface FinanceApi {
   load(): Promise<DataLoadResult>;
   chooseDataFile(): Promise<DataLoadResult>;
   createDataFile(): Promise<DataLoadResult>;
-  saveDocument(document: FinanceDocument): Promise<DataLoadResult>;
+  saveDocument(previous: FinanceDocument, document: FinanceDocument): Promise<DataLoadResult>;
   chooseBankCsv(): Promise<CsvImportResult | null>;
   exportText(defaultName: string, text: string): Promise<string | null>;
 }

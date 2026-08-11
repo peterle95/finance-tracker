@@ -265,13 +265,16 @@ class BudgetsTab:
         if cat.lower() == "other":
             messagebox.showerror("Error", "Cannot delete the 'Other' category.")
             return
-        if not messagebox.askyesno("Confirm", f"Delete '{cat}'? Existing transactions won't be changed."):
+        if not messagebox.askyesno("Confirm", f"Delete '{cat}'? Categories with transactions cannot be deleted."):
             return
         self.state.categories[cat_type].remove(cat)
         budgets = self.state.budget_settings['category_budgets'].get(cat_type, {})
         if cat in budgets:
             del budgets[cat]
-        self.state.save()
+        try:
+            self.state.save()
+        except ValueError as error:
+            messagebox.showerror("Cannot delete category", str(error))
         self._create_budget_sliders()
 
     def save_budgets(self):

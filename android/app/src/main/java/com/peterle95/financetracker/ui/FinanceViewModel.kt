@@ -440,14 +440,14 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun connectSyncedFile(uri: Uri) {
+    fun connectSyncedDirectory(uri: Uri) {
         viewModelScope.launch {
             runCatching {
-                repository.connectSyncedFile(uri)
+                repository.connectSyncedDirectory(uri)
             }.onSuccess {
-                messages.emit("Connected finance_data.json.")
+                messages.emit("Connected synced finance data directory.")
             }.onFailure {
-                messages.emit(it.message ?: "Could not connect file.")
+                messages.emit(it.message ?: "Could not connect directory.")
             }
         }
     }
@@ -457,7 +457,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             runCatching {
                 repository.loadConfiguredFileIfAny()
             }.onSuccess {
-                if (showMessage) messages.emit("Reloaded synced file.")
+                if (showMessage) messages.emit("Reloaded synced directory.")
             }.onFailure {
                 if (showMessage) messages.emit(it.message ?: "Reload failed.")
             }
