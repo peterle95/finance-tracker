@@ -1,0 +1,16 @@
+---
+type: domain services
+title: Python domain services
+description: Calculation and integration services used by Python feature tabs, including budgeting, reports, reconciliation, goals, projections, asset tracking, currency, and AI insights.
+tags: [python, domain, services]
+---
+
+# Python domain services
+
+The tabs are orchestration surfaces around `AppState`: `budgets_tab.py` calls `budget_calculator.py`; `reports_tab.py` calls `report_builder.py`; `reconciliation_tab.py` calls `reconciliation_service.py`; `goals_tab.py` calls `goals_service.py`; `projection_tab.py` calls `projection_service.py`; `net_worth_tab.py` calls `asset_tracking_service.py`; and `ai_insights_tab.py` calls `ai_insights_service.py`. Transaction/settings tabs mutate state directly.
+
+`budget_calculator.py` accepts `YYYY-MM` months. Income and fixed-cost records are active when their start/end dates overlap that month; missing `end_date` means ongoing, while missing `start_date` defaults to the legacy baseline `2000-01-01` during state normalization. Missing `start_date` is normalized to `2000-01-01`; missing `end_date` is treated as open-ended; a missing entire record contributes zero. If a present date is malformed, the comparison helper returns false, so that income/fixed-cost row is inactive and contributes zero for the month; an invalid end date therefore cannot extend activity. Invalid `YYYY-MM` inputs are not recovered by the service and should be rejected by the caller. Net available subtracts active fixed costs and daily savings, then applies negative carryover from the prior month; daily budget divides the result by the requested month's day count. `report_builder.py` generates pie, history, and line series with optional recurring/base-income inclusion.
+
+`reconciliation_service.py` detects UTF-8/Latin-1/CP1252 and comma/semicolon/tab separators, finds German bank columns, parses decimal-comma amounts and dates, suggests categories from payee/purpose keywords, and matches amounts within €0.02 using exact or up-to-three-day dates. `goals_service.py` rejects allocations beyond available savings and distributes by priority; `asset_tracking_service.py` replaces snapshots by date, computes balances/net worth, and supplies net-worth-tab reports; `projection_service.py` builds target-savings and historical net-worth-change text; `currency_service.py` parses/format euro amounts for editors; `ai_insights_service.py` aggregates month windows and sends configurable prompts, propagating HTTP/config errors.
+
+There is no broad Python service unit suite and no named automated test case for date handling: `tests/test_persistence.py` covers state/file invariants and migration, not service formulas. The concrete integration callers are `BudgetsTab`/`ReportsTab`/`ReconciliationTab`/`GoalsTab`/`ProjectionTab`/`NetWorthTab`/`AIInsightsTab`; use their manual UI paths to exercise date defaults, zero contribution from malformed dates, AI failure display, reconciliation application, goals allocation, snapshots, and projection. This absence of focused service tests is itself a validation boundary when changing these modules. Parallel formulas are tested in `modern-desktop/src/shared/*test.ts` and Android domain tests.
