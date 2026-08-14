@@ -72,12 +72,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     val messages = MutableSharedFlow<String>()
 
-    init {
-        viewModelScope.launch {
-            runCatching { repository.loadConfiguredFileIfAny() }
-        }
-    }
-
     fun addTransaction(
         type: TransactionType,
         amountText: String,

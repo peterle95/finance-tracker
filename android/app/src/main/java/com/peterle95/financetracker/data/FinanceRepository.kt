@@ -26,6 +26,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
@@ -63,55 +64,59 @@ class FinanceRepository(context: Context) {
         reloadConnectedFile()
     }
 
-    suspend fun connectSyncedDirectory(uri: Uri) = mutex.withLock {
-        require(uri.scheme == ContentResolver.SCHEME_CONTENT && DocumentsContract.isTreeUri(uri)) {
-            "Choose the synced finance data directory through Android's directory picker."
-        }
-        val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
-        contentResolver.takePersistableUriPermission(uri, flags)
-        val candidate = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
-        runCatching { candidate.reload() }.onSuccess { result ->
-            settingsDataStore.setSyncedTreeUri(uri.toString())
-            store = candidate
-            watchIntake = null
-            document.value = result.document
-            publishCategories(result.document.categories)
-            _syncStatus.value = SyncedFileStatus(
-                uri = uri.toString(),
-                fileName = displayName(uri),
-                lastLoadedAt = nowText(),
-                lastWrittenAt = if (result.migratedLegacy) nowText() else null,
-                warnings = result.warnings,
-            )
-        }.onFailure { error ->
-            _syncStatus.value = _syncStatus.value.copy(lastError = error.message ?: "Could not connect directory.")
-            throw error
+    suspend fun connectSyncedDirectory(uri: Uri) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            require(uri.scheme == ContentResolver.SCHEME_CONTENT && DocumentsContract.isTreeUri(uri)) {
+                "Choose the synced finance data directory through Android's directory picker."
+            }
+            val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            contentResolver.takePersistableUriPermission(uri, flags)
+            val candidate = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
+            runCatching { candidate.reload() }.onSuccess { result ->
+                settingsDataStore.setSyncedTreeUri(uri.toString())
+                store = candidate
+                watchIntake = null
+                document.value = result.document
+                publishCategories(result.document.categories)
+                _syncStatus.value = SyncedFileStatus(
+                    uri = uri.toString(),
+                    fileName = displayName(uri),
+                    lastLoadedAt = nowText(),
+                    lastWrittenAt = if (result.migratedLegacy) nowText() else null,
+                    warnings = result.warnings,
+                )
+            }.onFailure { error ->
+                _syncStatus.value = _syncStatus.value.copy(lastError = error.message ?: "Could not connect directory.")
+                throw error
+            }
         }
     }
 
-    suspend fun reloadConnectedFile() = mutex.withLock {
-        val uri = requireConfiguredTreeUri()
-        val activeStore = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
-        runCatching { activeStore.reload() }.onSuccess { result ->
-            store = activeStore
-            watchIntake = null
-            document.value = result.document
-            publishCategories(result.document.categories)
-            _syncStatus.value = _syncStatus.value.copy(
-                uri = uri.toString(),
-                fileName = displayName(uri),
-                lastLoadedAt = nowText(),
-                lastWrittenAt = if (result.migratedLegacy) nowText() else _syncStatus.value.lastWrittenAt,
-                lastError = null,
-                warnings = result.warnings,
-            )
-        }.onFailure { error ->
-            _syncStatus.value = _syncStatus.value.copy(
-                uri = uri.toString(),
-                fileName = displayName(uri),
-                lastError = error.message ?: "Could not reload synced directory.",
-            )
-            throw error
+    suspend fun reloadConnectedFile() = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val uri = requireConfiguredTreeUri()
+            val activeStore = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
+            runCatching { activeStore.reload() }.onSuccess { result ->
+                store = activeStore
+                watchIntake = null
+                document.value = result.document
+                publishCategories(result.document.categories)
+                _syncStatus.value = _syncStatus.value.copy(
+                    uri = uri.toString(),
+                    fileName = displayName(uri),
+                    lastLoadedAt = nowText(),
+                    lastWrittenAt = if (result.migratedLegacy) nowText() else _syncStatus.value.lastWrittenAt,
+                    lastError = null,
+                    warnings = result.warnings,
+                )
+            }.onFailure { error ->
+                _syncStatus.value = _syncStatus.value.copy(
+                    uri = uri.toString(),
+                    fileName = displayName(uri),
+                    lastError = error.message ?: "Could not reload synced directory.",
+                )
+                throw error
+            }
         }
     }
 
@@ -144,33 +149,36 @@ class FinanceRepository(context: Context) {
         it.setCategories(type, categories)
     }
 
-    suspend fun intakeWatchSubmission(submission: TransactionSubmission): TransactionAcknowledgement? = mutex.withLock {
-        try {
-            val uri = requireConfiguredTreeUri()
-            val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also {
-                it.reload()
-                store = it
+    suspend fun intakeWatchSubmission(submission: TransactionSubmission): TransactionAcknowledgement? =
+        withContext(Dispatchers.IO) {
+            mutex.withLock {
+                try {
+                    val uri = requireConfiguredTreeUri()
+                    val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also {
+                        it.reload()
+                        store = it
+                    }
+                    val acknowledgement = (watchIntake ?: PhoneTransactionIntake(activeStore, watchLedger).also { watchIntake = it })
+                        .intake(submission)
+                        ?: return@withLock null
+                    document.value = activeStore.document.value
+                    publishCategories(activeStore.document.value.categories)
+                    if (acknowledgement.status != AcknowledgementStatus.Rejected) {
+                        _syncStatus.value = _syncStatus.value.copy(
+                            uri = uri.toString(),
+                            fileName = displayName(uri),
+                            lastLoadedAt = nowText(),
+                            lastWrittenAt = if (acknowledgement.status == AcknowledgementStatus.Accepted) nowText() else _syncStatus.value.lastWrittenAt,
+                            lastError = null,
+                            warnings = activeStore.warnings(),
+                        )
+                    }
+                    acknowledgement
+                } catch (error: Throwable) {
+                    null
+                }
             }
-            val acknowledgement = (watchIntake ?: PhoneTransactionIntake(activeStore, watchLedger).also { watchIntake = it })
-                .intake(submission)
-                ?: return@withLock null
-            document.value = activeStore.document.value
-            publishCategories(activeStore.document.value.categories)
-            if (acknowledgement.status != AcknowledgementStatus.Rejected) {
-                _syncStatus.value = _syncStatus.value.copy(
-                    uri = uri.toString(),
-                    fileName = displayName(uri),
-                    lastLoadedAt = nowText(),
-                    lastWrittenAt = if (acknowledgement.status == AcknowledgementStatus.Accepted) nowText() else _syncStatus.value.lastWrittenAt,
-                    lastError = null,
-                    warnings = activeStore.warnings(),
-                )
-            }
-            acknowledgement
-        } catch (error: Throwable) {
-            null
         }
-    }
 
     suspend fun updateBalances(bank: Double, wallet: Double, savings: Double, investments: Double) =
         mutateOwner(FileOwner.NetWorth) { latest ->
@@ -255,27 +263,29 @@ class FinanceRepository(context: Context) {
         it.mutateOwner(owner, transform)
     }
 
-    private suspend fun mutate(block: suspend (FinanceDirectoryStore) -> Unit) = mutex.withLock {
-        val uri = requireConfiguredTreeUri()
-        val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also { store = it }
-        runCatching { block(activeStore) }.onSuccess {
-            document.value = activeStore.document.value
-            publishCategories(activeStore.document.value.categories)
-            _syncStatus.value = _syncStatus.value.copy(
-                uri = uri.toString(),
-                fileName = displayName(uri),
-                lastLoadedAt = nowText(),
-                lastWrittenAt = nowText(),
-                lastError = null,
-                warnings = activeStore.warnings(),
-            )
-        }.onFailure { error ->
-            _syncStatus.value = _syncStatus.value.copy(
-                uri = uri.toString(),
-                fileName = displayName(uri),
-                lastError = error.message ?: "Could not write synced directory.",
-            )
-            throw error
+    private suspend fun mutate(block: suspend (FinanceDirectoryStore) -> Unit) = withContext(Dispatchers.IO) {
+        mutex.withLock {
+            val uri = requireConfiguredTreeUri()
+            val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also { store = it }
+            runCatching { block(activeStore) }.onSuccess {
+                document.value = activeStore.document.value
+                publishCategories(activeStore.document.value.categories)
+                _syncStatus.value = _syncStatus.value.copy(
+                    uri = uri.toString(),
+                    fileName = displayName(uri),
+                    lastLoadedAt = nowText(),
+                    lastWrittenAt = nowText(),
+                    lastError = null,
+                    warnings = activeStore.warnings(),
+                )
+            }.onFailure { error ->
+                _syncStatus.value = _syncStatus.value.copy(
+                    uri = uri.toString(),
+                    fileName = displayName(uri),
+                    lastError = error.message ?: "Could not write synced directory.",
+                )
+                throw error
+            }
         }
     }
 
