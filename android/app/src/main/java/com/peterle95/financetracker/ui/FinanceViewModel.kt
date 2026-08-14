@@ -72,12 +72,6 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
 
     val messages = MutableSharedFlow<String>()
 
-    init {
-        viewModelScope.launch {
-            runCatching { repository.loadConfiguredFileIfAny() }
-        }
-    }
-
     fun addTransaction(
         type: TransactionType,
         amountText: String,
@@ -166,7 +160,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             }.onSuccess {
                 messages.emit("Categories updated.")
             }.onFailure {
-                messages.emit(it.message ?: "Could not update categories.")
+                messages.emit(
+                    if (it.message?.startsWith("Cannot delete category with transactions:") == true) {
+                        "Move or delete this category's transactions first."
+                    } else {
+                        it.message ?: "Could not update categories."
+                    },
+                )
             }
         }
     }
@@ -440,14 +440,14 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
-    fun connectSyncedFile(uri: Uri) {
+    fun connectSyncedDirectory(uri: Uri) {
         viewModelScope.launch {
             runCatching {
-                repository.connectSyncedFile(uri)
+                repository.connectSyncedDirectory(uri)
             }.onSuccess {
-                messages.emit("Connected finance_data.json.")
+                messages.emit("Connected synced finance data directory.")
             }.onFailure {
-                messages.emit(it.message ?: "Could not connect file.")
+                messages.emit(it.message ?: "Could not connect directory.")
             }
         }
     }
@@ -457,7 +457,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
             runCatching {
                 repository.loadConfiguredFileIfAny()
             }.onSuccess {
-                if (showMessage) messages.emit("Reloaded synced file.")
+                if (showMessage) messages.emit("Reloaded synced directory.")
             }.onFailure {
                 if (showMessage) messages.emit(it.message ?: "Reload failed.")
             }

@@ -1,23 +1,8 @@
 package com.peterle95.financetracker.domain
 
-object CategoryDefaults {
-    val expense = listOf(
-        "Food",
-        "Transportation",
-        "Entertainment",
-        "Utilities",
-        "Shopping",
-        "Healthcare",
-        "Money Lent",
-        "Other",
-    )
+import com.peterle95.financetracker.protocol.CategorySnapshotDefaults
 
-    val income = listOf(
-        "Salary",
-        "Side Gig",
-        "Bonus",
-        "Gift",
-        "Investment",
-        "Other",
-    )
+object CategoryDefaults {
+    val expense = CategorySnapshotDefaults.expenseCategories
+    val income = CategorySnapshotDefaults.incomeCategories
 }

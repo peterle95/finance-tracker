@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Delete
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.FilterChip
@@ -20,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -37,9 +39,10 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
     val syncStatus by viewModel.syncStatus.collectAsState()
     var type by remember { mutableStateOf(TransactionType.Expense) }
     var newCategory by remember { mutableStateOf("") }
+    var categoryToDelete by remember { mutableStateOf<String?>(null) }
     val current = categories.forType(type)
-    val connectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        uri?.let(viewModel::connectSyncedFile)
+    val connectLauncher = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocumentTree()) { uri ->
+        uri?.let(viewModel::connectSyncedDirectory)
     }
 
     Column(
@@ -59,16 +62,16 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
             }
         }
         Button(
-            onClick = { connectLauncher.launch(arrayOf("application/json")) },
+            onClick = { connectLauncher.launch(null) },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Connect synced finance_data.json")
+            Text("Connect synced finance data directory")
         }
         Button(
             onClick = { viewModel.reloadFromSyncedFile() },
             modifier = Modifier.fillMaxWidth(),
         ) {
-            Text("Reload from synced file")
+            Text("Reload from synced directory")
         }
         Card {
             Column(
@@ -77,11 +80,12 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
                     .padding(12.dp),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text("Synced file", style = MaterialTheme.typography.titleMedium)
-                Text("Connected file: ${syncStatus.fileName ?: "Not connected"}")
+                Text("Synced directory", style = MaterialTheme.typography.titleMedium)
+                Text("Connected directory: ${syncStatus.fileName ?: "Not connected"}")
                 Text("Last loaded: ${syncStatus.lastLoadedAt ?: "Never"}")
                 Text("Last written: ${syncStatus.lastWrittenAt ?: "Never"}")
                 syncStatus.lastError?.let { Text("Last error: $it", color = MaterialTheme.colorScheme.error) }
+                syncStatus.warnings.forEach { Text(it, color = MaterialTheme.colorScheme.error) }
             }
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -114,12 +118,34 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
                         horizontalArrangement = Arrangement.SpaceBetween,
                     ) {
                         Text(category, modifier = Modifier.weight(1f))
-                        IconButton(onClick = { viewModel.setCategories(type, current - category) }) {
+                        IconButton(onClick = { categoryToDelete = category }) {
                             Icon(Icons.Outlined.Delete, contentDescription = "Delete")
                         }
                     }
                 }
             }
         }
+    }
+    categoryToDelete?.let { category ->
+        AlertDialog(
+            onDismissRequest = { categoryToDelete = null },
+            title = { Text("Delete category?") },
+            text = { Text("Delete $category? Its empty transaction file will be removed.") },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.setCategories(type, current - category)
+                        categoryToDelete = null
+                    },
+                ) {
+                    Text("Delete")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { categoryToDelete = null }) {
+                    Text("Cancel")
+                }
+            },
+        )
     }
 }

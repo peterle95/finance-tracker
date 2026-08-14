@@ -1,5 +1,32 @@
-# Finance data files
-*finance_data*
+# Finance data files (root and default shared directory only)
+/finance_data.json
+/finance_data_*.json
+/finance_data.*.json
+/finance_copy.json
+/shared/finance_data.json
+/shared/finance_data_*.json
+/shared/finance_data.*.json
+/shared/finance_copy.json
+/categories.json
+/budget.json
+/net_worth.json
+/loans.json
+/savings_goals.json
+/preferences.json
+/shared/categories.json
+/shared/budget.json
+/shared/net_worth.json
+/shared/loans.json
+/shared/savings_goals.json
+/shared/preferences.json
+/transactions_expense_*.json
+/transactions_income_*.json
+/shared/transactions_expense_*.json
+/shared/transactions_income_*.json
+/.transactions_expense_*.json.*.tmp
+/.transactions_income_*.json.*.tmp
+/shared/.transactions_expense_*.json.*.tmp
+/shared/.transactions_income_*.json.*.tmp
 
 future_implementations.txt
 /reports

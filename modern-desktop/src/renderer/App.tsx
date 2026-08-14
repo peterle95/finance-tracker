@@ -99,6 +99,7 @@ export function App() {
   function applyLoadResult(result: DataLoadResult) {
     setDocument(result.document);
     setConnection(result.connection);
+    setToast(result.warnings?.join(" ") ?? "");
     setLoading(false);
   }
 
@@ -129,14 +130,19 @@ export function App() {
   }
 
   async function persist(next: FinanceDocument) {
+    if (!financeDocument) {
+      return;
+    }
+    const previous = financeDocument;
     setDocument(next);
     setSaving(true);
     try {
-      const result = await window.finance.saveDocument(next);
+      const result = await window.finance.saveDocument(previous, next);
       setDocument(result.document);
       setConnection(result.connection);
       setToast("Saved to the shared finance file.");
     } catch (error) {
+      setDocument(previous);
       setToast(error instanceof Error ? error.message : "Save failed. Reload the file before trying again.");
     } finally {
       setSaving(false);
@@ -203,14 +209,14 @@ export function App() {
         <section className="connect-card">
           <div className="brand-mark">F</div>
           <p className="eyebrow">Finance Tracker Modern</p>
-          <h1>Connect your shared finance file</h1>
-          <p>Choose the existing <code>finance_data.json</code> used by the Python and Android apps, or create a fresh file.</p>
+          <h1>Connect your shared finance directory</h1>
+          <p>Choose a directory containing modern finance data files or a legacy <code>finance_data.json</code> to migrate.</p>
           {connection.message ? <p className="error-copy">{connection.message}</p> : null}
           <div className="connect-actions">
-            <Button onClick={() => void chooseDataFile()}>Choose finance_data.json</Button>
-            <Button variant="secondary" onClick={() => void createDataFile()}>Create new file</Button>
+            <Button onClick={() => void chooseDataFile()}>Choose data directory</Button>
+            <Button variant="secondary" onClick={() => void createDataFile()}>Create in directory</Button>
           </div>
-          <small>The original Python app stays unchanged. This app reads and writes the same JSON contract.</small>
+          <small>Legacy finance_data.json files are left untouched after migration.</small>
         </section>
       </main>
     );

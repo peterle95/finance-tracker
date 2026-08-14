@@ -1,10 +1,8 @@
 # Finance Tracker
 
-A personal finance tracker with a Python/Tkinter desktop app and an Android MVP for adding and reviewing transactions on a phone.
+Personal finance tracker with Python/Tkinter, Electron/React, and Android/Jetpack Compose clients. All clients use the split JSON directory contract in [`shared/finance_data_schema.md`](shared/finance_data_schema.md).
 
-## Desktop App
-
-The desktop app remains the source-compatible Python application.
+## Python desktop
 
 ```bash
 python -m venv venv
@@ -13,71 +11,48 @@ pip install -r requirements.txt
 python run.py
 ```
 
-On Windows, activate the virtual environment with `venv\Scripts\activate`.
-
-Desktop data is stored in `finance_data.json` at the repo root. That file is intentionally ignored by git.
-
-You can point the desktop app at a synced data file with `FINANCE_DATA_FILE`.
-
-Windows PowerShell:
+On Windows, activate with `venv\Scripts\activate`. By default the app uses `shared/`. To use Syncthing:
 
 ```powershell
-$env:FINANCE_DATA_FILE="C:\Users\Peter\Syncthing\FinanceTrackerData\finance_data.json"
+$env:FINANCE_DATA_DIR="C:\Users\Peter\Syncthing\FinanceTrackerData"
 python run.py
 ```
-
-macOS/Linux:
 
 ```bash
-export FINANCE_DATA_FILE="$HOME/Syncthing/FinanceTrackerData/finance_data.json"
+export FINANCE_DATA_DIR="$HOME/Syncthing/FinanceTrackerData"
 python run.py
 ```
 
-## Modern Desktop App
+`FINANCE_DATA_FILE` is retained only to locate and migrate a legacy monolithic file. New setups use `FINANCE_DATA_DIR`.
 
-The separate Electron + React desktop replacement lives in /modern-desktop. It leaves the Python/Tkinter app intact while reading and writing the same finance_data.json file.
+## Modern desktop
 
-~~~powershell
+```bash
 cd modern-desktop
 npm install
 npm run dev
-~~~
+```
 
-See /modern-desktop/README.md for the data-connection workflow, tests, and Windows installer build.
+Choose the shared finance data **directory** on first launch. The app remembers it. See [`modern-desktop/README.md`](modern-desktop/README.md) for checks and packaging.
 
-## Android App Status
+## Android
 
-The Android MVP lives in `/android`.
+Open `android/` in Android Studio, let Gradle sync, and run the `app` configuration. In Settings choose **Connect synced directory**, then select the Syncthing folder with Android's directory picker. The app persists tree access and reloads on startup and resume.
 
-It includes:
+Command-line verification from `android/`:
 
-- Kotlin and Jetpack Compose UI.
-- Material 3 screens for Dashboard, Add, Transactions, and Settings.
-- Direct read/write access to one synced `finance_data.json` file through Android's Storage Access Framework.
-- DataStore app settings for the connected file URI.
-- JSON compatibility with the Python desktop app through kotlinx.serialization.
-- BNPL / pay-next-month expense entry that stores the real spending date and books the expense on the 1st of the next month.
-- Transactions filtering by booking month, category, type, and description search.
+```powershell
+.\gradlew.bat test assembleDebug
+```
 
-Open `/android` in Android Studio, let Gradle sync, then run the `app` configuration on an emulator or Android phone.
+## Syncthing setup
 
-On Windows, Gradle is most reliable when the project is opened from a normal Windows path. If the repo is under `\\wsl.localhost` and Gradle reports a file hashing `Incorrect function` error, copy or clone the repo to a Windows filesystem path for Android Studio, or build from inside WSL with a Linux JDK and Android SDK.
+1. Create a folder such as `FinanceTrackerData` and enable file versioning.
+2. Put the complete split set directly in it: `categories.json`, five other static JSON files, and every registered expense/income transaction file.
+3. Point Python at the folder with `FINANCE_DATA_DIR`.
+4. Select the same folder in modern desktop and Android.
+5. Let Syncthing finish before editing on another device. Resolve reported conflict or orphan files manually.
 
-## Syncthing Workflow
+Do not sync only the legacy `finance_data.json`. If that is the only data present, selecting its directory triggers one-time migration; the legacy file remains unchanged as recovery input.
 
-The shared file contract is documented in `/shared/finance_data_schema.md`.
-
-Recommended setup:
-
-1. Create a Syncthing folder named `FinanceTrackerData`.
-2. Put only `finance_data.json` in that folder.
-3. Enable Syncthing file versioning for the folder.
-4. On desktop, run with `FINANCE_DATA_FILE` pointing at `FinanceTrackerData/finance_data.json`.
-5. On Android, open Settings and tap `Connect synced finance_data.json`.
-6. Choose the synced `finance_data.json` file using Android's file picker.
-
-After connection, Android reads from and writes to that file directly. On app start and resume it reloads the file, and Settings also has a manual reload button.
-
-BNPL expenses follow the desktop app's Klarna-style behavior: Android writes the booked transaction `date` as the 1st day of the next month and writes the original spending date to `behavior_date`. The Transactions tab filters by booked `date`, so a BNPL row spent in June and booked on July 1 appears under July.
-
-Avoid editing from desktop and Android at the exact same second. Syncthing is file-based, so close or pause on one device when doing a burst of edits on the other.
+BNPL expenses use the first day of the next month as `date` and the real spend date as `behavior_date`. Normal month filters use `date`.

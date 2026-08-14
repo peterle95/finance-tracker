@@ -10,17 +10,22 @@ import kotlinx.coroutines.flow.map
 private val Context.financeDataStore by preferencesDataStore(name = "finance_settings")
 
 class SettingsDataStore(private val context: Context) {
-    val syncedFileUri: Flow<String?> = context.financeDataStore.data.map { prefs ->
-        prefs[syncedFileUriKey]
+    val syncedTreeUri: Flow<String?> = context.financeDataStore.data.map { prefs ->
+        prefs[syncedTreeUriKey]
     }
 
-    suspend fun setSyncedFileUri(uri: String) {
+    val legacySyncedFileUri: Flow<String?> = context.financeDataStore.data.map { prefs ->
+        prefs[legacySyncedFileUriKey]
+    }
+
+    suspend fun setSyncedTreeUri(uri: String) {
         context.financeDataStore.edit { prefs ->
-            prefs[syncedFileUriKey] = uri
+            prefs[syncedTreeUriKey] = uri
         }
     }
 
     companion object {
-        private val syncedFileUriKey = stringPreferencesKey("synced_file_uri")
+        private val syncedTreeUriKey = stringPreferencesKey("synced_tree_uri")
+        private val legacySyncedFileUriKey = stringPreferencesKey("synced_file_uri")
     }
 }
