@@ -19,16 +19,16 @@ This repository is a multi-client personal finance tracker. Python/Tkinter, Elec
 
 ## Task routing
 
-| Intent | Canonical page | Entry points/symbols | Focused validation |
-|---|---|---|---|
-| Change shared JSON shape or ownership | [Data contract](data-contract/index.md) | `shared/finance_data_schema.md`, `AppState`, `DataStore`, Android stores | `tests/test_persistence.py`, `data-store.test.ts`, Android codec/store tests |
-| Change Python calculations | [Python services](python-desktop/services.md) | `finance_tracker/services/*`, feature tabs | Manual tab smoke; persistence regression |
-| Change Electron persistence | [DataStore](modern-desktop/data-store.md) | `DataStore.load`, `saveDocument`, `saveCategoryChanges` | `npm test -- src/main/data-store.test.ts` |
-| Change Electron formulas/reports | [Domain](modern-desktop/domain.md) | `src/shared/finance.ts`, settings modules | `npm test` |
-| Change Android file access | [Android data layer](android/data-layer.md) | `FinanceRepository`, `FinanceDirectoryStore`, `FinanceJsonCodec` | `./gradlew test` |
-| Change watch transaction delivery | [Transaction lifecycle](workflows/transaction-lifecycle.md) and [Wear protocol](android/wear-protocol.md) | `WatchOutbox`, `WatchSubmissionSender`, `PhoneTransactionIntake` | Wear delivery, intake, codec tests |
-| Change category sync to watch | [Wear protocol](android/wear-protocol.md) | `CategorySnapshotPublisher`, `WatchCategoryCache` | `CategorySnapshotPublisherTest`, `WatchCategoriesTest` |
-| Change packaging/CI wiki updates | [Operations](operations/release.md) | workflow YAML, `package.json` scripts | `npm run build`, workflow manual dispatch |
+| Change area or user intent | Relevant wiki page | Exact source entry points | Important symbols or types | Focused tests | Minimal validation command |
+|---|---|---|---|---|---|
+| Change shared JSON shape or ownership | [Data contract](data-contract/index.md) | `shared/finance_data_schema.md`, `modern-desktop/src/main/data-store.ts`, Android data layer | `AppState`, `DataStore`, Android stores | `tests/test_persistence.py`, `data-store.test.ts`, Android codec/store tests | Run the affected test command from the owning client |
+| Change Python calculations | [Python services](python-desktop/services.md) | `finance_tracker/services/*`, feature tabs | Service calculation functions and tab controllers | Repository Python tests; affected service tests | `pytest` |
+| Change Electron persistence | [DataStore](modern-desktop/data-store.md) | `modern-desktop/src/main/data-store.ts` | `DataStore.load`, `saveDocument`, `saveCategoryChanges` | `modern-desktop/src/main/data-store.test.ts` | `npm test -- src/main/data-store.test.ts` (from `modern-desktop`) |
+| Change Electron formulas/reports | [Domain](modern-desktop/domain.md) | `modern-desktop/src/shared/finance.ts`, settings modules | Shared finance/domain functions | Relevant Vitest suites | `npm test` (from `modern-desktop`) |
+| Change Android file access | [Android data layer](android/data-layer.md) | `android/app/src/main/java/`, repository and codec implementations | `FinanceRepository`, `FinanceDirectoryStore`, `FinanceJsonCodec` | Android repository, codec, and store tests | `./gradlew test` (from `android/`) |
+| Change watch transaction delivery | [Transaction lifecycle](workflows/transaction-lifecycle.md) and [Wear protocol](android/wear-protocol.md) | Android Wear outbox/sender and phone intake implementations | `WatchOutbox`, `WatchSubmissionSender`, `PhoneTransactionIntake` | Wear delivery, intake, and codec tests | Run the affected Android test class |
+| Change category sync to watch | [Wear protocol](android/wear-protocol.md) | Android category publisher and watch cache implementations | `CategorySnapshotPublisher`, `WatchCategoryCache` | `CategorySnapshotPublisherTest`, `WatchCategoriesTest` | Run those focused Android tests |
+| Change packaging/CI wiki updates | [Operations](operations/release.md) | `.github/workflows/openwiki-update.yml` (`update` job), `modern-desktop/package.json` scripts | OpenWiki update job, Electron package scripts | Workflow manual dispatch; Electron build checks | `npm run build` (from `modern-desktop`); manually dispatch workflow when CI changes |
 
 ## Validation commands
 
