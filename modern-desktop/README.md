@@ -37,3 +37,7 @@ npm run package:win
 ```
 
 The NSIS installer is written to `modern-desktop/release/`.
+
+On Windows, run `npm run package:win`, launch the generated installer, and keep
+the desktop shortcut option enabled. The installer creates a desktop shortcut
+that launches Finance Tracker Modern with the default Electron icon.
