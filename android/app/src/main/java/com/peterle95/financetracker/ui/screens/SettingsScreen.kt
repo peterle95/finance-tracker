@@ -52,6 +52,7 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
+        Text("Chart period defaults are managed in the desktop app and shared with this phone.")
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TransactionType.entries.forEach { item ->
                 FilterChip(
