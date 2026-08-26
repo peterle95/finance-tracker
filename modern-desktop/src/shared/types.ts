@@ -77,6 +77,8 @@ export interface BudgetSettings {
   savings_goals?: SavingsGoal[];
   asset_snapshots?: AssetSnapshot[];
   ai_settings?: Record<string, unknown>;
+  defaultNetWorthPeriod?: number | "All";
+  defaultNetWorthBreakdownPeriod?: number | "All";
   [key: string]: unknown;
 }
 
