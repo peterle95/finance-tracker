@@ -301,6 +301,10 @@ data class BudgetSettings(
 
     val defaultRanges: SharedDefaultRanges
         get() = SharedDefaultRanges.fromJson(extraJson["default_ranges"] as? JsonObject)
+    val defaultNetWorthPeriod: Int?
+        get() = extraJson["defaultNetWorthPeriod"]?.jsonPrimitive?.intOrNull?.takeIf { it == 0 || it in listOf(3, 6, 12, 24) }
+    val defaultNetWorthBreakdownPeriod: Int?
+        get() = extraJson["defaultNetWorthBreakdownPeriod"]?.jsonPrimitive?.intOrNull?.takeIf { it == 0 || it in listOf(3, 6, 12, 24) }
 
     fun toJsonObjectPreserving(raw: JsonObject = buildJsonObject {}): JsonObject =
         buildJsonObject {
