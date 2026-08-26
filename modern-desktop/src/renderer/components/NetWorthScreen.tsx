@@ -14,6 +14,29 @@ function formatSignedCurrency(value: number): string {
   return (value >= 0 ? "+" : "-") + formatCurrency(Math.abs(value));
 }
 
+function BreakdownTooltip({
+  active,
+  payload,
+  label
+}: {
+  active?: boolean;
+  payload?: Array<{ color?: string; name?: string; value?: number | string }>;
+  label?: string;
+}) {
+  if (!active || !payload?.length) return null;
+
+  return (
+    <div style={{ ...tooltipStyle, padding: "10px 14px" }}>
+      <p style={{ ...tooltipTextStyle, margin: "0 0 8px" }}>{label}</p>
+      {[...payload].sort((first, second) => Number(second.value) - Number(first.value)).map((entry) => (
+        <p key={entry.name} style={{ color: entry.color ?? "#ffffff", margin: "4px 0" }}>
+          {entry.name}: {formatCurrency(Number(entry.value))}
+        </p>
+      ))}
+    </div>
+  );
+}
+
 export function NetWorthScreen({
   document,
   defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
@@ -80,7 +103,7 @@ export function NetWorthScreen({
       </div>
 
       <div className="two-column">
-        <Card className="chart-card"><div className="card-heading"><div><p className="eyebrow">Breakdown</p><h2>Assets over time</h2></div><select aria-label="Default Net Worth Breakdown" value={String(breakdownPeriod)} onChange={(e) => setBreakdownPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></div>{breakdown.length > 1 ? <ResponsiveContainer width="100%" height={300}><LineChart data={breakdown}><XAxis dataKey="date" /><YAxis /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Line dataKey="bank_balance" name="Bank" stroke={COLORS[0]} /><Line dataKey="wallet_balance" name="Wallet" stroke={COLORS[1]} /><Line dataKey="savings_balance" name="Savings" stroke={COLORS[2]} /><Line dataKey="investment_balance" name="Investments" stroke={COLORS[3]} /><Line dataKey="money_lent_balance" name="Money Lent" stroke={COLORS[4]} /></LineChart></ResponsiveContainer> : <EmptyState title="Record two snapshots to see breakdown" detail="Snapshots retain each asset balance." />}</Card>
+        <Card className="chart-card"><div className="card-heading"><div><p className="eyebrow">Breakdown</p><h2>Assets over time</h2></div><select aria-label="Default Net Worth Breakdown" value={String(breakdownPeriod)} onChange={(e) => setBreakdownPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></div>{breakdown.length > 1 ? <ResponsiveContainer width="100%" height={300}><LineChart data={breakdown}><XAxis dataKey="date" /><YAxis /><Tooltip content={<BreakdownTooltip />} /><Line dataKey="bank_balance" name="Bank" stroke={COLORS[0]} /><Line dataKey="wallet_balance" name="Wallet" stroke={COLORS[1]} /><Line dataKey="savings_balance" name="Savings" stroke={COLORS[2]} /><Line dataKey="investment_balance" name="Investments" stroke={COLORS[3]} /><Line dataKey="money_lent_balance" name="Money Lent" stroke={COLORS[4]} /></LineChart></ResponsiveContainer> : <EmptyState title="Record two snapshots to see breakdown" detail="Snapshots retain each asset balance." />}</Card>
         <Card className="chart-card">
           <div className="card-heading"><div><p className="eyebrow">Allocation</p><h2>Where your money sits</h2></div></div>
            {allocation.assets.length ? (
