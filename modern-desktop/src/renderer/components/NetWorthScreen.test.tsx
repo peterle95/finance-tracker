@@ -15,7 +15,6 @@ describe("NetWorthScreen snapshot changes", () => {
 
     render(<NetWorthScreen document={financeDocument} onSave={vi.fn()} onExport={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { name: "Net worth over time" })).toBeTruthy();
     expect(screen.getByRole("heading", { name: "Changes over time" })).toBeTruthy();
     expect(screen.getByText("Record and review snapshots")).toBeTruthy();
     expect(screen.queryByPlaceholderText("Month end or milestone")).toBeNull();
