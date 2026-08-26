@@ -44,8 +44,9 @@ describe("ReportsScreen breakdown", () => {
     await user.click(includeFixedCosts as HTMLInputElement);
     expect(screen.getByText("Fixed Costs")).toBeTruthy();
 
-    fireEvent.change(screen.getByLabelText("Breakdown start month"), { target: { value: "2026-01" } });
-    fireEvent.change(screen.getByLabelText("Breakdown end month"), { target: { value: "2026-02" } });
+    fireEvent.click(screen.getByRole("button", { name: "Range" }));
+    fireEvent.change(screen.getByLabelText("Report from month"), { target: { value: "2026-01" } });
+    fireEvent.change(screen.getByLabelText("Report to month"), { target: { value: "2026-02" } });
     expect(screen.getByText("2026-01 to 2026-02")).toBeTruthy();
   });
 });
