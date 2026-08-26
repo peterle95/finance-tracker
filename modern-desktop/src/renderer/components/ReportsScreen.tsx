@@ -1,4 +1,4 @@
-import { Download, PieChart as PieChartIcon } from "lucide-react";
+import { ChevronLeft, ChevronRight, Download, PieChart as PieChartIcon } from "lucide-react";
 import { useMemo, useState, type CSSProperties } from "react";
 import {
   Bar,
@@ -92,20 +92,21 @@ export function ReportsScreen({
 }) {
   const [kind, setKind] = useState<ChartKind>(defaultBehaviors.reportView);
   const [type, setType] = useState<TransactionType>(defaultBehaviors.reportType);
+  const [dateFilterMode, setDateFilterMode] = useState<"month" | "range">("month");
   const [month, setMonth] = useState(currentMonth());
-  const [pieStart, setPieStart] = useState(currentMonth());
-  const [pieEnd, setPieEnd] = useState(currentMonth());
-  const [rangeStart, setRangeStart] = useState(monthOffset(currentMonth(), -(defaultRanges.reportLineMonths - 1)));
-  const [rangeEnd, setRangeEnd] = useState(currentMonth());
+  const [startMonth, setStartMonth] = useState(monthOffset(currentMonth(), -(defaultRanges.reportLineMonths - 1)));
+  const [endMonth, setEndMonth] = useState(currentMonth());
   const [selectedCategories, setSelectedCategories] = useState<string[]>(document.categories[defaultBehaviors.reportType].slice(0, 3));
-  const [historyMonths, setHistoryMonths] = useState(defaultRanges.reportHistoryMonths);
+  const rangeStart = dateFilterMode === "month" ? month : startMonth;
+  const rangeEnd = dateFilterMode === "month" ? month : endMonth;
+  const historyMonths = dateFilterMode === "month" ? 1 : Math.max(1, (Number(rangeEnd.slice(0, 4)) - Number(rangeStart.slice(0, 4))) * 12 + Number(rangeEnd.slice(5)) - Number(rangeStart.slice(5)) + 1);
   const [dateBasis, setDateBasis] = useState<TransactionDateBasis>(defaultBehaviors.reportDateBasis);
   const [historyMode, setHistoryMode] = useState<HistoryMode>(defaultBehaviors.reportHistoryMode);
   const [historyDisplay, setHistoryDisplay] = useState<HistoryDisplay>(defaultBehaviors.reportHistoryDisplay);
   const [includeRecurring, setIncludeRecurring] = useState(defaultBehaviors.reportIncludeRecurring);
   const [showHistoryLabels, setShowHistoryLabels] = useState(defaultBehaviors.reportShowHistoryLabels);
-  const pieData = categoryTotals(document, type, pieStart, pieEnd, includeRecurring, dateBasis);
-  const historyData = historicalTotals(document, type, historyMonths, currentMonth(), dateBasis, includeRecurring);
+  const pieData = categoryTotals(document, type, rangeStart, rangeEnd, includeRecurring, dateBasis);
+  const historyData = historicalTotals(document, type, historyMonths, rangeEnd, dateBasis, includeRecurring);
   const historyMonthLabels = historyData.map((entry) => entry.month);
   const rawHistorySeries = historyMode === "total"
     ? [{ name: type === "Expense" ? "Expenses" : "Income", values: historyData.map((entry) => entry.value) }]
@@ -147,11 +148,11 @@ export function ReportsScreen({
     () => lineRows(document, rangeStart, rangeEnd, selectedCategories, dateBasis),
     [document, rangeStart, rangeEnd, selectedCategories, dateBasis]
   );
-  const heatmap = dayOfWeekHeatmap(document, historyMonths, currentMonth(), dateBasis);
+  const heatmap = dayOfWeekHeatmap(document, historyMonths, rangeEnd, dateBasis);
   const pace = spendingPace(document, month, dateBasis);
   const reportPeriod = kind === "history"
     ? "Last " + historyMonths + " months"
-    : kind === "pie" ? pieStart + " to " + pieEnd : kind === "pace" ? month : rangeStart + " to " + rangeEnd;
+    : kind === "pie" ? rangeStart + " to " + rangeEnd : kind === "pace" ? month : rangeStart + " to " + rangeEnd;
   const reportValues = kind === "history"
     ? historyChartData.map((row) => row.month + ": " + historySeries
       .map((series) => series.name + " " + (historyUsesPercent ? Number(row[series.name]).toFixed(1) + "%" : formatCurrency(Number(row[series.name]))))
@@ -204,42 +205,24 @@ export function ReportsScreen({
             <option value="transaction">Transaction date</option>
             <option value="behavior">Spend date (metadata)</option>
           </select>
+          <div className="segmented-control" aria-label="Report date filter">
+            <button className={dateFilterMode === "month" ? "selected" : ""} onClick={() => setDateFilterMode("month")}>Month</button>
+            <button className={dateFilterMode === "range" ? "selected" : ""} onClick={() => setDateFilterMode("range")}>Range</button>
+          </div>
+          {dateFilterMode === "month" ? <div className="budget-month-navigation" aria-label="Report month navigation">
+            <Button type="button" variant="ghost" aria-label="Previous report month" onClick={() => setMonth(monthOffset(month, -1))}><ChevronLeft size={17} /></Button>
+            <input aria-label="Report month" type="month" value={month} onChange={(event) => event.target.value && setMonth(event.target.value)} />
+            <Button type="button" variant="ghost" aria-label="Next report month" onClick={() => setMonth(monthOffset(month, 1))}><ChevronRight size={17} /></Button>
+          </div> : <>
+            <input aria-label="Report from month" type="month" value={startMonth} onChange={(event) => setStartMonth(event.target.value)} />
+            <input aria-label="Report to month" type="month" value={endMonth} onChange={(event) => setEndMonth(event.target.value)} />
+          </>}
           {(kind === "pie" || kind === "history") ? (
             <select value={type} onChange={(event) => setType(event.target.value as TransactionType)}>
               <option value="Expense">Expenses</option>
               <option value="Income">Income</option>
             </select>
           ) : null}
-          {kind === "pace" ? <input type="month" value={month} onChange={(event) => setMonth(event.target.value)} /> : null}
-          {kind === "pie" ? (
-            <>
-              <label className="control-label">From<input aria-label="Breakdown start month" type="month" value={pieStart} onChange={(event) => {
-                const value = event.target.value;
-                if (!value) {
-                  return;
-                }
-                setPieStart(value);
-                if (value > pieEnd) {
-                  setPieEnd(value);
-                }
-              }} /></label>
-              <label className="control-label">To<input aria-label="Breakdown end month" type="month" value={pieEnd} onChange={(event) => {
-                const value = event.target.value;
-                if (!value) {
-                  return;
-                }
-                setPieEnd(value);
-                if (value < pieStart) {
-                  setPieStart(value);
-                }
-              }} /></label>
-            </>
-          ) : null}
-          {kind === "history" || kind === "heatmap" ? <label className="control-label">Months<input type="number" min={kind === "history" ? 2 : 1} max="24" value={historyMonths} onChange={(event) => {
-            const value = Number(event.target.value);
-            const minimum = kind === "history" ? 2 : 1;
-            setHistoryMonths(Number.isFinite(value) ? Math.max(minimum, Math.floor(value)) : minimum);
-          }} /></label> : null}
           {kind === "history" ? (
             <>
               <select aria-label="History breakdown" value={historyMode} onChange={(event) => setHistoryMode(event.target.value as HistoryMode)}>
@@ -268,8 +251,6 @@ export function ReportsScreen({
           ) : null}
           {kind === "line" ? (
             <>
-              <label className="control-label">From<input type="month" value={rangeStart} onChange={(event) => setRangeStart(event.target.value)} /></label>
-              <label className="control-label">To<input type="month" value={rangeEnd} onChange={(event) => setRangeEnd(event.target.value)} /></label>
             </>
           ) : null}
           {kind === "pie" ? (
@@ -283,7 +264,7 @@ export function ReportsScreen({
 
       {kind === "pie" ? (
         <Card className="chart-card report-chart">
-          <div className="card-heading"><div><p className="eyebrow">{pieStart} to {pieEnd}</p><h2>{type} by category</h2></div><PieChartIcon size={22} /></div>
+          <div className="card-heading"><div><p className="eyebrow">{rangeStart} to {rangeEnd}</p><h2>{type} by category</h2></div><PieChartIcon size={22} /></div>
           {pieData.length ? (
             <ResponsiveContainer width="100%" height={420}>
               <PieChart>
