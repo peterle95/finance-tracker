@@ -79,6 +79,10 @@ fun NetWorthScreen(viewModel: FinanceViewModel) {
     var snapshotDate by remember { mutableStateOf(todayIsoDate()) }
     var snapshotNote by remember { mutableStateOf("") }
     var showReport by remember { mutableStateOf(false) }
+    var historyPeriod by remember(settings.defaultNetWorthPeriod) { mutableStateOf(settings.defaultNetWorthPeriod ?: 12) }
+    var breakdownPeriod by remember(settings.defaultNetWorthBreakdownPeriod) { mutableStateOf(settings.defaultNetWorthBreakdownPeriod ?: 12) }
+    val historySnapshots = if (historyPeriod == 0) settings.assetSnapshots else settings.assetSnapshots.takeLast(historyPeriod)
+    val breakdownSnapshots = if (breakdownPeriod == 0) settings.assetSnapshots else settings.assetSnapshots.takeLast(breakdownPeriod)
 
     LazyColumn(
         modifier = Modifier
@@ -123,7 +127,11 @@ fun NetWorthScreen(viewModel: FinanceViewModel) {
                     modifier = Modifier.padding(14.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("Visualization", style = MaterialTheme.typography.titleLarge)
+                     Text("Visualization", style = MaterialTheme.typography.titleLarge)
+                     PeriodChips("History", historyPeriod) { historyPeriod = it }
+                     if (chart == NetWorthChart.Breakdown) {
+                         PeriodChips("Breakdown", breakdownPeriod) { breakdownPeriod = it }
+                     }
                     Row(
                         modifier = Modifier.horizontalScroll(rememberScrollState()),
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -137,9 +145,9 @@ fun NetWorthScreen(viewModel: FinanceViewModel) {
                         }
                     }
                     when (chart) {
-                        NetWorthChart.NetWorth -> NetWorthLineChart(settings)
+                        NetWorthChart.NetWorth -> NetWorthLineChart(historySnapshots)
                         NetWorthChart.Allocation -> AllocationChart(summary.allocation)
-                        NetWorthChart.Breakdown -> AssetBreakdownChart(settings.assetSnapshots)
+                        NetWorthChart.Breakdown -> AssetBreakdownChart(breakdownSnapshots)
                     }
                 }
             }
@@ -236,6 +244,16 @@ private fun AssetBalanceCards(settings: BudgetSettings) {
 }
 
 @Composable
+private fun PeriodChips(label: String, period: Int, onChange: (Int) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Text(label)
+        listOf(3, 6, 12, 24, 0).forEach { value ->
+            FilterChip(selected = period == value, onClick = { onChange(value) }, label = { Text(if (value == 0) "All" else value.toString()) })
+        }
+    }
+}
+
+@Composable
 private fun SnapshotRow(snapshot: AssetSnapshot, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -260,8 +278,8 @@ private fun SnapshotRow(snapshot: AssetSnapshot, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun NetWorthLineChart(settings: BudgetSettings) {
-    val points = settings.assetSnapshots.map { it.date to it.netWorth }
+private fun NetWorthLineChart(snapshots: List<AssetSnapshot>) {
+    val points = snapshots.map { it.date to it.netWorth }
     if (points.isEmpty()) {
         Text("No snapshots recorded yet.")
         return
