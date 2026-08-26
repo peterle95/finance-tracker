@@ -17,17 +17,25 @@ function formatSignedCurrency(value: number): string {
 export function NetWorthScreen({
   document,
   defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
+  defaultNetWorthPeriod,
+  defaultNetWorthBreakdownPeriod,
   onSave,
   onExport
 }: {
   document: FinanceDocument;
   defaultBehaviors?: DefaultBehaviorSettings;
+  defaultNetWorthPeriod?: number | "All";
+  defaultNetWorthBreakdownPeriod?: number | "All";
   onSave(document: FinanceDocument): void;
   onExport(name: string, text: string): void;
 }) {
   const [date, setDate] = useState(isoToday());
   const [changeMode, setChangeMode] = useState<SnapshotChangeMode>(defaultBehaviors.netWorthChangeMode);
-  const history = snapshots(document);
+  const [historyPeriod, setHistoryPeriod] = useState<number | "All">(defaultNetWorthPeriod ?? 12);
+  const [breakdownPeriod, setBreakdownPeriod] = useState<number | "All">(defaultNetWorthBreakdownPeriod ?? 12);
+  const allHistory = snapshots(document);
+  const history = historyPeriod === "All" ? allHistory : allHistory.slice(-historyPeriod);
+  const breakdown = breakdownPeriod === "All" ? allHistory : allHistory.slice(-breakdownPeriod);
   const changeRows = snapshotChanges(history, changeMode);
   const changeByDate = new Map(changeRows.map((row) => [row.date, row.change]));
   const allocation = assetAllocation(document);
@@ -38,8 +46,8 @@ export function NetWorthScreen({
     "",
     "Current net worth: " + formatCurrency(netWorth(document)),
     "",
-    ...history.map((snapshot) => snapshot.date + ": " + formatCurrency(snapshot.net_worth))
-  ].join("\n"), [document, history]);
+    ...allHistory.map((snapshot) => snapshot.date + ": " + formatCurrency(snapshot.net_worth))
+  ].join("\n"), [document, allHistory]);
 
   function recordSnapshot() {
     const next = cloneDocument(document);
@@ -72,19 +80,7 @@ export function NetWorthScreen({
       </div>
 
       <div className="two-column">
-        <Card className="chart-card">
-          <div className="card-heading"><div><p className="eyebrow">History</p><h2>Net worth over time</h2></div><LineChartIcon size={22} /></div>
-          {history.length > 1 ? (
-            <ResponsiveContainer width="100%" height={300}>
-              <LineChart data={history}>
-                <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
-                <YAxis tickFormatter={(value) => "\u20AC" + Math.round(Number(value))} tickLine={false} axisLine={false} width={70} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
-                <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatCurrency(Number(value))} />
-                <Line type="monotone" dataKey="net_worth" name="Net worth" stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
-              </LineChart>
-            </ResponsiveContainer>
-          ) : <EmptyState title="Record two snapshots to see history" detail="Snapshots retain your balance on the chosen day." />}
-        </Card>
+        <Card className="chart-card"><div className="card-heading"><div><p className="eyebrow">Breakdown</p><h2>Assets over time</h2></div><select aria-label="Default Net Worth Breakdown" value={String(breakdownPeriod)} onChange={(e) => setBreakdownPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></div>{breakdown.length > 1 ? <ResponsiveContainer width="100%" height={300}><LineChart data={breakdown}><XAxis dataKey="date" /><YAxis /><Tooltip formatter={(value) => formatCurrency(Number(value))} /><Line dataKey="bank_balance" name="Bank" stroke={COLORS[0]} /><Line dataKey="wallet_balance" name="Wallet" stroke={COLORS[1]} /><Line dataKey="savings_balance" name="Savings" stroke={COLORS[2]} /><Line dataKey="investment_balance" name="Investments" stroke={COLORS[3]} /><Line dataKey="money_lent_balance" name="Money Lent" stroke={COLORS[4]} /></LineChart></ResponsiveContainer> : <EmptyState title="Record two snapshots to see breakdown" detail="Snapshots retain each asset balance." />}</Card>
         <Card className="chart-card">
           <div className="card-heading"><div><p className="eyebrow">Allocation</p><h2>Where your money sits</h2></div></div>
            {allocation.assets.length ? (
@@ -112,7 +108,7 @@ export function NetWorthScreen({
         </div>
         <div className="card-heading"><div><p className="eyebrow">Saved history</p><h2>Snapshots</h2></div></div>
         <div className="mini-list snapshot-history-list">
-          {history.length ? history.slice().reverse().map((snapshot) => (
+           {allHistory.length ? allHistory.slice().reverse().map((snapshot) => (
             <div key={snapshot.date}>
               <span>
                 <strong>{snapshot.date}</strong>
@@ -129,7 +125,7 @@ export function NetWorthScreen({
         </div>
       </Card>
       <Card className="chart-card">
-        <div className="card-heading"><div><p className="eyebrow">Snapshot flow</p><h2>Changes over time</h2></div><LineChartIcon size={22} /></div>
+        <div className="card-heading"><div><p className="eyebrow">Snapshot flow</p><h2>Changes over time</h2></div><select aria-label="Default Net Worth" value={String(historyPeriod)} onChange={(e) => setHistoryPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></div>
         <div className="segmented-control" aria-label="Snapshot change mode">
           <button type="button" aria-pressed={changeMode === "month-by-month"} className={changeMode === "month-by-month" ? "selected" : ""} onClick={() => setChangeMode("month-by-month")}>Month-by-month</button>
           <button type="button" aria-pressed={changeMode === "from-beginning"} className={changeMode === "from-beginning" ? "selected" : ""} onClick={() => setChangeMode("from-beginning")}>Since beginning</button>
