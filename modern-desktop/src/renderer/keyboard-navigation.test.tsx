@@ -28,4 +28,29 @@ describe("keyboard navigation", () => {
     await user.keyboard(" ");
     expect(input.value).toBe(" ");
   });
+
+  it("routes hints to the topmost dialog and restores background navigation", async () => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const user = userEvent.setup();
+    const { rerender } = render(<><Fixture /><div role="dialog"><button>Outer</button><div role="dialog"><button>Inner</button></div></div></>);
+    await user.keyboard(" ");
+    expect(document.querySelector("button[data-keyboard-hint='A']")?.textContent).toBe("Inner");
+    rerender(<Fixture />);
+    await user.keyboard("a{Enter}");
+    expect(document.querySelector("button[data-keyboard-hint='A']")).toBeNull();
+  });
+
+  it("preserves Enter and Space in contenteditable", async () => {
+    vi.spyOn(document, "hasFocus").mockReturnValue(true);
+    const user = userEvent.setup();
+    render(<><Fixture /><div contentEditable><span>edit</span></div></>);
+    const editor = document.querySelector("[contenteditable]")!;
+    await user.click(editor);
+    const space = new KeyboardEvent("keydown", { key: " ", bubbles: true });
+    const enter = new KeyboardEvent("keydown", { key: "Enter", bubbles: true });
+    editor.dispatchEvent(space);
+    editor.dispatchEvent(enter);
+    expect(space.defaultPrevented).toBe(false);
+    expect(enter.defaultPrevented).toBe(false);
+  });
 });

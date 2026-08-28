@@ -18,7 +18,7 @@ function visible(element: Element): element is HTMLElement {
 }
 
 function editing(element: Element | null) {
-  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || element?.hasAttribute("contenteditable");
+  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || element?.closest("[contenteditable]") !== null;
 }
 
 function hintNames(alphabet: string, count: number) {
@@ -46,13 +46,12 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
     let selected: HTMLElement | undefined;
 
     const clear = () => { buffer = ""; selected = undefined; document.querySelectorAll("[data-keyboard-hint]").forEach((node) => node.removeAttribute("data-keyboard-hint")); };
+    const topDialog = () => Array.from(document.querySelectorAll<HTMLElement>("[role='dialog']")).filter(visible).at(-1);
     const targets = (area: Region) => {
-      if (area === "dialog") {
-        const dialogs = Array.from(document.querySelectorAll<HTMLElement>("[role='dialog']")).filter(visible);
-        const dialog = dialogs.at(-1);
+      const dialog = topDialog();
+      if (dialog) {
         return dialog ? Array.from(dialog.querySelectorAll(actionable)).filter(visible) as HTMLElement[] : [];
       }
-      if (document.querySelector("[role='dialog']")) return [];
       return Array.from(document.querySelectorAll(`[data-keyboard-region='${area}'] ${actionable}`)).filter(visible) as HTMLElement[];
     };
     const showHints = () => {
@@ -63,11 +62,11 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
     const stop = () => { clear(); setActive(false); };
     const onKey = (event: KeyboardEvent) => {
       if (!document.hasFocus()) return;
-      if (event.key === "Escape" && active) { event.preventDefault(); stop(); return; }
+      if (event.key === "Escape" && active && !topDialog()) { event.preventDefault(); stop(); return; }
       if (editing(document.activeElement)) return;
       if (!active && event.key === " ") { event.preventDefault(); setActive(true); showHints(); return; }
       if (!active) return;
-      if (event.key === "h" || event.key === "l") {
+      if ((event.key === "h" || event.key === "l") && !topDialog()) {
         event.preventDefault();
         const step = event.key === "h" ? -1 : 1;
         setRegion((current) => regions[(regions.indexOf(current) + step + regions.length) % regions.length]);
@@ -95,7 +94,12 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
       timer = window.setTimeout(clear, hintTimeout);
     };
     document.addEventListener("keydown", onKey);
-    return () => { document.removeEventListener("keydown", onKey); window.clearTimeout(timer); };
+    const observer = new MutationObserver(() => {
+      if (active) showHints();
+      else clear();
+    });
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden", "hidden", "style"] });
+    return () => { document.removeEventListener("keydown", onKey); observer.disconnect(); window.clearTimeout(timer); };
   }, [active, alphabet, immediate, hintTimeout, region]);
 
   return { active, region };
