@@ -37,6 +37,7 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { TransactionEditor } from "./components/TransactionEditor";
 import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
+import { useKeyboardNavigation } from "./keyboard-navigation";
 
 type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
 type Theme = "dark" | "light";
@@ -81,6 +82,7 @@ export function App() {
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
+  useKeyboardNavigation();
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
@@ -262,7 +264,7 @@ export function App() {
 
   return (
     <div className={"app-shell " + (collapsed ? "sidebar-collapsed" : "")}>
-      <aside className="sidebar">
+      <aside className="sidebar" data-keyboard-region="sidebar">
         <div className="sidebar-brand">
           <div className="brand-mark">F</div>
           <div className="brand-copy"><strong>Finance</strong><span>Tracker Modern</span></div>
@@ -286,7 +288,7 @@ export function App() {
       </aside>
 
       <main className="main-panel">
-        <header className="topbar">
+        <header className="topbar" data-keyboard-region="header">
           <button className="icon-button mobile-menu" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle menu"><Menu size={20} /></button>
           <div className="topbar-path"><span className="connection-dot" />{connection.path ?? "No connected file"}</div>
           <div className="topbar-actions">
@@ -295,7 +297,7 @@ export function App() {
           </div>
         </header>
         {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
-        <div className="page-scroll">{content()}</div>
+        <div className="page-scroll" data-keyboard-region="main">{content()}</div>
       </main>
 
       {editor ? (
