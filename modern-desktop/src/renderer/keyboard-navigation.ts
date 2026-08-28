@@ -1,9 +1,26 @@
 import { useEffect, useState } from "react";
 
 export interface KeyboardNavigationOptions {
+  activationKey?: string;
   alphabet?: string;
   immediate?: boolean;
   hintTimeout?: number;
+}
+
+export type KeyboardNavigationSettings = { activationKey: string; hintAlphabet: string; activationMode: "select" | "immediate" };
+export const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: "f", hintAlphabet: "asdfjkl", activationMode: "select" };
+
+export function normalizeKeyboardNavigationSettings(value: unknown): KeyboardNavigationSettings {
+  if (!value || typeof value !== "object") return DEFAULT_KEYBOARD_NAVIGATION;
+  const candidate = value as Partial<KeyboardNavigationSettings>;
+  const activationKey = typeof candidate.activationKey === "string" ? candidate.activationKey.trim().toLowerCase() : "";
+  const hintAlphabet = typeof candidate.hintAlphabet === "string"
+    ? [...candidate.hintAlphabet.toLowerCase().replace(/\s/g, "")].filter((key, index, keys) => keys.indexOf(key) === index).join("")
+    : "";
+  if (activationKey.length !== 1 || !hintAlphabet || !/^[a-z]+$/.test(hintAlphabet) || [...hintAlphabet].length < 2 || candidate.activationMode !== "select" && candidate.activationMode !== "immediate") {
+    return DEFAULT_KEYBOARD_NAVIGATION;
+  }
+  return { activationKey, hintAlphabet, activationMode: candidate.activationMode };
 }
 
 const regions = ["sidebar", "header", "main", "dialog"] as const;
@@ -36,7 +53,7 @@ function hintNames(alphabet: string, count: number) {
   return names;
 }
 
-export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false, hintTimeout = 1000 }: KeyboardNavigationOptions = {}) {
+export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL", immediate = false, hintTimeout = 1000 }: KeyboardNavigationOptions = {}) {
   const [active, setActive] = useState(false);
   const [region, setRegion] = useState<Region>("main");
 
@@ -73,7 +90,7 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
       if (!document.hasFocus()) return;
       if (event.key === "Escape" && active && !topDialog()) { event.preventDefault(); stop(); return; }
       if (editing(document.activeElement)) return;
-      if (!active && event.key === " ") { event.preventDefault(); setActive(true); document.documentElement.dataset.keyboardEntry = "true"; window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500); showHints(); return; }
+       if (!active && event.key.toLowerCase() === activationKey) { event.preventDefault(); setActive(true); document.documentElement.dataset.keyboardEntry = "true"; window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500); showHints(); return; }
       if (!active) return;
       if ((event.key === "h" || event.key === "l") && !topDialog()) {
         event.preventDefault();
@@ -110,7 +127,7 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
     });
     observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden", "hidden", "style"] });
     return () => { document.removeEventListener("keydown", onKey); observer.disconnect(); window.clearTimeout(timer); };
-  }, [active, alphabet, immediate, hintTimeout, region]);
+  }, [activationKey, active, alphabet, immediate, hintTimeout, region]);
 
   return { active, region };
 }

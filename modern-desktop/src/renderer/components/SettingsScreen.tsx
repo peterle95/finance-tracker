@@ -7,9 +7,8 @@ import { DefaultBehaviorsDialog } from "./DefaultBehaviorsDialog";
 import { DefaultRangesDialog } from "./DefaultRangesDialog";
 import { Button, Card, PageHeader } from "./ui";
 import { KeyboardNavigationPrototype } from "./KeyboardNavigationPrototype";
+import type { KeyboardNavigationSettings } from "../keyboard-navigation";
 
-type KeyboardNavigationSettings = { activationKey: string; hintAlphabet: string; activationMode: "select" | "immediate" };
-const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: "f", hintAlphabet: "asdfjkl;", activationMode: "select" };
 
 interface SettingsScreenProps {
   document: FinanceDocument;
@@ -27,6 +26,9 @@ interface SettingsScreenProps {
   onChooseFile(): void;
   onCreateFile(): void;
   onReload(): void;
+  keyboardNavigation: KeyboardNavigationSettings;
+  onKeyboardNavigationChange(settings: KeyboardNavigationSettings): void;
+  onKeyboardNavigationReset(): void;
 }
 
 export function SettingsScreen({
@@ -44,12 +46,13 @@ export function SettingsScreen({
   onDefaultNetWorthBreakdownPeriodChange,
   onChooseFile,
   onCreateFile,
-  onReload
+  onReload,
+  keyboardNavigation,
+  onKeyboardNavigationChange,
+  onKeyboardNavigationReset
 }: SettingsScreenProps) {
   const [defaultRangesOpen, setDefaultRangesOpen] = useState(false);
   const [defaultBehaviorsOpen, setDefaultBehaviorsOpen] = useState(false);
-  const [keyboardNavigation, setKeyboardNavigation] = useState(DEFAULT_KEYBOARD_NAVIGATION);
-
   const activationKeyError = keyboardNavigation.activationKey.length !== 1 || /\s/.test(keyboardNavigation.activationKey)
     ? "Use one non-space key."
     : null;
@@ -77,12 +80,12 @@ export function SettingsScreen({
 
         <Card>
           <div className="card-heading"><div><p className="eyebrow">Prototype</p><h2>Keyboard navigation</h2></div><Keyboard size={22} /></div>
-          <p className="muted-copy">Configure the proposed keyboard hints. Navigation is not active yet, and these settings reset when the app reloads.</p>
+          <p className="muted-copy">Configure the keyboard hints used throughout the app.</p>
           <div className="form-grid compact-form">
-            <label><span>Activation key</span><input aria-label="Activation key" value={keyboardNavigation.activationKey} maxLength={1} onChange={(event) => setKeyboardNavigation((current) => ({ ...current, activationKey: event.target.value }))} />{activationKeyError ? <small className="error-copy">{activationKeyError}</small> : null}</label>
-            <label><span>Hint alphabet</span><input aria-label="Hint alphabet" value={keyboardNavigation.hintAlphabet} onChange={(event) => setKeyboardNavigation((current) => ({ ...current, hintAlphabet: event.target.value }))} />{hintAlphabetError ? <small className="error-copy">{hintAlphabetError}</small> : null}</label>
-            <div className="span-two"><span className="control-label">Activation behavior</span><div className="theme-choice"><button type="button" className={keyboardNavigation.activationMode === "select" ? "selected" : ""} onClick={() => setKeyboardNavigation((current) => ({ ...current, activationMode: "select" }))}>Select, then Enter</button><button type="button" className={keyboardNavigation.activationMode === "immediate" ? "selected" : ""} onClick={() => setKeyboardNavigation((current) => ({ ...current, activationMode: "immediate" }))}>Activate immediately</button></div></div>
-            <div className="form-actions span-two"><Button variant="ghost" onClick={() => setKeyboardNavigation(DEFAULT_KEYBOARD_NAVIGATION)}>Reset keyboard defaults</Button></div>
+            <label><span>Activation key</span><input aria-label="Activation key" value={keyboardNavigation.activationKey} maxLength={1} onChange={(event) => onKeyboardNavigationChange({ ...keyboardNavigation, activationKey: event.target.value })} />{activationKeyError ? <small className="error-copy">{activationKeyError}</small> : null}</label>
+            <label><span>Hint alphabet</span><input aria-label="Hint alphabet" value={keyboardNavigation.hintAlphabet} onChange={(event) => onKeyboardNavigationChange({ ...keyboardNavigation, hintAlphabet: event.target.value })} />{hintAlphabetError ? <small className="error-copy">{hintAlphabetError}</small> : null}</label>
+            <div className="span-two"><span className="control-label">Activation behavior</span><div className="theme-choice"><button type="button" className={keyboardNavigation.activationMode === "select" ? "selected" : ""} onClick={() => onKeyboardNavigationChange({ ...keyboardNavigation, activationMode: "select" })}>Select, then Enter</button><button type="button" className={keyboardNavigation.activationMode === "immediate" ? "selected" : ""} onClick={() => onKeyboardNavigationChange({ ...keyboardNavigation, activationMode: "immediate" })}>Activate immediately</button></div></div>
+            <div className="form-actions span-two"><Button variant="ghost" onClick={onKeyboardNavigationReset}>Reset keyboard defaults</Button></div>
             <div className="span-two"><KeyboardNavigationPrototype reducedMotion={reducedMotion} /></div>
           </div>
         </Card>

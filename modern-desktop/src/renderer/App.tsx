@@ -37,7 +37,7 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { TransactionEditor } from "./components/TransactionEditor";
 import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
-import { useKeyboardNavigation } from "./keyboard-navigation";
+import { DEFAULT_KEYBOARD_NAVIGATION, normalizeKeyboardNavigationSettings, useKeyboardNavigation, type KeyboardNavigationSettings } from "./keyboard-navigation";
 
 function KeyboardNavigationFeedback({ active, region }: { active: boolean; region: string }) {
   const [helpOpen, setHelpOpen] = useState(false);
@@ -96,6 +96,14 @@ function initialReducedMotion(): boolean {
   return localStorage.getItem("finance-tracker-reduced-motion") === "true";
 }
 
+function initialKeyboardNavigation(): KeyboardNavigationSettings {
+  try {
+    return normalizeKeyboardNavigationSettings(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "null"));
+  } catch {
+    return DEFAULT_KEYBOARD_NAVIGATION;
+  }
+}
+
 export function App() {
   const [financeDocument, setDocument] = useState<FinanceDocument | null>(null);
   const [connection, setConnection] = useState<DataConnection>({ path: null, isConnected: false });
@@ -105,9 +113,16 @@ export function App() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
+  const [keyboardSettings, setKeyboardSettings] = useState<KeyboardNavigationSettings>(initialKeyboardNavigation);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
-  const keyboardNavigation = useKeyboardNavigation();
+  const effectiveKeyboardSettings = normalizeKeyboardNavigationSettings(keyboardSettings);
+  const keyboardNavigation = useKeyboardNavigation({ activationKey: effectiveKeyboardSettings.activationKey, alphabet: effectiveKeyboardSettings.hintAlphabet, immediate: effectiveKeyboardSettings.activationMode === "immediate" });
+
+  function updateKeyboardSettings(settings: KeyboardNavigationSettings) {
+    setKeyboardSettings(settings);
+    localStorage.setItem("finance-tracker-keyboard-navigation", JSON.stringify(settings));
+  }
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
@@ -272,7 +287,7 @@ export function App() {
       case "reconciliation":
         return <ReconciliationScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "settings":
-        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onDefaultRangesChange={(next) => {
+        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} keyboardNavigation={keyboardSettings} onKeyboardNavigationChange={updateKeyboardSettings} onKeyboardNavigationReset={() => updateKeyboardSettings(DEFAULT_KEYBOARD_NAVIGATION)} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onDefaultRangesChange={(next) => {
           const updated = cloneDocument(activeDocument);
           updated.budget_settings.default_ranges = next;
           void persist(updated);
