@@ -9,7 +9,7 @@ function Fixture() {
 }
 
 describe("keyboard navigation", () => {
-  it("enters with Space and selects a hint with Enter", async () => {
+  it("keeps mode active and redraws hints after selecting with Enter", async () => {
     vi.spyOn(document, "hasFocus").mockReturnValue(true);
     const user = userEvent.setup();
     render(<Fixture />);
@@ -17,7 +17,9 @@ describe("keyboard navigation", () => {
     expect(document.documentElement.dataset.keyboardMode).toBe("active");
     expect(document.querySelector("button[data-keyboard-hint='A']")).toBeTruthy();
     await user.keyboard("a{Enter}");
-    expect(document.querySelector("button[data-keyboard-hint='A']")).toBeNull();
+    await new Promise((resolve) => window.setTimeout(resolve));
+    expect(document.documentElement.dataset.keyboardMode).toBe("active");
+    expect(document.querySelector("button[data-keyboard-hint='A']")).toBeTruthy();
   });
 
   it("does not consume typing in an editor", async () => {
@@ -38,7 +40,7 @@ describe("keyboard navigation", () => {
     expect(document.querySelector("button[data-keyboard-hint='A']")?.textContent).toBe("Inner");
     rerender(<Fixture />);
     await user.keyboard("a{Enter}");
-    expect(document.querySelector("button[data-keyboard-hint='A']")).toBeNull();
+    expect(document.querySelector("button[data-keyboard-hint='A']")?.textContent).toBe("Side");
   });
 
   it("preserves Enter and Space in contenteditable", async () => {

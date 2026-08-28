@@ -85,6 +85,12 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
       const names = hintNames(alphabet.toUpperCase(), targets(region).length);
       targets(region).forEach((target, index) => target.setAttribute("data-keyboard-hint", names[index]));
     };
+    const activate = (target: HTMLElement) => {
+      window.clearTimeout(timer);
+      target.click();
+      clear();
+      window.setTimeout(showHints, 0);
+    };
     const stop = () => { clear(); setActive(false); };
     const onKey = (event: KeyboardEvent) => {
       if (!document.hasFocus()) return;
@@ -113,7 +119,7 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
         return;
       }
       if (event.key === "Backspace") { event.preventDefault(); buffer = buffer.slice(0, -1); showHints(); return; }
-      if (event.key === "Enter" && selected) { event.preventDefault(); selected.click(); clear(); return; }
+      if (event.key === "Enter" && selected) { event.preventDefault(); activate(selected); return; }
       const character = event.key.toUpperCase();
       if (!alphabet.toUpperCase().includes(character)) return;
       event.preventDefault();
@@ -122,7 +128,7 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
       if (matches.length === 1 && matches[0].getAttribute("data-keyboard-hint") === buffer) {
         selected = matches[0];
         selected.focus({ preventScroll: true });
-        if (immediate) { selected.click(); clear(); }
+        if (immediate) { activate(selected); return; }
       } else if (!matches.length) clear();
       window.clearTimeout(timer);
       timer = window.setTimeout(clear, hintTimeout);
