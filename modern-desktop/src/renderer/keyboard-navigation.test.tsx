@@ -14,6 +14,7 @@ describe("keyboard navigation", () => {
     const user = userEvent.setup();
     render(<Fixture />);
     await user.keyboard(" ");
+    expect(document.documentElement.dataset.keyboardMode).toBe("active");
     expect(document.querySelector("button[data-keyboard-hint='A']")).toBeTruthy();
     await user.keyboard("a{Enter}");
     expect(document.querySelector("button[data-keyboard-hint='A']")).toBeNull();

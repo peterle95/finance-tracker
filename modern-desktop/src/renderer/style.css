@@ -1549,6 +1549,47 @@ tbody tr:hover td {
 .keyboard-help-dismiss { position: absolute; top: 0.65rem; right: 0.55rem; }
 .keyboard-motion-note { display: block; font-size: 0.7rem; }
 
+.keyboard-active-indicator {
+  position: fixed;
+  z-index: 15;
+  top: 0.7rem;
+  left: 50%;
+  padding: 0.35rem 0.65rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--surface-solid) 88%, transparent);
+  color: var(--accent);
+  font-size: 0.7rem;
+  font-weight: 750;
+  pointer-events: none;
+  transform: translateX(-50%);
+}
+
+.keyboard-help-overlay {
+  position: fixed;
+  z-index: 25;
+  top: 3.2rem;
+  left: 50%;
+  width: min(22rem, calc(100vw - 2rem));
+  padding: 0.8rem 2rem 0.8rem 0.8rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 10px;
+  background: var(--surface-solid);
+  box-shadow: var(--shadow);
+  color: var(--muted);
+  font-size: 0.75rem;
+  transform: translateX(-50%);
+}
+.keyboard-help-overlay strong { display: block; color: var(--text); }
+:root[data-keyboard-mode="active"] [data-keyboard-hint]:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+:root[data-keyboard-entry="true"] .app-shell { animation: keyboard-mode-entry 500ms ease-out; }
+:root[data-keyboard-mode="active"] .app-shell { --keyboard-region-feedback: 1; }
+:root[data-keyboard-mode="active"][data-keyboard-region] .main-panel { animation: keyboard-region-change 500ms ease-out; }
+
 @keyframes keyboard-mode-entry { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
 @keyframes keyboard-region-change { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 24px color-mix(in srgb, var(--accent) 55%, transparent); } }
 

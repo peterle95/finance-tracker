@@ -39,6 +39,31 @@ import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
 import { useKeyboardNavigation } from "./keyboard-navigation";
 
+function KeyboardNavigationFeedback({ active, region }: { active: boolean; region: string }) {
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "?" && active && !(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) {
+        event.preventDefault();
+        setHelpOpen((open) => !open);
+      }
+      if (event.key === "Escape") setHelpOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [active]);
+
+  return <>
+    {active ? <span className="keyboard-active-indicator" role="status">Keyboard mode · {region}</span> : null}
+    {helpOpen ? <aside className="keyboard-help-overlay" aria-label="Keyboard navigation help">
+      <button type="button" className="icon-button keyboard-help-dismiss" onClick={() => setHelpOpen(false)} aria-label="Dismiss keyboard help">×</button>
+      <strong>Keyboard mode</strong>
+      <span>Type a hint and press Enter. H/L changes region; J/K scrolls. Press ? to hide this help.</span>
+    </aside> : null}
+  </>;
+}
+
 type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
 type Theme = "dark" | "light";
 
@@ -82,7 +107,7 @@ export function App() {
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
-  useKeyboardNavigation();
+  const keyboardNavigation = useKeyboardNavigation();
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
@@ -264,6 +289,7 @@ export function App() {
 
   return (
     <div className={"app-shell " + (collapsed ? "sidebar-collapsed" : "")}>
+      <KeyboardNavigationFeedback active={keyboardNavigation.active} region={keyboardNavigation.region} />
       <aside className="sidebar" data-keyboard-region="sidebar">
         <div className="sidebar-brand">
           <div className="brand-mark">F</div>

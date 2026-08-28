@@ -41,6 +41,15 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
   const [region, setRegion] = useState<Region>("main");
 
   useEffect(() => {
+    document.documentElement.dataset.keyboardMode = active ? "active" : "off";
+    document.documentElement.dataset.keyboardRegion = region;
+    return () => {
+      delete document.documentElement.dataset.keyboardMode;
+      delete document.documentElement.dataset.keyboardRegion;
+    };
+  }, [active, region]);
+
+  useEffect(() => {
     let buffer = "";
     let timer: number | undefined;
     let selected: HTMLElement | undefined;
@@ -64,7 +73,7 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
       if (!document.hasFocus()) return;
       if (event.key === "Escape" && active && !topDialog()) { event.preventDefault(); stop(); return; }
       if (editing(document.activeElement)) return;
-      if (!active && event.key === " ") { event.preventDefault(); setActive(true); showHints(); return; }
+      if (!active && event.key === " ") { event.preventDefault(); setActive(true); document.documentElement.dataset.keyboardEntry = "true"; window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500); showHints(); return; }
       if (!active) return;
       if ((event.key === "h" || event.key === "l") && !topDialog()) {
         event.preventDefault();
@@ -88,6 +97,7 @@ export function useKeyboardNavigation({ alphabet = "ASDFJKL", immediate = false,
       const matches = targets(region).filter((target) => target.getAttribute("data-keyboard-hint")?.startsWith(buffer));
       if (matches.length === 1 && matches[0].getAttribute("data-keyboard-hint") === buffer) {
         selected = matches[0];
+        selected.focus({ preventScroll: true });
         if (immediate) { selected.click(); clear(); }
       } else if (!matches.length) clear();
       window.clearTimeout(timer);
