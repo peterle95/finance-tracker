@@ -1,4 +1,4 @@
-import { FileCog, Moon, RefreshCw, ShieldAlert, SlidersHorizontal, Sun, Upload } from "lucide-react";
+import { FileCog, Keyboard, Moon, RefreshCw, ShieldAlert, SlidersHorizontal, Sun, Upload } from "lucide-react";
 import { useState } from "react";
 import type { DefaultBehaviorSettings } from "../../shared/behavior-settings";
 import type { DefaultRangeSettings } from "../../shared/range-settings";
@@ -6,6 +6,10 @@ import type { DataConnection, FinanceDocument } from "../../shared/types";
 import { DefaultBehaviorsDialog } from "./DefaultBehaviorsDialog";
 import { DefaultRangesDialog } from "./DefaultRangesDialog";
 import { Button, Card, PageHeader } from "./ui";
+import { KeyboardNavigationPrototype } from "./KeyboardNavigationPrototype";
+
+type KeyboardNavigationSettings = { activationKey: string; hintAlphabet: string; activationMode: "select" | "immediate" };
+const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: "f", hintAlphabet: "asdfjkl;", activationMode: "select" };
 
 interface SettingsScreenProps {
   document: FinanceDocument;
@@ -44,6 +48,15 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const [defaultRangesOpen, setDefaultRangesOpen] = useState(false);
   const [defaultBehaviorsOpen, setDefaultBehaviorsOpen] = useState(false);
+  const [keyboardNavigation, setKeyboardNavigation] = useState(DEFAULT_KEYBOARD_NAVIGATION);
+
+  const activationKeyError = keyboardNavigation.activationKey.length !== 1 || /\s/.test(keyboardNavigation.activationKey)
+    ? "Use one non-space key."
+    : null;
+  const alphabet = [...keyboardNavigation.hintAlphabet];
+  const hintAlphabetError = alphabet.length < 2 || alphabet.some((key) => /\s/.test(key)) || new Set(alphabet).size !== alphabet.length
+    ? "Use at least two unique, non-space characters."
+    : null;
 
   return (
     <div className="page">
@@ -60,6 +73,18 @@ export function SettingsScreen({
             <Button variant="ghost" onClick={onReload}><RefreshCw size={16} /> Reload</Button>
           </div>
           {connection.message ? <p className="error-copy">{connection.message}</p> : null}
+        </Card>
+
+        <Card>
+          <div className="card-heading"><div><p className="eyebrow">Prototype</p><h2>Keyboard navigation</h2></div><Keyboard size={22} /></div>
+          <p className="muted-copy">Configure the proposed keyboard hints. Navigation is not active yet, and these settings reset when the app reloads.</p>
+          <div className="form-grid compact-form">
+            <label><span>Activation key</span><input aria-label="Activation key" value={keyboardNavigation.activationKey} maxLength={1} onChange={(event) => setKeyboardNavigation((current) => ({ ...current, activationKey: event.target.value }))} />{activationKeyError ? <small className="error-copy">{activationKeyError}</small> : null}</label>
+            <label><span>Hint alphabet</span><input aria-label="Hint alphabet" value={keyboardNavigation.hintAlphabet} onChange={(event) => setKeyboardNavigation((current) => ({ ...current, hintAlphabet: event.target.value }))} />{hintAlphabetError ? <small className="error-copy">{hintAlphabetError}</small> : null}</label>
+            <div className="span-two"><span className="control-label">Activation behavior</span><div className="theme-choice"><button type="button" className={keyboardNavigation.activationMode === "select" ? "selected" : ""} onClick={() => setKeyboardNavigation((current) => ({ ...current, activationMode: "select" }))}>Select, then Enter</button><button type="button" className={keyboardNavigation.activationMode === "immediate" ? "selected" : ""} onClick={() => setKeyboardNavigation((current) => ({ ...current, activationMode: "immediate" }))}>Activate immediately</button></div></div>
+            <div className="form-actions span-two"><Button variant="ghost" onClick={() => setKeyboardNavigation(DEFAULT_KEYBOARD_NAVIGATION)}>Reset keyboard defaults</Button></div>
+            <div className="span-two"><KeyboardNavigationPrototype reducedMotion={reducedMotion} /></div>
+          </div>
         </Card>
 
         <Card>

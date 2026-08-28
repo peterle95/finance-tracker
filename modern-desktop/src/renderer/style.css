@@ -1505,6 +1505,53 @@ tbody tr:hover td {
   font-size: 0.79rem;
 }
 
+.keyboard-prototype {
+  position: relative;
+  margin-top: 0.4rem;
+  padding: 0.85rem;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: color-mix(in srgb, var(--surface-solid) 55%, transparent);
+}
+
+.keyboard-prototype-active {
+  animation: keyboard-mode-entry 500ms ease-out;
+}
+
+.keyboard-prototype-heading,
+.keyboard-prototype-actions,
+.keyboard-prototype-targets {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.keyboard-prototype-heading { justify-content: space-between; }
+.keyboard-prototype-heading h3 { margin: 0; font-size: 0.9rem; }
+.keyboard-mode-indicator { color: var(--accent); font-size: 0.72rem; font-weight: 750; }
+.keyboard-prototype-actions { flex-wrap: wrap; margin-top: 0.8rem; }
+.keyboard-prototype-targets { flex-wrap: wrap; margin-top: 0.8rem; }
+.keyboard-prototype-targets button {
+  padding: 0.55rem 0.7rem;
+  border: 1px solid var(--border);
+  border-radius: 9px;
+  background: transparent;
+  color: var(--text);
+}
+.keyboard-prototype-targets button:focus-visible {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
+}
+.keyboard-prototype-region-changed .keyboard-prototype-targets button:focus-visible { animation: keyboard-region-change 500ms ease-out; }
+.keyboard-help { display: grid; gap: 0.2rem; margin-top: 0.8rem; padding: 0.7rem 2rem 0.7rem 0.7rem; border: 1px solid var(--border-strong); border-radius: 9px; color: var(--muted); font-size: 0.75rem; }
+.keyboard-help strong { color: var(--text); }
+.keyboard-help-dismiss { position: absolute; top: 0.65rem; right: 0.55rem; }
+.keyboard-motion-note { display: block; font-size: 0.7rem; }
+
+@keyframes keyboard-mode-entry { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
+@keyframes keyboard-region-change { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 24px color-mix(in srgb, var(--accent) 55%, transparent); } }
+
 .dialog-overlay {
   position: fixed;
   z-index: 20;
