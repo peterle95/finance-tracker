@@ -102,7 +102,10 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
       }
       if (event.key === "j" || event.key === "k") {
         event.preventDefault();
-        document.querySelector(".page-scroll, .main-panel")?.scrollBy({ top: event.key === "j" ? 360 : -360, behavior: "smooth" });
+        const scrollable = document.querySelector(".page-scroll, .main-panel");
+        if (scrollable instanceof HTMLElement && typeof scrollable.scrollBy === "function") {
+          scrollable.scrollBy({ top: event.key === "j" ? 360 : -360, behavior: "smooth" });
+        }
         return;
       }
       if (event.key === "Backspace") { event.preventDefault(); buffer = buffer.slice(0, -1); showHints(); return; }

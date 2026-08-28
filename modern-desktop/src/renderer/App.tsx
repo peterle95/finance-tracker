@@ -14,7 +14,7 @@ import {
   TrendingUp,
   WalletCards
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cloneDocument } from "../shared/finance";
 import { normalizeDefaultBehaviorSettings } from "../shared/behavior-settings";
 import { normalizeDefaultRangeSettings } from "../shared/range-settings";
@@ -116,6 +116,7 @@ export function App() {
   const [keyboardSettings, setKeyboardSettings] = useState<KeyboardNavigationSettings>(initialKeyboardNavigation);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
+  const editorReturnFocus = useRef<HTMLElement | null>(null);
   const effectiveKeyboardSettings = normalizeKeyboardNavigationSettings(keyboardSettings);
   const keyboardNavigation = useKeyboardNavigation({ activationKey: effectiveKeyboardSettings.activationKey, alphabet: effectiveKeyboardSettings.hintAlphabet, immediate: effectiveKeyboardSettings.activationMode === "immediate" });
 
@@ -240,6 +241,18 @@ export function App() {
     setPage(next);
   }
 
+  function openEditor(type: TransactionType, transaction?: FinanceTransaction) {
+    editorReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setEditor({ type, transaction });
+  }
+
+  useEffect(() => {
+    if (!editor && editorReturnFocus.current) {
+      editorReturnFocus.current.focus();
+      editorReturnFocus.current = null;
+    }
+  }, [editor]);
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -271,7 +284,7 @@ export function App() {
   function content() {
     switch (page) {
       case "transactions":
-        return <TransactionsScreen document={activeDocument} onAdd={(type) => setEditor({ type })} onEdit={(type, transaction) => setEditor({ type, transaction })} onDelete={deleteTransaction} />;
+        return <TransactionsScreen document={activeDocument} onAdd={openEditor} onEdit={openEditor} onDelete={deleteTransaction} />;
       case "budget":
         return <BudgetScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onSave={(next) => void persist(next)} />;
       case "category-limits":
@@ -298,7 +311,7 @@ export function App() {
         }} onDefaultNetWorthPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthPeriod = value; void persist(updated); }} onDefaultNetWorthBreakdownPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthBreakdownPeriod = value; void persist(updated); }} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
-        return <DashboardScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
+        return <DashboardScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onAddTransaction={openEditor} onNavigate={(next) => navigate(next as Page)} />;
     }
   }
 

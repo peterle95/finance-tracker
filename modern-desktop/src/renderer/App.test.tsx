@@ -1,4 +1,4 @@
-import { cleanup, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { defaultDocument } from "../shared/finance";
@@ -7,6 +7,68 @@ import { App } from "./App";
 
 describe("App navigation", () => {
   afterEach(() => cleanup());
+
+  function installBridge(document = defaultDocument()) {
+    window.finance = {
+      load: vi.fn().mockResolvedValue({ document, connection: { path: "finance_data.json", isConnected: true } }),
+      chooseDataFile: vi.fn(),
+      createDataFile: vi.fn(),
+      saveDocument: vi.fn(),
+      chooseBankCsv: vi.fn(),
+      exportText: vi.fn()
+    };
+    Object.defineProperty(window, "matchMedia", {
+      configurable: true,
+      value: () => ({ matches: false, addListener: vi.fn(), removeListener: vi.fn() })
+    });
+    vi.spyOn(window.document, "hasFocus").mockReturnValue(true);
+  }
+
+  it("navigates across screens with hints, regions, scrolling, feedback, and exit", async () => {
+    const user = userEvent.setup();
+    installBridge();
+    render(<App />);
+    await screen.findByRole("heading", { name: "Your money, clearly" });
+    const scrollBy = vi.fn();
+    Object.defineProperty(HTMLElement.prototype, "scrollBy", { configurable: true, value: scrollBy });
+
+    await user.keyboard("f");
+    expect(screen.getByRole("status").textContent).toContain("Keyboard mode · main");
+    expect(document.querySelectorAll("[data-keyboard-hint]").length).toBeGreaterThan(0);
+    await user.keyboard("?");
+    expect(screen.getByLabelText("Keyboard navigation help")).toBeTruthy();
+    await user.keyboard("h");
+    expect(screen.getByRole("status").textContent).toContain("Keyboard mode · header");
+    await user.keyboard("j");
+    expect(scrollBy).toHaveBeenCalledWith({ top: 360, behavior: "smooth" });
+  });
+
+  it("keeps dialog editing and ordinary interactions native", async () => {
+    const user = userEvent.setup();
+    installBridge();
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Transactions" }));
+    const open = screen.getByRole("button", { name: "Expense" });
+    await user.click(open);
+    const dialog = await screen.findByRole("dialog");
+    const description = within(dialog).getByLabelText("Description");
+    await user.type(description, " lunch");
+    expect((description as HTMLInputElement).value).toContain(" lunch");
+    await user.keyboard("{Escape}");
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+    expect(document.activeElement).toBe(open);
+  });
+
+  it("falls back from invalid persisted keyboard settings and persists reset", async () => {
+    const user = userEvent.setup();
+    installBridge();
+    localStorage.setItem("finance-tracker-keyboard-navigation", JSON.stringify({ activationKey: " ", hintAlphabet: "a", activationMode: "bad" }));
+    render(<App />);
+    await user.click(await screen.findByRole("button", { name: "Settings" }));
+    expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe("f");
+    await user.click(screen.getByRole("button", { name: "Reset keyboard defaults" }));
+    expect(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "{}")).toEqual({ activationKey: "f", hintAlphabet: "asdfjkl", activationMode: "select" });
+  });
 
   it("persists reduced-motion preference and applies it to the document", async () => {
     const user = userEvent.setup();
