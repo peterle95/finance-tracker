@@ -1586,6 +1586,25 @@ tbody tr:hover td {
   border-color: var(--accent);
   box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent), 0 0 18px color-mix(in srgb, var(--accent) 45%, transparent);
 }
+:root[data-keyboard-mode="active"] [data-keyboard-hint] { position: relative; }
+:root[data-keyboard-mode="active"] [data-keyboard-hint]::after {
+  content: attr(data-keyboard-hint);
+  position: absolute;
+  top: -0.45rem;
+  right: -0.45rem;
+  z-index: 2;
+  min-width: 1.1rem;
+  padding: 0.12rem 0.22rem;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
+  background: var(--surface-solid);
+  color: var(--accent);
+  font-size: 0.65rem;
+  font-weight: 800;
+  line-height: 1;
+  text-align: center;
+  pointer-events: none;
+}
 :root[data-keyboard-entry="true"] .app-shell { animation: keyboard-mode-entry 500ms ease-out; }
 :root[data-keyboard-mode="active"] .app-shell { --keyboard-region-feedback: 1; }
 :root[data-keyboard-mode="active"][data-keyboard-region] .main-panel { animation: keyboard-region-change 500ms ease-out; }
