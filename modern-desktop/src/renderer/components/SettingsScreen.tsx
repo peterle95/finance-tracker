@@ -53,7 +53,7 @@ export function SettingsScreen({
 }: SettingsScreenProps) {
   const [defaultRangesOpen, setDefaultRangesOpen] = useState(false);
   const [defaultBehaviorsOpen, setDefaultBehaviorsOpen] = useState(false);
-  const activationKeyError = keyboardNavigation.activationKey.length !== 1 || /\s/.test(keyboardNavigation.activationKey)
+  const activationKeyError = keyboardNavigation.activationKey.length !== 1 || keyboardNavigation.activationKey !== " " && /\s/.test(keyboardNavigation.activationKey)
     ? "Use one non-space key."
     : null;
   const alphabet = [...keyboardNavigation.hintAlphabet];

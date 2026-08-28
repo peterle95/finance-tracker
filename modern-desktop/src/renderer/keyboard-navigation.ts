@@ -8,7 +8,7 @@ export interface KeyboardNavigationOptions {
 }
 
 export type KeyboardNavigationSettings = { activationKey: string; hintAlphabet: string; activationMode: "select" | "immediate" };
-export const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: "f", hintAlphabet: "asdfjkl", activationMode: "select" };
+export const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: " ", hintAlphabet: "asdfjkl", activationMode: "select" };
 
 export function normalizeKeyboardNavigationSettings(value: unknown): KeyboardNavigationSettings {
   if (!value || typeof value !== "object") return DEFAULT_KEYBOARD_NAVIGATION;
@@ -26,7 +26,7 @@ export function normalizeKeyboardNavigationSettings(value: unknown): KeyboardNav
 const regions = ["sidebar", "header", "main", "dialog"] as const;
 type Region = (typeof regions)[number];
 
-const actionable = "button, a[href], input, select, textarea, [role=button], [tabindex]:not([tabindex='-1'])";
+const actionable = "button, a[href], input, select, textarea, [role=button], [role=tab], [role=menuitem], [tabindex]:not([tabindex='-1'])";
 
 function visible(element: Element): element is HTMLElement {
   const node = element as HTMLElement;
@@ -35,7 +35,7 @@ function visible(element: Element): element is HTMLElement {
 }
 
 function editing(element: Element | null) {
-  return element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || element?.closest("[contenteditable]") !== null;
+  return element !== null && (element instanceof HTMLInputElement || element instanceof HTMLTextAreaElement || element instanceof HTMLSelectElement || element.closest("[contenteditable]") !== null);
 }
 
 function hintNames(alphabet: string, count: number) {
@@ -74,9 +74,9 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
     const clear = () => { buffer = ""; selected = undefined; document.querySelectorAll("[data-keyboard-hint]").forEach((node) => node.removeAttribute("data-keyboard-hint")); };
     const topDialog = () => Array.from(document.querySelectorAll<HTMLElement>("[role='dialog']")).filter(visible).at(-1);
     const targets = (area: Region) => {
-      const dialog = topDialog();
+  const dialog = topDialog();
       if (dialog) {
-        return dialog ? Array.from(dialog.querySelectorAll(actionable)).filter(visible) as HTMLElement[] : [];
+        return Array.from(dialog.querySelectorAll(actionable)).filter((target) => target.closest("[role='dialog']") === dialog).filter(visible) as HTMLElement[];
       }
       return Array.from(document.querySelectorAll(`[data-keyboard-region='${area}'] ${actionable}`)).filter(visible) as HTMLElement[];
     };
@@ -90,7 +90,11 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
       if (!document.hasFocus()) return;
       if (event.key === "Escape" && active && !topDialog()) { event.preventDefault(); stop(); return; }
       if (editing(document.activeElement)) return;
-       if (!active && event.key.toLowerCase() === activationKey) { event.preventDefault(); setActive(true); document.documentElement.dataset.keyboardEntry = "true"; window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500); showHints(); return; }
+       if (event.key === " " || event.key.toLowerCase() === activationKey) {
+         event.preventDefault();
+         if (active) { stop(); } else { setActive(true); document.documentElement.dataset.keyboardEntry = "true"; window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500); showHints(); }
+         return;
+       }
       if (!active) return;
       if ((event.key === "h" || event.key === "l") && !topDialog()) {
         event.preventDefault();

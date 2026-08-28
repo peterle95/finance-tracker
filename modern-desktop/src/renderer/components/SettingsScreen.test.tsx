@@ -23,7 +23,7 @@ describe("SettingsScreen keyboard navigation prototype", () => {
     await user.click(screen.getByRole("button", { name: "Activate immediately" }));
     await user.click(screen.getByRole("button", { name: "Reset keyboard defaults" }));
 
-    expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe("f");
+    expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe(" ");
     expect(onKeyboardNavigationReset).toHaveBeenCalled();
   });
 });

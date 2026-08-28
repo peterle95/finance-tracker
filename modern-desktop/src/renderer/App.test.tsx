@@ -32,7 +32,7 @@ describe("App navigation", () => {
     const scrollBy = vi.fn();
     Object.defineProperty(HTMLElement.prototype, "scrollBy", { configurable: true, value: scrollBy });
 
-    await user.keyboard("f");
+    await user.keyboard(" ");
     expect(screen.getByRole("status").textContent).toContain("Keyboard mode · main");
     expect(document.querySelectorAll("[data-keyboard-hint]").length).toBeGreaterThan(0);
     await user.keyboard("?");
@@ -65,9 +65,9 @@ describe("App navigation", () => {
     localStorage.setItem("finance-tracker-keyboard-navigation", JSON.stringify({ activationKey: " ", hintAlphabet: "a", activationMode: "bad" }));
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Settings" }));
-    expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe("f");
+    expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe(" ");
     await user.click(screen.getByRole("button", { name: "Reset keyboard defaults" }));
-    expect(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "{}")).toEqual({ activationKey: "f", hintAlphabet: "asdfjkl", activationMode: "select" });
+    expect(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "{}")).toEqual({ activationKey: " ", hintAlphabet: "asdfjkl", activationMode: "select" });
   });
 
   it("persists reduced-motion preference and applies it to the document", async () => {
