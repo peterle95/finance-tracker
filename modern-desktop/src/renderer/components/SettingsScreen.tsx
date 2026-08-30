@@ -1,4 +1,4 @@
-import { FileCog, Moon, RefreshCw, ShieldAlert, SlidersHorizontal, Sun, Upload } from "lucide-react";
+import { FileCog, Keyboard, Moon, RefreshCw, ShieldAlert, SlidersHorizontal, Sun, Upload } from "lucide-react";
 import { useState } from "react";
 import type { DefaultBehaviorSettings } from "../../shared/behavior-settings";
 import type { DefaultRangeSettings } from "../../shared/range-settings";
@@ -6,6 +6,9 @@ import type { DataConnection, FinanceDocument } from "../../shared/types";
 import { DefaultBehaviorsDialog } from "./DefaultBehaviorsDialog";
 import { DefaultRangesDialog } from "./DefaultRangesDialog";
 import { Button, Card, PageHeader } from "./ui";
+import { KeyboardNavigationPrototype } from "./KeyboardNavigationPrototype";
+import type { KeyboardNavigationSettings } from "../keyboard-navigation";
+
 
 interface SettingsScreenProps {
   document: FinanceDocument;
@@ -23,6 +26,9 @@ interface SettingsScreenProps {
   onChooseFile(): void;
   onCreateFile(): void;
   onReload(): void;
+  keyboardNavigation: KeyboardNavigationSettings;
+  onKeyboardNavigationChange(settings: KeyboardNavigationSettings): void;
+  onKeyboardNavigationReset(): void;
 }
 
 export function SettingsScreen({
@@ -40,10 +46,20 @@ export function SettingsScreen({
   onDefaultNetWorthBreakdownPeriodChange,
   onChooseFile,
   onCreateFile,
-  onReload
+  onReload,
+  keyboardNavigation,
+  onKeyboardNavigationChange,
+  onKeyboardNavigationReset
 }: SettingsScreenProps) {
   const [defaultRangesOpen, setDefaultRangesOpen] = useState(false);
   const [defaultBehaviorsOpen, setDefaultBehaviorsOpen] = useState(false);
+  const activationKeyError = keyboardNavigation.activationKey.length !== 1 || keyboardNavigation.activationKey !== " " && /\s/.test(keyboardNavigation.activationKey)
+    ? "Use one non-space key."
+    : null;
+  const alphabet = [...keyboardNavigation.hintAlphabet];
+  const hintAlphabetError = alphabet.length < 2 || alphabet.some((key) => /\s/.test(key)) || new Set(alphabet).size !== alphabet.length
+    ? "Use at least two unique, non-space characters."
+    : null;
 
   return (
     <div className="page">
@@ -60,6 +76,17 @@ export function SettingsScreen({
             <Button variant="ghost" onClick={onReload}><RefreshCw size={16} /> Reload</Button>
           </div>
           {connection.message ? <p className="error-copy">{connection.message}</p> : null}
+        </Card>
+
+        <Card>
+          <div className="card-heading"><div><p className="eyebrow">Prototype</p><h2>Keyboard navigation</h2></div><Keyboard size={22} /></div>
+          <p className="muted-copy">Configure the keyboard hints used throughout the app.</p>
+          <div className="form-grid compact-form">
+            <label><span>Activation key</span><input aria-label="Activation key" value={keyboardNavigation.activationKey} maxLength={1} onChange={(event) => onKeyboardNavigationChange({ ...keyboardNavigation, activationKey: event.target.value })} />{activationKeyError ? <small className="error-copy">{activationKeyError}</small> : null}</label>
+            <label><span>Hint alphabet</span><input aria-label="Hint alphabet" value={keyboardNavigation.hintAlphabet} onChange={(event) => onKeyboardNavigationChange({ ...keyboardNavigation, hintAlphabet: event.target.value })} />{hintAlphabetError ? <small className="error-copy">{hintAlphabetError}</small> : null}</label>
+            <div className="form-actions span-two"><Button variant="ghost" onClick={onKeyboardNavigationReset}>Reset keyboard defaults</Button></div>
+            <div className="span-two"><KeyboardNavigationPrototype reducedMotion={reducedMotion} /></div>
+          </div>
         </Card>
 
         <Card>

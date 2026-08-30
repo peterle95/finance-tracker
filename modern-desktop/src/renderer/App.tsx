@@ -14,7 +14,7 @@ import {
   TrendingUp,
   WalletCards
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { cloneDocument } from "../shared/finance";
 import { normalizeDefaultBehaviorSettings } from "../shared/behavior-settings";
 import { normalizeDefaultRangeSettings } from "../shared/range-settings";
@@ -37,6 +37,32 @@ import { SettingsScreen } from "./components/SettingsScreen";
 import { TransactionEditor } from "./components/TransactionEditor";
 import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
+import { DEFAULT_KEYBOARD_NAVIGATION, normalizeKeyboardNavigationSettings, useKeyboardNavigation, type KeyboardNavigationSettings } from "./keyboard-navigation";
+
+function KeyboardNavigationFeedback({ active }: { active: boolean }) {
+  const [helpOpen, setHelpOpen] = useState(false);
+
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "?" && active && !(document.activeElement instanceof HTMLInputElement || document.activeElement instanceof HTMLTextAreaElement)) {
+        event.preventDefault();
+        setHelpOpen((open) => !open);
+      }
+      if (event.key === "Escape") setHelpOpen(false);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    return () => document.removeEventListener("keydown", onKeyDown);
+  }, [active]);
+
+  return <>
+    {active ? <span className="keyboard-active-indicator" role="status">Keyboard mode</span> : null}
+    {helpOpen ? <aside className="keyboard-help-overlay" aria-label="Keyboard navigation help">
+      <button type="button" className="icon-button keyboard-help-dismiss" onClick={() => setHelpOpen(false)} aria-label="Dismiss keyboard help">×</button>
+      <strong>Keyboard mode</strong>
+      <span>Type a hint to activate it. Press ? to hide this help.</span>
+    </aside> : null}
+  </>;
+}
 
 type Page = "dashboard" | "transactions" | "budget" | "category-limits" | "goals" | "reports" | "net-worth" | "projection" | "reconciliation" | "settings";
 type Theme = "dark" | "light";
@@ -70,6 +96,14 @@ function initialReducedMotion(): boolean {
   return localStorage.getItem("finance-tracker-reduced-motion") === "true";
 }
 
+function initialKeyboardNavigation(): KeyboardNavigationSettings {
+  try {
+    return normalizeKeyboardNavigationSettings(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "null"));
+  } catch {
+    return DEFAULT_KEYBOARD_NAVIGATION;
+  }
+}
+
 export function App() {
   const [financeDocument, setDocument] = useState<FinanceDocument | null>(null);
   const [connection, setConnection] = useState<DataConnection>({ path: null, isConnected: false });
@@ -79,8 +113,17 @@ export function App() {
   const [editor, setEditor] = useState<EditorState | null>(null);
   const [theme, setTheme] = useState<Theme>(initialTheme);
   const [reducedMotion, setReducedMotion] = useState(initialReducedMotion);
+  const [keyboardSettings, setKeyboardSettings] = useState<KeyboardNavigationSettings>(initialKeyboardNavigation);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
+  const editorReturnFocus = useRef<HTMLElement | null>(null);
+  const effectiveKeyboardSettings = normalizeKeyboardNavigationSettings(keyboardSettings);
+  const keyboardNavigation = useKeyboardNavigation({ activationKey: effectiveKeyboardSettings.activationKey, alphabet: effectiveKeyboardSettings.hintAlphabet });
+
+  function updateKeyboardSettings(settings: KeyboardNavigationSettings) {
+    setKeyboardSettings(settings);
+    localStorage.setItem("finance-tracker-keyboard-navigation", JSON.stringify(settings));
+  }
 
   useEffect(() => {
     window.document.documentElement.dataset.theme = theme;
@@ -198,6 +241,18 @@ export function App() {
     setPage(next);
   }
 
+  function openEditor(type: TransactionType, transaction?: FinanceTransaction) {
+    editorReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    setEditor({ type, transaction });
+  }
+
+  useEffect(() => {
+    if (!editor && editorReturnFocus.current) {
+      editorReturnFocus.current.focus();
+      editorReturnFocus.current = null;
+    }
+  }, [editor]);
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -229,7 +284,7 @@ export function App() {
   function content() {
     switch (page) {
       case "transactions":
-        return <TransactionsScreen document={activeDocument} onAdd={(type) => setEditor({ type })} onEdit={(type, transaction) => setEditor({ type, transaction })} onDelete={deleteTransaction} />;
+        return <TransactionsScreen document={activeDocument} onAdd={openEditor} onEdit={openEditor} onDelete={deleteTransaction} />;
       case "budget":
         return <BudgetScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onSave={(next) => void persist(next)} />;
       case "category-limits":
@@ -245,7 +300,7 @@ export function App() {
       case "reconciliation":
         return <ReconciliationScreen document={activeDocument} onSave={(next) => void persist(next)} />;
       case "settings":
-        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onDefaultRangesChange={(next) => {
+        return <SettingsScreen document={activeDocument} connection={connection} theme={theme} reducedMotion={reducedMotion} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} keyboardNavigation={keyboardSettings} onKeyboardNavigationChange={updateKeyboardSettings} onKeyboardNavigationReset={() => updateKeyboardSettings(DEFAULT_KEYBOARD_NAVIGATION)} onThemeChange={setTheme} onReducedMotionChange={setReducedMotion} onDefaultRangesChange={(next) => {
           const updated = cloneDocument(activeDocument);
           updated.budget_settings.default_ranges = next;
           void persist(updated);
@@ -256,13 +311,14 @@ export function App() {
         }} onDefaultNetWorthPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthPeriod = value; void persist(updated); }} onDefaultNetWorthBreakdownPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthBreakdownPeriod = value; void persist(updated); }} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
-        return <DashboardScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onAddTransaction={(type) => setEditor({ type })} onNavigate={(next) => navigate(next as Page)} />;
+        return <DashboardScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onAddTransaction={openEditor} onNavigate={(next) => navigate(next as Page)} />;
     }
   }
 
   return (
     <div className={"app-shell " + (collapsed ? "sidebar-collapsed" : "")}>
-      <aside className="sidebar">
+      <KeyboardNavigationFeedback active={keyboardNavigation.active} />
+      <aside className="sidebar" data-keyboard-region="sidebar">
         <div className="sidebar-brand">
           <div className="brand-mark">F</div>
           <div className="brand-copy"><strong>Finance</strong><span>Tracker Modern</span></div>
@@ -286,7 +342,7 @@ export function App() {
       </aside>
 
       <main className="main-panel">
-        <header className="topbar">
+        <header className="topbar" data-keyboard-region="header">
           <button className="icon-button mobile-menu" onClick={() => setCollapsed((value) => !value)} aria-label="Toggle menu"><Menu size={20} /></button>
           <div className="topbar-path"><span className="connection-dot" />{connection.path ?? "No connected file"}</div>
           <div className="topbar-actions">
@@ -295,7 +351,7 @@ export function App() {
           </div>
         </header>
         {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
-        <div className="page-scroll">{content()}</div>
+        <div className="page-scroll" data-keyboard-region="main">{content()}</div>
       </main>
 
       {editor ? (
