@@ -1,37 +1,37 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export interface KeyboardNavigationOptions {
   activationKey?: string;
   alphabet?: string;
-  immediate?: boolean;
   hintTimeout?: number;
 }
 
-export type KeyboardNavigationSettings = { activationKey: string; hintAlphabet: string; activationMode: "select" | "immediate" };
-export const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: " ", hintAlphabet: "asdfjkl", activationMode: "select" };
+export type KeyboardNavigationSettings = { activationKey: string; hintAlphabet: string };
+export const DEFAULT_KEYBOARD_NAVIGATION: KeyboardNavigationSettings = { activationKey: " ", hintAlphabet: "asdfjkl" };
 
 export function normalizeKeyboardNavigationSettings(value: unknown): KeyboardNavigationSettings {
   if (!value || typeof value !== "object") return DEFAULT_KEYBOARD_NAVIGATION;
   const candidate = value as Partial<KeyboardNavigationSettings>;
-  const activationKey = typeof candidate.activationKey === "string" ? candidate.activationKey.trim().toLowerCase() : "";
+  const activationKey = candidate.activationKey === " " ? " " : typeof candidate.activationKey === "string" ? candidate.activationKey.trim().toLowerCase() : "";
   const hintAlphabet = typeof candidate.hintAlphabet === "string"
     ? [...candidate.hintAlphabet.toLowerCase().replace(/\s/g, "")].filter((key, index, keys) => keys.indexOf(key) === index).join("")
     : "";
-  if (activationKey.length !== 1 || !hintAlphabet || !/^[a-z]+$/.test(hintAlphabet) || [...hintAlphabet].length < 2 || candidate.activationMode !== "select" && candidate.activationMode !== "immediate") {
+  if (activationKey.length !== 1 || !hintAlphabet || !/^[a-z0-9]+$/.test(hintAlphabet) || [...hintAlphabet].length < 2) {
     return DEFAULT_KEYBOARD_NAVIGATION;
   }
-  return { activationKey, hintAlphabet, activationMode: candidate.activationMode };
+  return { activationKey, hintAlphabet };
 }
-
-const regions = ["sidebar", "header", "main", "dialog"] as const;
-type Region = (typeof regions)[number];
 
 const actionable = "button, a[href], input, select, textarea, [role=button], [role=tab], [role=menuitem], [tabindex]:not([tabindex='-1'])";
 
 function visible(element: Element): element is HTMLElement {
   const node = element as HTMLElement;
-  const style = window.getComputedStyle(node);
-  return !node.closest("[hidden], [inert], [aria-hidden='true']") && !node.hasAttribute("disabled") && node.getAttribute("aria-disabled") !== "true" && style.display !== "none" && style.visibility !== "hidden";
+  if (!node.isConnected || node.matches(":disabled") || node.closest("[hidden], [inert], [aria-hidden='true'], [aria-disabled='true']")) return false;
+  for (let ancestor: HTMLElement | null = node; ancestor; ancestor = ancestor.parentElement) {
+    const style = window.getComputedStyle(ancestor);
+    if (style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse") return false;
+  }
+  return true;
 }
 
 function editing(element: Element | null) {
@@ -39,108 +39,133 @@ function editing(element: Element | null) {
 }
 
 function hintNames(alphabet: string, count: number) {
-  const names: string[] = [];
-  const queue = [""];
-  while (names.length < count) {
-    const prefix = queue.shift()!;
-    for (const character of alphabet) {
-      const name = prefix + character;
-      names.push(name);
-      queue.push(name);
-      if (names.length === count) break;
-    }
+  let length = 1;
+  while (alphabet.length ** length < count) {
+    length += 1;
   }
-  return names;
+  return Array.from({ length: count }, (_, index) => {
+    let value = index;
+    let name = "";
+    for (let position = 0; position < length; position += 1) {
+      name = alphabet[value % alphabet.length] + name;
+      value = Math.floor(value / alphabet.length);
+    }
+    return name;
+  });
 }
 
-export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL", immediate = false, hintTimeout = 1000 }: KeyboardNavigationOptions = {}) {
+export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL", hintTimeout = 1000 }: KeyboardNavigationOptions = {}) {
   const [active, setActive] = useState(false);
-  const [region, setRegion] = useState<Region>("main");
+  const activeRef = useRef(false);
 
   useEffect(() => {
     document.documentElement.dataset.keyboardMode = active ? "active" : "off";
-    document.documentElement.dataset.keyboardRegion = region;
     return () => {
       delete document.documentElement.dataset.keyboardMode;
-      delete document.documentElement.dataset.keyboardRegion;
     };
-  }, [active, region]);
+  }, [active]);
 
   useEffect(() => {
     let buffer = "";
     let timer: number | undefined;
-    let selected: HTMLElement | undefined;
+    let entryTimer: number | undefined;
+    let hints: Array<{ target: HTMLElement; name: string }> = [];
 
-    const clear = () => { buffer = ""; selected = undefined; document.querySelectorAll("[data-keyboard-hint]").forEach((node) => node.removeAttribute("data-keyboard-hint")); };
+    const clearTimer = () => {
+      window.clearTimeout(timer);
+      timer = undefined;
+    };
+    const clearHints = () => {
+      hints = [];
+      document.querySelectorAll("[data-keyboard-hint]").forEach((node) => node.removeAttribute("data-keyboard-hint"));
+    };
     const topDialog = () => Array.from(document.querySelectorAll<HTMLElement>("[role='dialog']")).filter(visible).at(-1);
-    const targets = (area: Region) => {
-  const dialog = topDialog();
+    const targets = () => {
+      const dialog = topDialog();
       if (dialog) {
         return Array.from(dialog.querySelectorAll(actionable)).filter((target) => target.closest("[role='dialog']") === dialog).filter(visible) as HTMLElement[];
       }
-      return Array.from(document.querySelectorAll(`[data-keyboard-region='${area}'] ${actionable}`)).filter(visible) as HTMLElement[];
+      return Array.from(document.querySelectorAll(actionable)).filter(visible) as HTMLElement[];
     };
     const showHints = () => {
-      clear();
-      const names = hintNames(alphabet.toUpperCase(), targets(region).length);
-      targets(region).forEach((target, index) => target.setAttribute("data-keyboard-hint", names[index]));
+      clearHints();
+      const currentTargets = targets();
+      const names = hintNames(alphabet.toUpperCase(), currentTargets.length);
+      hints = currentTargets.map((target, index) => ({ target, name: names[index] }));
+      hints.forEach(({ target, name }) => target.setAttribute("data-keyboard-hint", name));
     };
     const activate = (target: HTMLElement) => {
-      window.clearTimeout(timer);
+      clearTimer();
+      target.focus({ preventScroll: true });
       target.click();
-      clear();
-      window.setTimeout(showHints, 0);
+      buffer = "";
+      clearHints();
+      window.setTimeout(() => { if (activeRef.current) showHints(); }, 0);
     };
-    const stop = () => { clear(); setActive(false); };
+    const stop = () => {
+      clearTimer();
+      buffer = "";
+      clearHints();
+      activeRef.current = false;
+      setActive(false);
+    };
     const onKey = (event: KeyboardEvent) => {
-      if (!document.hasFocus()) return;
-      if (event.key === "Escape" && active && !topDialog()) { event.preventDefault(); stop(); return; }
+      if (!document.hasFocus() || event.isComposing || event.repeat || event.ctrlKey || event.metaKey || event.altKey) return;
+      if (event.key === "Escape") {
+        if (activeRef.current && !topDialog()) { event.preventDefault(); stop(); }
+        return;
+      }
       if (editing(document.activeElement)) return;
-       if (event.key === " " || event.key.toLowerCase() === activationKey) {
-         event.preventDefault();
-         if (active) { stop(); } else { setActive(true); document.documentElement.dataset.keyboardEntry = "true"; window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500); showHints(); }
-         return;
-       }
-      if (!active) return;
-      if ((event.key === "h" || event.key === "l") && !topDialog()) {
-        event.preventDefault();
-        const step = event.key === "h" ? -1 : 1;
-        setRegion((current) => regions[(regions.indexOf(current) + step + regions.length) % regions.length]);
-        clear();
-        window.setTimeout(showHints, 0);
-        return;
-      }
-      if (event.key === "j" || event.key === "k") {
-        event.preventDefault();
-        const scrollable = document.querySelector(".page-scroll, .main-panel");
-        if (scrollable instanceof HTMLElement && typeof scrollable.scrollBy === "function") {
-          scrollable.scrollBy({ top: event.key === "j" ? 360 : -360, behavior: "smooth" });
-        }
-        return;
-      }
-      if (event.key === "Backspace") { event.preventDefault(); buffer = buffer.slice(0, -1); showHints(); return; }
-      if (event.key === "Enter" && selected) { event.preventDefault(); activate(selected); return; }
       const character = event.key.toUpperCase();
-      if (!alphabet.toUpperCase().includes(character)) return;
+      const isHintCharacter = alphabet.toUpperCase().includes(character);
+      const isActivationKey = event.key.toLowerCase() === activationKey;
+      if (!activeRef.current) {
+        if (!isActivationKey || event.repeat) return;
+        event.preventDefault();
+        activeRef.current = true;
+        setActive(true);
+        document.documentElement.dataset.keyboardEntry = "true";
+        entryTimer = window.setTimeout(() => delete document.documentElement.dataset.keyboardEntry, 500);
+        showHints();
+        return;
+      }
+      if (isActivationKey && !isHintCharacter) { event.preventDefault(); stop(); return; }
+      if (event.key === "Backspace") { event.preventDefault(); buffer = buffer.slice(0, -1); showHints(); return; }
+      if (event.key === "Enter") { event.preventDefault(); return; }
+      if (!isHintCharacter) return;
       event.preventDefault();
       buffer += character;
-      const matches = targets(region).filter((target) => target.getAttribute("data-keyboard-hint")?.startsWith(buffer));
-      if (matches.length === 1 && matches[0].getAttribute("data-keyboard-hint") === buffer) {
-        selected = matches[0];
-        selected.focus({ preventScroll: true });
-        if (immediate) { activate(selected); return; }
-      } else if (!matches.length) clear();
-      window.clearTimeout(timer);
-      timer = window.setTimeout(clear, hintTimeout);
+      const matches = hints.filter(({ target, name }) => target.isConnected && name.startsWith(buffer));
+      if (matches.length === 1 && matches[0].name === buffer) {
+        activate(matches[0].target);
+        return;
+      }
+      if (!matches.length) {
+        buffer = "";
+        showHints();
+        return;
+      }
+      clearTimer();
+      timer = window.setTimeout(() => {
+        buffer = "";
+        if (activeRef.current) showHints();
+      }, hintTimeout);
     };
     document.addEventListener("keydown", onKey);
     const observer = new MutationObserver(() => {
-      if (active) showHints();
-      else clear();
+      if (activeRef.current) showHints();
     });
-    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden", "hidden", "style"] });
-    return () => { document.removeEventListener("keydown", onKey); observer.disconnect(); window.clearTimeout(timer); };
-  }, [activationKey, active, alphabet, immediate, hintTimeout, region]);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ["aria-hidden", "hidden", "inert", "style", "class", "disabled", "aria-disabled", "tabindex"] });
+    if (activeRef.current) showHints();
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      observer.disconnect();
+      clearTimer();
+      window.clearTimeout(entryTimer);
+      clearHints();
+      delete document.documentElement.dataset.keyboardEntry;
+    };
+  }, [activationKey, alphabet, hintTimeout]);
 
-  return { active, region };
+  return { active };
 }

@@ -39,7 +39,7 @@ import { TransactionsScreen } from "./components/TransactionsScreen";
 import { Button, LoadingScreen } from "./components/ui";
 import { DEFAULT_KEYBOARD_NAVIGATION, normalizeKeyboardNavigationSettings, useKeyboardNavigation, type KeyboardNavigationSettings } from "./keyboard-navigation";
 
-function KeyboardNavigationFeedback({ active, region }: { active: boolean; region: string }) {
+function KeyboardNavigationFeedback({ active }: { active: boolean }) {
   const [helpOpen, setHelpOpen] = useState(false);
 
   useEffect(() => {
@@ -55,11 +55,11 @@ function KeyboardNavigationFeedback({ active, region }: { active: boolean; regio
   }, [active]);
 
   return <>
-    {active ? <span className="keyboard-active-indicator" role="status">Keyboard mode · {region}</span> : null}
+    {active ? <span className="keyboard-active-indicator" role="status">Keyboard mode</span> : null}
     {helpOpen ? <aside className="keyboard-help-overlay" aria-label="Keyboard navigation help">
       <button type="button" className="icon-button keyboard-help-dismiss" onClick={() => setHelpOpen(false)} aria-label="Dismiss keyboard help">×</button>
       <strong>Keyboard mode</strong>
-      <span>Type a hint and press Enter. H/L changes region; J/K scrolls. Press ? to hide this help.</span>
+      <span>Type a hint to activate it. Press ? to hide this help.</span>
     </aside> : null}
   </>;
 }
@@ -118,7 +118,7 @@ export function App() {
   const [toast, setToast] = useState("");
   const editorReturnFocus = useRef<HTMLElement | null>(null);
   const effectiveKeyboardSettings = normalizeKeyboardNavigationSettings(keyboardSettings);
-  const keyboardNavigation = useKeyboardNavigation({ activationKey: effectiveKeyboardSettings.activationKey, alphabet: effectiveKeyboardSettings.hintAlphabet, immediate: effectiveKeyboardSettings.activationMode === "immediate" });
+  const keyboardNavigation = useKeyboardNavigation({ activationKey: effectiveKeyboardSettings.activationKey, alphabet: effectiveKeyboardSettings.hintAlphabet });
 
   function updateKeyboardSettings(settings: KeyboardNavigationSettings) {
     setKeyboardSettings(settings);
@@ -317,7 +317,7 @@ export function App() {
 
   return (
     <div className={"app-shell " + (collapsed ? "sidebar-collapsed" : "")}>
-      <KeyboardNavigationFeedback active={keyboardNavigation.active} region={keyboardNavigation.region} />
+      <KeyboardNavigationFeedback active={keyboardNavigation.active} />
       <aside className="sidebar" data-keyboard-region="sidebar">
         <div className="sidebar-brand">
           <div className="brand-mark">F</div>

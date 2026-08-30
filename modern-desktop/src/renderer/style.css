@@ -1607,7 +1607,6 @@ tbody tr:hover td {
 }
 :root[data-keyboard-entry="true"] .app-shell { animation: keyboard-mode-entry 500ms ease-out; }
 :root[data-keyboard-mode="active"] .app-shell { --keyboard-region-feedback: 1; }
-:root[data-keyboard-mode="active"][data-keyboard-region] .main-panel { animation: keyboard-region-change 500ms ease-out; }
 
 @keyframes keyboard-mode-entry { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--accent) 45%, transparent); } 100% { box-shadow: 0 0 0 12px transparent; } }
 @keyframes keyboard-region-change { 50% { box-shadow: 0 0 0 5px color-mix(in srgb, var(--accent) 35%, transparent), 0 0 24px color-mix(in srgb, var(--accent) 55%, transparent); } }

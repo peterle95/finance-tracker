@@ -24,23 +24,19 @@ describe("App navigation", () => {
     vi.spyOn(window.document, "hasFocus").mockReturnValue(true);
   }
 
-  it("navigates across screens with hints, regions, scrolling, feedback, and exit", async () => {
+  it("shows one hint set for header and page actions", async () => {
     const user = userEvent.setup();
     installBridge();
     render(<App />);
     await screen.findByRole("heading", { name: "Your money, clearly" });
-    const scrollBy = vi.fn();
-    Object.defineProperty(HTMLElement.prototype, "scrollBy", { configurable: true, value: scrollBy });
 
     await user.keyboard(" ");
-    expect(screen.getByRole("status").textContent).toContain("Keyboard mode · main");
-    expect(document.querySelectorAll("[data-keyboard-hint]").length).toBeGreaterThan(0);
+    expect(screen.getByRole("status").textContent).toContain("Keyboard mode");
+    expect(screen.getByRole("button", { name: "Toggle theme" }).getAttribute("data-keyboard-hint")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Add expense" }).getAttribute("data-keyboard-hint")).toBeTruthy();
     await user.keyboard("?");
     expect(screen.getByLabelText("Keyboard navigation help")).toBeTruthy();
-    await user.keyboard("h");
-    expect(screen.getByRole("status").textContent).toContain("Keyboard mode · header");
-    await user.keyboard("j");
-    expect(scrollBy).toHaveBeenCalledWith({ top: 360, behavior: "smooth" });
+    expect(screen.getByLabelText("Keyboard navigation help").textContent).toContain("Type a hint to activate it.");
   });
 
   it("keeps dialog editing and ordinary interactions native", async () => {
@@ -62,12 +58,12 @@ describe("App navigation", () => {
   it("falls back from invalid persisted keyboard settings and persists reset", async () => {
     const user = userEvent.setup();
     installBridge();
-    localStorage.setItem("finance-tracker-keyboard-navigation", JSON.stringify({ activationKey: " ", hintAlphabet: "a", activationMode: "bad" }));
+    localStorage.setItem("finance-tracker-keyboard-navigation", JSON.stringify({ activationKey: " ", hintAlphabet: "a" }));
     render(<App />);
     await user.click(await screen.findByRole("button", { name: "Settings" }));
     expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe(" ");
     await user.click(screen.getByRole("button", { name: "Reset keyboard defaults" }));
-    expect(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "{}")).toEqual({ activationKey: " ", hintAlphabet: "asdfjkl", activationMode: "select" });
+    expect(JSON.parse(localStorage.getItem("finance-tracker-keyboard-navigation") ?? "{}")).toEqual({ activationKey: " ", hintAlphabet: "asdfjkl" });
   });
 
   it("persists reduced-motion preference and applies it to the document", async () => {

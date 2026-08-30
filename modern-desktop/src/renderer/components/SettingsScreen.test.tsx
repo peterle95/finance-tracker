@@ -20,7 +20,7 @@ describe("SettingsScreen keyboard navigation prototype", () => {
 
     await user.clear(screen.getByLabelText("Activation key"));
     expect(onKeyboardNavigationChange).toHaveBeenCalledWith(expect.objectContaining({ activationKey: "" }));
-    await user.click(screen.getByRole("button", { name: "Activate immediately" }));
+    expect(screen.queryByRole("button", { name: "Activate immediately" })).toBeNull();
     await user.click(screen.getByRole("button", { name: "Reset keyboard defaults" }));
 
     expect((screen.getByLabelText("Activation key") as HTMLInputElement).value).toBe(" ");
