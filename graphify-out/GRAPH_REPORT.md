@@ -1,106 +1,140 @@
-# Graph Report - .  (2026-07-12)
+# Graph Report - finance-use-ubuntu-for-changes  (2026-08-30)
 
 ## Corpus Check
-- 9 files · ~218,738 words
+- 196 files · ~260,570 words
 - Verdict: corpus is large enough that graph structure adds value.
 
 ## Summary
-- 1393 nodes · 2835 edges · 91 communities (73 shown, 18 thin omitted)
-- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 48 edges (avg confidence: 0.83)
+- 2128 nodes · 4822 edges · 124 communities (107 shown, 17 thin omitted)
+- Extraction: 98% EXTRACTED · 2% INFERRED · 0% AMBIGUOUS · INFERRED: 114 edges (avg confidence: 0.86)
 - Token cost: 0 input · 0 output
 
+## Graph Freshness
+- Built from commit: `61d90ba4`
+- Run `git rev-parse HEAD` and compare to check if the graph is stale.
+- Run `graphify update .` after code changes (no API cost).
+
 ## Community Hubs (Navigation)
-- [[_COMMUNITY_Desktop Data Models|Desktop Data Models]]
-- [[_COMMUNITY_Android Compose UI Layer|Android Compose UI Layer]]
-- [[_COMMUNITY_Dashboard & Budget State|Dashboard & Budget State]]
-- [[_COMMUNITY_Desktop Settings & Display|Desktop Settings & Display]]
-- [[_COMMUNITY_Transaction & Category Models|Transaction & Category Models]]
-- [[_COMMUNITY_Android Theme & UI Constants|Android Theme & UI Constants]]
-- [[_COMMUNITY_AI Insights Service|AI Insights Service]]
-- [[_COMMUNITY_Android JSON Serialization|Android JSON Serialization]]
-- [[_COMMUNITY_Android Budget Settings|Android Budget Settings]]
-- [[_COMMUNITY_Savings Goals|Savings Goals]]
-- [[_COMMUNITY_Budget Types (Python)|Budget Types (Python)]]
-- [[_COMMUNITY_Modern Desktop Screens|Modern Desktop Screens]]
-- [[_COMMUNITY_Android ViewModel & Settings|Android ViewModel & Settings]]
-- [[_COMMUNITY_Keyboard Shortcuts|Keyboard Shortcuts]]
-- [[_COMMUNITY_Reports & Charts Tab|Reports & Charts Tab]]
-- [[_COMMUNITY_Modern Desktop Goals & Budget|Modern Desktop Goals & Budget]]
-- [[_COMMUNITY_Modern Desktop Data Store|Modern Desktop Data Store]]
-- [[_COMMUNITY_Net Worth Tracking|Net Worth Tracking]]
-- [[_COMMUNITY_Shared Budget Types|Shared Budget Types]]
-- [[_COMMUNITY_Modern Desktop Net Worth|Modern Desktop Net Worth]]
-- [[_COMMUNITY_Python Goals Service|Python Goals Service]]
-- [[_COMMUNITY_Desktop Budgets Tab|Desktop Budgets Tab]]
-- [[_COMMUNITY_Budget Settings Types (Android)|Budget Settings Types (Android)]]
-- [[_COMMUNITY_Transaction Filtering UI|Transaction Filtering UI]]
-- [[_COMMUNITY_Bank Reconciliation Tab|Bank Reconciliation Tab]]
-- [[_COMMUNITY_Modern Desktop Category Limits|Modern Desktop Category Limits]]
-- [[_COMMUNITY_TypeScript Configuration|TypeScript Configuration]]
-- [[_COMMUNITY_Python Chart Renderer|Python Chart Renderer]]
-- [[_COMMUNITY_Desktop Main Window|Desktop Main Window]]
-- [[_COMMUNITY_Dashboard Metrics|Dashboard Metrics]]
-- [[_COMMUNITY_Budget Types (Legacy)|Budget Types (Legacy)]]
-- [[_COMMUNITY_Electron Build Config|Electron Build Config]]
-- [[_COMMUNITY_Android Codec Tests|Android Codec Tests]]
-- [[_COMMUNITY_Asset Tracking Service|Asset Tracking Service]]
-- [[_COMMUNITY_Modern Desktop Budget Screen|Modern Desktop Budget Screen]]
-- [[_COMMUNITY_Modern Desktop Docs & Rationale|Modern Desktop Docs & Rationale]]
-- [[_COMMUNITY_Android Transaction Types|Android Transaction Types]]
-- [[_COMMUNITY_Desktop Conceptual Architecture|Desktop Conceptual Architecture]]
-- [[_COMMUNITY_Shared Reconciliation Logic|Shared Reconciliation Logic]]
-- [[_COMMUNITY_Cross-Platform Architecture|Cross-Platform Architecture]]
-- [[_COMMUNITY_Desktop Windowing|Desktop Windowing]]
-- [[_COMMUNITY_AI Insights Tab UI|AI Insights Tab UI]]
-- [[_COMMUNITY_Android BNPL Logic Tests|Android BNPL Logic Tests]]
-- [[_COMMUNITY_Android Budget Math Tests|Android Budget Math Tests]]
-- [[_COMMUNITY_Test Mocks & Reproduction|Test Mocks & Reproduction]]
-- [[_COMMUNITY_Dev Scripts (npm)|Dev Scripts (npm)]]
-- [[_COMMUNITY_Add Transaction Tab|Add Transaction Tab]]
-- [[_COMMUNITY_Android Amount Formatting|Android Amount Formatting]]
-- [[_COMMUNITY_Desktop App State|Desktop App State]]
-- [[_COMMUNITY_Android Dashboard Charts Tests|Android Dashboard Charts Tests]]
-- [[_COMMUNITY_Electron Builder Config|Electron Builder Config]]
-- [[_COMMUNITY_Python Report Builder|Python Report Builder]]
-- [[_COMMUNITY_Projection Tab|Projection Tab]]
-- [[_COMMUNITY_Desktop Help Window|Desktop Help Window]]
-- [[_COMMUNITY_Android Insights JSON|Android Insights JSON]]
-- [[_COMMUNITY_Android Projection Tests|Android Projection Tests]]
-- [[_COMMUNITY_Package Metadata|Package Metadata]]
-- [[_COMMUNITY_React Dependencies|React Dependencies]]
-- [[_COMMUNITY_Currency Formatting|Currency Formatting]]
-- [[_COMMUNITY_Python Projection Service|Python Projection Service]]
-- [[_COMMUNITY_Shortcut Setup|Shortcut Setup]]
-- [[_COMMUNITY_Android Settings DataStore|Android Settings DataStore]]
-- [[_COMMUNITY_Android Main Activity|Android Main Activity]]
-- [[_COMMUNITY_Android Amount Text Tests|Android Amount Text Tests]]
-- [[_COMMUNITY_Android Net Worth Math Tests|Android Net Worth Math Tests]]
-- [[_COMMUNITY_NSIS Installer Config|NSIS Installer Config]]
-- [[_COMMUNITY_Android Launcher Icons|Android Launcher Icons]]
-- [[_COMMUNITY_App Entry Point (Python)|App Entry Point (Python)]]
-- [[_COMMUNITY_Android Aggregator Tests|Android Aggregator Tests]]
-- [[_COMMUNITY_Android Navigation|Android Navigation]]
-- [[_COMMUNITY_Android Synced File Status|Android Synced File Status]]
-- [[_COMMUNITY_Android Projection Screen|Android Projection Screen]]
-- [[_COMMUNITY_Android Settings Screen|Android Settings Screen]]
-- [[_COMMUNITY_App Cover Images|App Cover Images]]
-- [[_COMMUNITY_Android Round Icons|Android Round Icons]]
-- [[_COMMUNITY_Android Icon Foregrounds|Android Icon Foregrounds]]
-- [[_COMMUNITY_Android Category Defaults|Android Category Defaults]]
-- [[_COMMUNITY_Android Theme|Android Theme]]
-- [[_COMMUNITY_E2E Tests|E2E Tests]]
+- FinanceJsonCodec
+- money
+- FinanceViewModel
+- FinanceDirectoryStore
+- FinanceRepository
+- WatchDelivery.kt
+- GoalsTab
+- Models.kt
+- DashboardScreen.kt
+- SettingsScreen.tsx
+- finance.ts
+- BudgetMath
+- BudgetScreen.kt
+- data-store.ts
+- SettingsTab
+- get_active_fixed_costs
+- net_worth_tab.py
+- App.tsx
+- types.ts
+- ReportsScreen.tsx
+- PhoneTransactionIntake.kt
+- ShortcutManager
+- FinanceJsonCodecTest
+- NetWorthMath
+- ReconciliationTab
+- App
+- compilerOptions
+- ReportsTab
+- cloneDocument
+- Implementation Advisor Report
+- FinanceViewModel.kt
+- ProjectionService
+- devDependencies
+- WatchCaptureTest
+- BudgetScreen.tsx
+- CategorySnapshot
+- Modern Desktop App Details
+- ai_insights_service.py
+- Shared Finance Data Directory Contract
+- Desktop App (Python/Tkinter)
+- main_view.py
+- BudgetsTab
+- InMemoryFinanceDirectory
+- TransactionSubmission
+- .__init__
+- reproduce_issue.py
+- scripts
+- ViewTransactionsTab
+- AcknowledgementStatus
+- AppState
+- todayIsoDate
+- build
+- BudgetSettings
+- FinanceApp
+- WatchCaptureFormLogic
+- TransactionProtocolCodec
+- ProjectionTab
+- package.json
+- dependencies
+- TransactionsScreen.kt
+- Wear OS Data Layer Research for Issue #72
+- CategorySnapshotPublisher.kt
+- SavingsGoalsScreen.kt
+- Finance Tracker
+- Constraints From Official Documentation
+- modern-desktop/domain.md
+- nsis
+- Android Launcher Icon
+- python-desktop/index.md
+- Ticket #98 Research: Dialog and Editable-Control Interaction
+- AddTransactionTab
+- quickstart.md
+- Features
+- Shared Data Model
+- app_cover.png (drawable-nodpi)
+- Android Launcher Icon Round
+- ic_launcher_foreground.png (hdpi)
+- data-contract/index.md
+- Daily Usage
+- Finance Tracker code wiki
+- main() entry point (Tkinter)
+- currency_service.py
+- .setup_shortcuts
+- openwiki/index.md
+- workflows/index.md
+- InsightsJson
+- Issue tracker: GitHub
+- Galaxy Watch 8 validation
+- Architecture
+- overview.md
+- FinanceRepository.kt
+- NetWorthChart
+- Technology Stack
+- Installation and Running
+- Development Commands
+- Test Coverage
+- release.md
+- mapNotNullIndexed
+- Finance Tracker Context
+- Migration and Recovery
+- install-electron.mjs
+- gradlew
+- agents/domain.md
+- triage-labels.md
+- electron-vite
+- @testing-library/user-event
+- @types/node
+- vitest
 
 ## God Nodes (most connected - your core abstractions)
-1. `FinanceViewModel` - 43 edges
-2. `FinanceRepository` - 42 edges
-3. `FinanceJsonCodec` - 38 edges
-4. `SettingsTab` - 38 edges
-5. `FinanceDocument` - 32 edges
-6. `String` - 30 edges
-7. `String` - 24 edges
-8. `money()` - 24 edges
-9. `ShortcutManager` - 23 edges
-10. `FinanceDocument` - 23 edges
+1. `FinanceViewModel` - 70 edges
+2. `FinanceDirectoryStore` - 54 edges
+3. `FinanceRepository` - 51 edges
+4. `SettingsTab` - 40 edges
+5. `FinanceJsonCodec` - 39 edges
+6. `AppState` - 33 edges
+7. `FinanceDocument` - 33 edges
+8. `FinanceDocument` - 31 edges
+9. `money()` - 30 edges
+10. `DataStore` - 30 edges
 
 ## Surprising Connections (you probably didn't know these)
 - `Android MVP Plan` --semantically_similar_to--> `Finance Tracker Package`  [INFERRED] [semantically similar]
@@ -111,281 +145,401 @@
   app-cover.png → android/app/src/main/res/drawable-nodpi/app_cover.png
 - `Empty Test File` --conceptually_related_to--> `Finance Tracker Package`  [AMBIGUOUS]
   test_file.txt → code.txt
-- `CodeRabbit Configuration` --references--> `Finance Tracker Package`  [INFERRED]
-  .coderabbit.yaml → code.txt
+- `PersistenceTests` --uses--> `AppState`  [INFERRED]
+  tests/test_persistence.py → finance_tracker/state.py
 
 ## Import Cycles
 - None detected.
 
-## Communities (91 total, 18 thin omitted)
+## Communities (124 total, 17 thin omitted)
 
-### Community 0 - "Desktop Data Models"
-Cohesion: 0.10
-Nodes (22): BudgetSettings, CategoryState, Double, FinanceTransaction, FixedCost, IncomeSource, Int, JsonObject (+14 more)
+### Community 0 - "FinanceJsonCodec"
+Cohesion: 0.06
+Nodes (21): FinanceDocument, FinanceJsonCodec, FinanceRecord, BudgetSettings, FinanceTransaction, FixedCost, IncomeSource, JsonArray (+13 more)
 
-### Community 1 - "Android Compose UI Layer"
-Cohesion: 0.07
-Nodes (53): Double, List, Modifier, String, FinanceViewModel, BudgetSettings, Color, Double (+45 more)
+### Community 1 - "money"
+Cohesion: 0.23
+Nodes (19): AssetAllocation, money(), AllocationChart(), AssetBalanceCards(), AssetBreakdownChart(), drawAxisText(), AssetSnapshot, BudgetSettings (+11 more)
 
-### Community 2 - "Dashboard & Budget State"
-Cohesion: 0.08
-Nodes (18): Boolean, BudgetSettings, CategoryState, DashboardSummary, Double, FinanceTransaction, FixedCost, JsonObject (+10 more)
-
-### Community 3 - "Desktop Settings & Display"
-Cohesion: 0.08
-Nodes (16): finance_tracker/ui/tabs/settings_tab.py  Tab for configuring budget settings, fi, Update the readonly income display with CURRENT month's active income., Update the readonly costs display with CURRENT month's active fixed costs., Render the budget depletion graph in the main UI., Update the money lent entry with current balance., Open the lending manager window to manage individual loans., Refresh the loans treeview with current data., Populate the form fields when a loan is selected in the tree. (+8 more)
-
-### Community 4 - "Transaction & Category Models"
+### Community 2 - "FinanceViewModel"
 Cohesion: 0.09
-Nodes (16): BudgetSettings, CategoryState, Double, FinanceTransaction, FixedCost, Flow, IncomeSource, JsonObject (+8 more)
+Nodes (8): FinanceViewModel, BudgetSettings, FinanceTransaction, FixedCost, IncomeSource, Loan, SavingsGoal, TransactionType
 
-### Community 5 - "Android Theme & UI Constants"
-Cohesion: 0.11
-Nodes (48): Boolean, Color, Double, FinanceViewModel, Float, List, Modifier, Paint (+40 more)
-
-### Community 6 - "AI Insights Service"
-Cohesion: 0.07
-Nodes (45): Any, _aggregate_transactions(), AIConfig, build_chat_messages(), build_insights_prompt(), _month_list(), finance_tracker/services/ai_insights_service.py  Service for generating AI insig, request_ai_insights() (+37 more)
-
-### Community 7 - "Android JSON Serialization"
-Cohesion: 0.12
-Nodes (43): Double, Int, JsonObject, List, String, AssetAllocation, AssetBalances, AssetSnapshot (+35 more)
-
-### Community 8 - "Android Budget Settings"
-Cohesion: 0.17
-Nodes (24): Boolean, BudgetSettings, CategoryState, Double, FinanceTransaction, FixedCost, Int, JsonObject (+16 more)
-
-### Community 9 - "Savings Goals"
+### Community 3 - "FinanceDirectoryStore"
 Cohesion: 0.08
-Nodes (18): GoalsTab, finance_tracker/ui/tabs/goals_tab.py  Tab for creating and managing savings goal, Handle mouse wheel scrolling, Update scrollregion when goals container changes, Update the width of the canvas window to match the canvas, Recursively bind mouse wheel event to all children, Refresh the goals display, Update the savings overview display (+10 more)
+Nodes (24): CategoryRecord, DirectoryLoadResult, FileOwner, Budget, Loans, NetWorth, SavingsGoals, FinanceDirectory (+16 more)
 
-### Community 10 - "Budget Types (Python)"
-Cohesion: 0.14
-Nodes (24): CategoryLimitsScreen(), ReconciliationScreen(), SettingsScreen(), SettingsScreenProps, TransactionEditor(), TransactionEditorProps, TransactionsScreen(), TransactionsScreenProps (+16 more)
+### Community 4 - "FinanceRepository"
+Cohesion: 0.06
+Nodes (17): FinanceRepository, BudgetSettings, FinanceTransaction, FixedCost, IncomeSource, Loan, SavingsGoal, TransactionType (+9 more)
 
-### Community 11 - "Modern Desktop Screens"
+### Community 5 - "WatchDelivery.kt"
+Cohesion: 0.06
+Nodes (28): DeliveryAttempt, Failed, NotNeeded, Succeeded, DeliveryResult, Retry, Success, ByteArray (+20 more)
+
+### Community 6 - "GoalsTab"
+Cohesion: 0.06
+Nodes (39): auto_distribute_savings(), calculate_all_goals_summary(), calculate_goal_progress(), calculate_monthly_savings(), estimate_completion_date(), generate_goals_report(), get_total_allocated(), get_total_savings_available() (+31 more)
+
+### Community 7 - "Models.kt"
 Cohesion: 0.21
-Nodes (13): Boolean, BudgetSettings, Double, FinanceTransaction, FixedCost, IncomeSource, Int, List (+5 more)
+Nodes (22): booleanValue(), boundedInt(), BudgetReportDay, CategoryBudgets, IncomeSource, jsonPrimitiveOrNull(), JsonObject, nullableStringValue() (+14 more)
 
-### Community 12 - "Android ViewModel & Settings"
-Cohesion: 0.17
-Nodes (32): Boolean, BudgetSettings, Color, Double, FinanceViewModel, Float, List, Modifier (+24 more)
+### Community 8 - "DashboardScreen.kt"
+Cohesion: 0.06
+Nodes (64): BarBreakdownMode, Categories, Flexible, OverUnder, Total, ChartDisplayMode, Percentage, Value (+56 more)
 
-### Community 13 - "Keyboard Shortcuts"
+### Community 9 - "SettingsScreen.tsx"
 Cohesion: 0.07
-Nodes (15): Handle Ctrl+A shortcut to open Add Transaction tab, Handle Alt+Left shortcut to go to previous tab, Handle Alt+Right shortcut to go to next tab, Handle Ctrl+S shortcut to save in current tab, Handle Ctrl+D or Delete shortcut to delete selected item, Handle Ctrl+E shortcut to edit selected item, Handle F5 shortcut to refresh current view, Handle Ctrl+Shift+R to generate report in current tab (+7 more)
+Nodes (29): DefaultBehaviorsDialog(), save(), DefaultBehaviorsDialogProps, DefaultRangesDialog(), save(), DefaultRangesDialogProps, KeyboardNavigationPrototype(), KeyboardNavigationPrototypeProps (+21 more)
 
-### Community 14 - "Reports & Charts Tab"
-Cohesion: 0.11
-Nodes (9): finance_tracker/ui/tabs/reports_tab.py  Tab for generating and viewing various, Open a modal dialog to select categories for the line chart., Update the category button text to show selection count., Render the bar chart based on current breakdown and display modes, Get category-wise data for each month, Get flexible income vs flexible costs data for each month, Get total income vs total expenses for each month, Handle click events on the bar chart (+1 more)
+### Community 10 - "finance.ts"
+Cohesion: 0.13
+Nodes (50): BudgetDepletionChart(), COLORS, formatSignedCurrency(), NetWorthScreen(), recordSnapshot(), asDate(), asNumber(), assetAllocation() (+42 more)
 
-### Community 15 - "Modern Desktop Goals & Budget"
+### Community 11 - "BudgetMath"
+Cohesion: 0.06
+Nodes (19): BudgetMath, BudgetSettings, FinanceTransaction, FixedCost, IncomeSource, YearMonth, FinanceTransaction, TransactionType (+11 more)
+
+### Community 12 - "BudgetScreen.kt"
+Cohesion: 0.17
+Nodes (27): BudgetReport, BalanceEditor(), BudgetButton(), BudgetDepletionChart(), BudgetOutlinedButton(), BudgetOverview(), BudgetScreen(), BudgetSectionButton() (+19 more)
+
+### Community 13 - "data-store.ts"
+Cohesion: 0.10
+Nodes (22): BUDGET_KEYS, CategoriesFile, CategoryRecord, categoryRecords(), DataStore, decodeCsv(), equal(), exists() (+14 more)
+
+### Community 14 - "SettingsTab"
+Cohesion: 0.08
+Nodes (15): Update the readonly income display with CURRENT month's active income., Update the readonly costs display with CURRENT month's active fixed costs., Render the budget depletion graph in the main UI., Update the money lent entry with current balance., Open the lending manager window to manage individual loans., Refresh the loans treeview with current data., Populate the form fields when a loan is selected in the tree., Add a new loan and update the balance. (+7 more)
+
+### Community 15 - "get_active_fixed_costs"
+Cohesion: 0.09
+Nodes (40): auto_assign_percentages(), compute_net_available_for_spending(), days_in_month_str(), generate_daily_budget_report(), get_active_fixed_costs(), get_active_monthly_income(), get_active_monthly_income_sources(), get_month_end_flexible_balance() (+32 more)
+
+### Community 16 - "net_worth_tab.py"
+Cohesion: 0.07
+Nodes (33): delete_snapshot(), generate_net_worth_report(), get_asset_allocation_data(), get_asset_snapshots(), get_current_net_worth(), get_net_worth_change(), finance_tracker/services/asset_tracking_service.py Service for tracking asset…, Record current asset balances as a snapshot (+25 more)
+
+### Community 17 - "App.tsx"
+Cohesion: 0.13
+Nodes (22): EditorState, navigation, Page, Theme, DashboardScreen(), TransactionEditor(), submit(), TransactionEditorProps (+14 more)
+
+### Community 18 - "types.ts"
+Cohesion: 0.07
+Nodes (25): financeApi, ReconciliationScreen(), addRows(), chooseCsv(), DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, datesApart(), findColumn() (+17 more)
+
+### Community 19 - "ReportsScreen.tsx"
+Cohesion: 0.10
+Nodes (28): BudgetTooltip(), tooltipStyle, tooltipTextStyle, draftFromLoan(), LoanDraft, LoanEditor(), confirmSave(), submit() (+20 more)
+
+### Community 20 - "PhoneTransactionIntake.kt"
+Cohesion: 0.12
+Nodes (16): android, RoomDatabase, legacyLedgerRows(), RoomSubmissionLedger, SubmissionLedger, SubmissionLedgerDao, SubmissionLedgerDatabase, SubmissionLedgerEntry (+8 more)
+
+### Community 21 - "ShortcutManager"
+Cohesion: 0.06
+Nodes (16): Handle Ctrl+A shortcut to open Add Transaction tab, Handle Ctrl+N shortcut to clear Add Transaction form, Handle Alt+Left shortcut to go to previous tab, Handle Alt+Right shortcut to go to next tab, Handle Ctrl+S shortcut to save in current tab, Handle Ctrl+D or Delete shortcut to delete selected item, Handle Ctrl+E shortcut to edit selected item, Handle F5 shortcut to refresh current view (+8 more)
+
+### Community 22 - "FinanceJsonCodecTest"
+Cohesion: 0.09
+Nodes (6): FinanceJsonFileStore, FinanceDocument, StateFlow, CategoryDefaults, SavingsGoal, FinanceJsonCodecTest
+
+### Community 23 - "NetWorthMath"
+Cohesion: 0.28
+Nodes (5): NetWorthChange, NetWorthSummary, AssetSnapshot, BudgetSettings, NetWorthMath
+
+### Community 24 - "ReconciliationTab"
+Cohesion: 0.09
+Nodes (26): BankTransaction, _amounts_match(), BankTransaction, _dates_close(), _detect_encoding_and_sep(), get_summary(), match_transactions(), parse_bank_csv() (+18 more)
+
+### Community 25 - "App"
 Cohesion: 0.14
-Nodes (21): DashboardScreen(), formatSignedCurrency(), ProjectionMode, ProjectionScreen(), ChartKind, COLORS, DAYS, HistoryDisplay (+13 more)
+Nodes (22): App(), applyLoadResult(), chooseDataFile(), content(), createDataFile(), deleteTransaction(), exportText(), loadData() (+14 more)
 
-### Community 16 - "Modern Desktop Data Store"
-Cohesion: 0.11
-Nodes (13): NetWorthTab, finance_tracker/ui/tabs/net_worth_tab.py  Tab for tracking and visualizing net w, Refresh all data and displays, Update the current net worth display, Refresh the snapshots tree view, Record a new asset snapshot, Delete the selected snapshot, Generate the selected chart type (+5 more)
+### Community 26 - "compilerOptions"
+Cohesion: 0.07
+Nodes (29): compilerOptions, allowJs, allowSyntheticDefaultImports, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx, lib (+21 more)
 
-### Community 17 - "Net Worth Tracking"
-Cohesion: 0.20
-Nodes (10): BudgetSettings, Double, Int, List, LocalDate, SavingsGoal, String, SavingsGoalProgress (+2 more)
-
-### Community 18 - "Shared Budget Types"
-Cohesion: 0.11
-Nodes (17): decodeCsv(), exists(), LocalConfig, categoryList(), DEFAULT_EXPENSE_CATEGORIES, DEFAULT_INCOME_CATEGORIES, mergeDocuments(), moneyLentFromLoans() (+9 more)
-
-### Community 19 - "Modern Desktop Net Worth"
-Cohesion: 0.18
-Nodes (20): BudgetScreen(), AssetAllocationItem, AutoAssignResult, computeNetAvailableForSpending(), DailyBudgetOverview, defaultDocument(), getActiveFixedCosts(), getActiveMonthlyIncome() (+12 more)
-
-### Community 20 - "Python Goals Service"
+### Community 27 - "ReportsTab"
 Cohesion: 0.15
-Nodes (21): auto_distribute_savings(), calculate_all_goals_summary(), calculate_goal_progress(), calculate_monthly_savings(), estimate_completion_date(), generate_goals_report(), get_total_allocated(), get_total_savings_available() (+13 more)
+Nodes (6): Open a modal dialog to select categories for the line chart., Update the category button text to show selection count., Render the bar chart based on current breakdown and display modes, Get flexible income vs flexible costs data for each month, Handle click events on the bar chart, ReportsTab
 
-### Community 21 - "Desktop Budgets Tab"
+### Community 28 - "cloneDocument"
+Cohesion: 0.19
+Nodes (19): CategoryLimitsScreen(), addCategory(), autoAssign(), removeCategory(), updateLimits(), goalsReport(), GoalsScreen(), addGoal() (+11 more)
+
+### Community 29 - "Implementation Advisor Report"
+Cohesion: 0.09
+Nodes (21): 1. Repository Map, 2. Obsidian AI Vault Evidence, 3. Evidence Matrix, 4. Candidate Comparison, 5. Recommendation, 6. Phased Plan — Candidate E (Lending View Pop-up Editing), 7. Risks and Open Questions, Active practice signals (`wiki/topics/local-ai-agent-workflows.md`) (+13 more)
+
+### Community 30 - "FinanceViewModel.kt"
 Cohesion: 0.18
-Nodes (3): BudgetsTab, finance_tracker/ui/tabs/budgets_tab.py  Tab for managing category budget limit, Handle category type change (Expense/Income)
+Nodes (11): FinanceAggregator, FinanceTransaction, JsonObject, YearMonth, DashboardSummary, FinanceTotals, TransactionCounts, JsonObject (+3 more)
 
-### Community 22 - "Budget Settings Types (Android)"
+### Community 31 - "ProjectionService"
+Cohesion: 0.27
+Nodes (6): BudgetSettings, NetWorthInterval, ProjectionMode, NetWorthTrend, TargetSavings, ProjectionService
+
+### Community 32 - "devDependencies"
+Cohesion: 0.08
+Nodes (25): electron, electron-builder, jsdom, devDependencies, electron, electron-builder, jsdom, @playwright/test (+17 more)
+
+### Community 33 - "WatchCaptureTest"
+Cohesion: 0.13
+Nodes (7): WatchCaptureInput, WatchCaptureSubmission, WatchCaptureTest, ActiveSubmission, Bundle, ComponentActivity, WearMainActivity
+
+### Community 34 - "BudgetScreen.tsx"
+Cohesion: 0.21
+Nodes (17): BudgetScreen(), addIncome(), markLoanReturned(), saveBalances(), saveCost(), saveLoan(), saveLoanChanges(), updateSettings() (+9 more)
+
+### Community 35 - "CategorySnapshot"
+Cohesion: 0.20
+Nodes (12): CategorySnapshot, CategorySnapshotAcceptance, Accepted, Rejected, Stale, ByteArray, Context, StateFlow (+4 more)
+
+### Community 36 - "Modern Desktop App Details"
 Cohesion: 0.16
-Nodes (6): finance_tracker/ui/tabs/view_transactions_tab.py  Tab for viewing, filtering,, Sort transactions by the specified column, Rebuild the tree view with current sorted transactions, Update the available options in filter dropdowns based on current transactions, Clear all filter fields and refresh, ViewTransactionsTab
+Nodes (15): AI Insights Deferred, German-Bank CSV Reconciliation, Modern Desktop Data Safety (Atomic Writes), Modern Desktop Features, Modern Desktop App Details, Modern Desktop HTML Entry Point, Android MVP (Kotlin + Jetpack Compose), BNPL (Buy Now Pay Later) Booking (+7 more)
 
-### Community 23 - "Transaction Filtering UI"
-Cohesion: 0.24
-Nodes (9): BudgetSettings, Double, Int, List, LocalDate, String, NetWorthMath, NetWorthChange (+1 more)
+### Community 37 - "ai_insights_service.py"
+Cohesion: 0.19
+Nodes (10): _aggregate_transactions(), AIConfig, build_chat_messages(), build_insights_prompt(), _month_list(), Any, finance_tracker/services/ai_insights_service.py Service for generating AI…, request_ai_insights() (+2 more)
 
-### Community 24 - "Bank Reconciliation Tab"
+### Community 38 - "Shared Finance Data Directory Contract"
+Cohesion: 0.07
+Nodes (29): AddTransactionTab UI Class, AppState Class (State Management), Asset Tracking Service, Budget Calculator Service, Chart Generator (create_budget_depletion_figure, create_net_worth_figure, etc.), Finance Tracker Package, NetWorthTab UI Class, SettingsTab UI Class (Budget Report + Lending Manager) (+21 more)
+
+### Community 39 - "Desktop App (Python/Tkinter)"
+Cohesion: 0.22
+Nodes (11): Android App (Kotlin/Jetpack Compose), android/, BNPL Convention, Desktop App (Python/Tkinter), finance_data.json, finance_tracker/, FinanceTracker class, Personal Finance Tracker (+3 more)
+
+### Community 40 - "main_view.py"
 Cohesion: 0.16
-Nodes (6): BankTransaction, Notebook, _find_candidates(), finance_tracker/ui/tabs/reconciliation_tab.py  Reconciliation tab: finds the ", For each unmatched expense, score how likely it contributes to the     reconcil, ReconciliationTab
+Nodes (18): finance_tracker/ui/help_window.py Displays the help and instructions window for…, show_help(), finance_tracker/ui/main_view.py Main application window and tab management., finance_tracker/ui/shortcuts.py This module handles the registration and…, Show the net worth report in a dialog, finance_tracker/ui/tabs/settings_tab.py Tab for configuring budget settings,…, finance_tracker/ui/tabs/view_transactions_tab.py Tab for viewing, filtering,…, close_window() (+10 more)
 
-### Community 25 - "Modern Desktop Category Limits"
-Cohesion: 0.14
-Nodes (15): BudgetScreenProps, emptyCost(), emptyIncome(), emptyLoan(), financeApi, isoToday(), AssetSnapshot, BudgetSettings (+7 more)
+### Community 42 - "InMemoryFinanceDirectory"
+Cohesion: 0.32
+Nodes (4): InMemorySubmissionLedger, PhoneTransactionIntake, InMemoryFinanceDirectory, PhoneTransactionIntakeTest
 
-### Community 26 - "TypeScript Configuration"
-Cohesion: 0.11
-Nodes (18): compilerOptions, allowJs, allowSyntheticDefaultImports, esModuleInterop, forceConsistentCasingInFileNames, isolatedModules, jsx, lib (+10 more)
+### Community 43 - "TransactionSubmission"
+Cohesion: 0.16
+Nodes (3): TransactionAcknowledgement, TransactionSubmission, TransactionProtocolCodecTest
 
-### Community 27 - "Python Chart Renderer"
-Cohesion: 0.11
-Nodes (17): create_allocation_figure(), create_bar_figure(), create_breakdown_figure(), create_budget_depletion_figure(), create_dow_heatmap_figure(), create_line_figure(), create_net_worth_figure(), create_spending_pace_figure() (+9 more)
-
-### Community 28 - "Desktop Main Window"
+### Community 44 - ".__init__"
 Cohesion: 0.17
 Nodes (12): MainView, Update the toggle button label for the active theme., Toggle between dark and light themes., Ensure report/text widgets are updated after a theme switch., Show keyboard shortcuts reference window, apply_styles(), _apply_tk_widget_colors(), get_current_theme() (+4 more)
 
-### Community 29 - "Dashboard Metrics"
-Cohesion: 0.28
-Nodes (17): COLORS, NetWorthScreen(), asDate(), asNumber(), assetAllocation(), asString(), createSnapshot(), isRecord() (+9 more)
-
-### Community 30 - "Budget Types (Legacy)"
-Cohesion: 0.18
-Nodes (13): DashboardSummary, Double, FinanceTransaction, InsightsSummary, Int, JsonObject, List, String (+5 more)
-
-### Community 31 - "Electron Build Config"
-Cohesion: 0.33
-Nodes (8): BudgetSettings, Double, Int, LocalDate, String, NetWorthInterval, ProjectionMode, ProjectionService
-
-### Community 32 - "Android Codec Tests"
-Cohesion: 0.12
-Nodes (17): devDependencies, electron, electron-builder, electron-vite, jsdom, @playwright/test, @swc/core, @tailwindcss/vite (+9 more)
-
-### Community 34 - "Modern Desktop Budget Screen"
-Cohesion: 0.27
-Nodes (3): DataStore, writeJsonAtomically(), DataLoadResult
-
-### Community 35 - "Modern Desktop Docs & Rationale"
-Cohesion: 0.15
-Nodes (15): delete_snapshot(), generate_net_worth_report(), get_asset_allocation_data(), get_asset_snapshots(), get_current_net_worth(), get_net_worth_change(), finance_tracker/services/asset_tracking_service.py  Service for tracking asset s, Record current asset balances as a snapshot (+7 more)
-
-### Community 36 - "Android Transaction Types"
-Cohesion: 0.16
-Nodes (15): AI Insights Deferred, German-Bank CSV Reconciliation, Modern Desktop Data Safety (Atomic Writes), Modern Desktop Features, Modern Desktop App Details, Android MVP (Kotlin + Jetpack Compose), BNPL (Buy Now Pay Later) Booking, finance_data.json Shared Data File (+7 more)
-
-### Community 37 - "Desktop Conceptual Architecture"
-Cohesion: 0.24
-Nodes (8): Boolean, FinanceTransaction, List, String, TransactionType, YearMonth, TransactionBookingDates, TransactionUiLogic
-
-### Community 38 - "Shared Reconciliation Logic"
-Cohesion: 0.15
-Nodes (14): AddTransactionTab UI Class, AppState Class (State Management), Asset Tracking Service, Budget Calculator Service, Chart Generator (create_budget_depletion_figure, create_net_worth_figure, etc.), Finance Tracker Package, NetWorthTab UI Class, SettingsTab UI Class (Budget Report + Lending Manager) (+6 more)
-
-### Community 39 - "Cross-Platform Architecture"
-Cohesion: 0.19
-Nodes (11): Android App (Kotlin/Jetpack Compose), android/, BNPL Convention, Desktop App (Python/Tkinter), finance_data.json, finance_tracker/, FinanceTracker class, Personal Finance Tracker (+3 more)
-
-### Community 40 - "Desktop Windowing"
-Cohesion: 0.24
-Nodes (11): Misc, Tk, Toplevel, close_window(), create_child_window(), _managed_windows(), finance_tracker/ui/windowing.py  Helpers for stable Tk window show/close behavio, Show the root window using a conservative, WSLg-friendly sequence. (+3 more)
-
-### Community 42 - "Android BNPL Logic Tests"
-Cohesion: 0.38
-Nodes (8): goalsReport(), GoalsScreen(), GoalsScreenProps, autoDistributeGoals(), cloneDocument(), cloneRecord(), getGoals(), goalSummary()
-
-### Community 44 - "Test Mocks & Reproduction"
-Cohesion: 0.33
-Nodes (3): BudgetSettings, BudgetMathTest, String
-
-### Community 45 - "Dev Scripts (npm)"
+### Community 45 - "reproduce_issue.py"
 Cohesion: 0.22
 Nodes (3): date, MockDate, MockState
 
-### Community 46 - "Add Transaction Tab"
-Cohesion: 0.22
-Nodes (9): scripts, build, dev, package:win, preview, test, test:e2e, test:watch (+1 more)
+### Community 46 - "scripts"
+Cohesion: 0.18
+Nodes (11): scripts, build, dev, install:electron, package:win, postinstall, preview, test (+3 more)
 
-### Community 48 - "Desktop App State"
-Cohesion: 0.36
-Nodes (7): Boolean, Double, String, Char, formatAmountField(), hasThousandsGrouping(), parseAmountText()
+### Community 47 - "ViewTransactionsTab"
+Cohesion: 0.18
+Nodes (5): Sort transactions by the specified column, Rebuild the tree view with current sorted transactions, Update the available options in filter dropdowns based on current transactions, Clear all filter fields and refresh, ViewTransactionsTab
 
-### Community 51 - "Python Report Builder"
+### Community 48 - "AcknowledgementStatus"
+Cohesion: 0.17
+Nodes (9): AcknowledgementStatus, Accepted, Duplicate, Rejected, CategorySnapshotDefaults, SubmissionType, Expense, Income (+1 more)
+
+### Community 49 - "AppState"
+Cohesion: 0.09
+Nodes (5): main(), finance_tracker/app.py Main application entry point and initialization., AppState, finance_tracker/state.py Manages the application state, including data loading,…, PersistenceTests
+
+### Community 50 - "todayIsoDate"
 Cohesion: 0.25
-Nodes (8): build, appId, directories, files, productName, win, output, target
+Nodes (7): formatAmountField(), hasThousandsGrouping(), parseAmountText(), todayIsoDate(), AddTransactionScreen(), LoanEditorScreen(), AmountTextTest
 
-### Community 52 - "Projection Tab"
-Cohesion: 0.38
-Nodes (4): line_expense_category_range(), _month_range(), pie_data_range(), finance_tracker/services/report_builder.py  Service for preparing data for var
+### Community 51 - "build"
+Cohesion: 0.18
+Nodes (10): build, appId, directories, files, productName, win, output, target (+2 more)
 
-### Community 54 - "Android Insights JSON"
-Cohesion: 0.43
-Nodes (4): finance_tracker/ui/help_window.py  Displays the help and instructions window for, show_help(), finance_tracker/ui/main_view.py  Main application window and tab management., finance_tracker/ui/shortcuts.py  This module handles the registration and proc
+### Community 52 - "BudgetSettings"
+Cohesion: 0.34
+Nodes (5): AssetBalances, AssetSnapshot, BudgetSettings, NetWorthMathTest, ProjectionServiceTest
 
-### Community 55 - "Android Projection Tests"
-Cohesion: 0.40
-Nodes (3): InsightsSummary, String, InsightsJson
+### Community 53 - "FinanceApp"
+Cohesion: 0.21
+Nodes (8): Bundle, ComponentActivity, MainActivity, Destination, FinanceApp(), ProjectionScreen(), SettingsScreen(), FinanceTrackerTheme()
 
-### Community 57 - "React Dependencies"
+### Community 56 - "ProjectionTab"
+Cohesion: 0.23
+Nodes (7): _build_monthly_net_worth_change_projection(), _build_target_savings_projection(), _format_signed_euro(), projection_text(), finance_tracker/services/projection_service.py Service for generating financial…, ProjectionTab, finance_tracker/ui/tabs/projection_tab.py Tab for projecting future financial…
+
+### Community 57 - "package.json"
 Cohesion: 0.33
 Nodes (5): description, main, name, private, version
 
-### Community 58 - "Currency Formatting"
-Cohesion: 0.33
-Nodes (6): dependencies, lucide-react, @radix-ui/react-dialog, react, react-dom, recharts
+### Community 58 - "dependencies"
+Cohesion: 0.18
+Nodes (11): lucide-react, dependencies, lucide-react, @radix-ui/react-dialog, react, react-dom, recharts, @radix-ui/react-dialog (+3 more)
 
-### Community 59 - "Python Projection Service"
-Cohesion: 0.33
-Nodes (5): format_amount(), parse_amount(), finance_tracker/services/currency_service.py  Central utility for parsing and, Formats a float with dot as thousands separator and comma as decimal separator., Parses a currency string in comma notation.     Example: '3.000,20' -> 3000.20,
+### Community 59 - "TransactionsScreen.kt"
+Cohesion: 0.32
+Nodes (10): CategoryDropdown(), Color, Modifier, MetricCard(), EditTransactionDialog(), Color, FinanceTransaction, SummaryValue() (+2 more)
 
-### Community 60 - "Shortcut Setup"
-Cohesion: 0.53
-Nodes (5): _build_monthly_net_worth_change_projection(), _build_target_savings_projection(), _format_signed_euro(), projection_text(), finance_tracker/services/projection_service.py  Service for generating financial
+### Community 60 - "Wear OS Data Layer Research for Issue #72"
+Cohesion: 0.17
+Nodes (11): Alternative: messages only, APIs and dependency, Category synchronization choices, Decision for the next implementation ticket, Galaxy Watch 8 implications, Message paths and payloads, Node discovery and routing, Not recommended for this ticket: full shared-file synchronization (+3 more)
 
-### Community 61 - "Android Settings DataStore"
-Cohesion: 0.33
-Nodes (3): Enable Enter key to activate focused buttons, Switch to a specific tab by index, Setup global keyboard shortcuts for the application
+### Community 61 - "CategorySnapshotPublisher.kt"
+Cohesion: 0.27
+Nodes (5): CategorySnapshotPublisher, newestCategoryPublicationRequest(), nextCategorySnapshot(), PendingCategorySnapshot, CategorySnapshotPublisherTest
 
-### Community 62 - "Android Main Activity"
-Cohesion: 0.50
-Nodes (3): Flow, String, SettingsDataStore
+### Community 62 - "SavingsGoalsScreen.kt"
+Cohesion: 0.45
+Nodes (10): SavingsGoalsSummary, ActionRow(), AllocationEditor(), GoalActions(), GoalEditor(), SavingsGoal, SavingsGoalCard(), SavingsGoalsScreen() (+2 more)
 
-### Community 63 - "Android Amount Text Tests"
-Cohesion: 0.40
-Nodes (3): Bundle, ComponentActivity, MainActivity
+### Community 63 - "Finance Tracker"
+Cohesion: 0.18
+Nodes (10): Client Feature Matrix, Finance Tracker, First-Use Workflow, Important Technical Caveats, Key Source Files, Persistence and Concurrency Limits, Project Goals, Repository Layout (+2 more)
 
-### Community 66 - "Android Launcher Icons"
+### Community 64 - "Constraints From Official Documentation"
+Cohesion: 0.18
+Nodes (10): Constraints From Official Documentation, Deduplication, Issue #75: Reliable Watch Delivery Constraints, Lifecycle and background execution, Local persistence, Minimal Protocol Shape, Reconnect and transport choice, Resolution (+2 more)
+
+### Community 65 - "modern-desktop/domain.md"
+Cohesion: 0.24
+Nodes (6): Change navigation and validation, Electron DataStore, Extension and change navigation, Modern desktop finance domain, Files, Modern desktop React UI
+
+### Community 66 - "nsis"
 Cohesion: 0.40
 Nodes (5): nsis, allowToChangeInstallationDirectory, createDesktopShortcut, createStartMenuShortcut, oneClick
 
-### Community 67 - "App Entry Point (Python)"
+### Community 67 - "Android Launcher Icon"
 Cohesion: 0.50
-Nodes (4): Android Launcher Icon, ic_launcher.png (hdpi), ic_launcher.png (mdpi), ic_launcher.png (xhdpi)
+Nodes (4): ic_launcher.png (hdpi), ic_launcher.png (mdpi), ic_launcher.png (xhdpi), Android Launcher Icon
 
-### Community 70 - "Android Synced File Status"
-Cohesion: 0.50
-Nodes (3): FinanceViewModel, Destination, FinanceApp()
+### Community 68 - "python-desktop/index.md"
+Cohesion: 0.22
+Nodes (5): Bank reconciliation, Files, Python persistence, Python domain services, Python Tkinter UI
 
-### Community 74 - "Android Round Icons"
+### Community 69 - "Ticket #98 Research: Dialog and Editable-Control Interaction"
+Cohesion: 0.20
+Nodes (9): Authoritative evidence, Dialog accessibility, Existing implementation, Keyboard event and browser defaults, Question, Radix Dialog, Recommendation, Ticket #98 Research: Dialog and Editable-Control Interaction (+1 more)
+
+### Community 71 - "quickstart.md"
+Cohesion: 0.31
+Nodes (4): Android data layer, Android finance domain, Files, Wear transaction protocol
+
+### Community 72 - "Features"
+Cohesion: 0.25
+Nodes (8): Bank CSV reconciliation, Budget planning, Features, Net worth and assets, Optional AI insights, Projections, Reports and charts, Transaction management
+
+### Community 73 - "Shared Data Model"
+Cohesion: 0.25
+Nodes (8): BNPL date convention, Budget owner file, Live directory contents, Loans and savings goals, Net-worth owner file, Preferences, Shared Data Model, Transactions
+
+### Community 74 - "app_cover.png (drawable-nodpi)"
 Cohesion: 1.00
-Nodes (3): Android Cover Image, app-cover.png (repo root), app_cover.png (drawable-nodpi)
+Nodes (3): app_cover.png (drawable-nodpi), Android Cover Image, app-cover.png (repo root)
 
-### Community 75 - "Android Icon Foregrounds"
+### Community 75 - "Android Launcher Icon Round"
 Cohesion: 0.67
-Nodes (3): Android Launcher Icon Round, ic_launcher_round.png (hdpi), ic_launcher_round.png (mdpi)
+Nodes (3): ic_launcher_round.png (hdpi), ic_launcher_round.png (mdpi), Android Launcher Icon Round
+
+### Community 77 - "data-contract/index.md"
+Cohesion: 0.32
+Nodes (4): Files, Migration and integrity, Legacy migration, Shared-directory synchronization
+
+### Community 78 - "Daily Usage"
+Cohesion: 0.29
+Nodes (7): Daily Usage, Manage categories, Reconcile a bank statement, Record a BNPL expense, Record a normal expense, Record income, Review budget status
+
+### Community 81 - "Finance Tracker code wiki"
+Cohesion: 0.29
+Nodes (7): Backlog, Finance Tracker code wiki, Map, Safety boundaries, Task routing, Validation commands, Verification status
+
+### Community 83 - "currency_service.py"
+Cohesion: 0.33
+Nodes (5): format_amount(), parse_amount(), finance_tracker/services/currency_service.py Central utility for parsing and…, Formats a float with dot as thousands separator and comma as decimal separator.…, Parses a currency string in comma notation. Example: '3.000,20' -> 3000.20,…
+
+### Community 88 - ".setup_shortcuts"
+Cohesion: 0.33
+Nodes (3): Enable Enter key to activate focused buttons, Switch to a specific tab by index, Setup global keyboard shortcuts for the application
+
+### Community 89 - "openwiki/index.md"
+Cohesion: 0.33
+Nodes (3): Directories, Files, OpenWiki navigation
+
+### Community 90 - "workflows/index.md"
+Cohesion: 0.33
+Nodes (3): Bank reconciliation workflow, Files, Transaction lifecycle
+
+### Community 92 - "Issue tracker: GitHub"
+Cohesion: 0.40
+Nodes (4): Conventions, Issue tracker: GitHub, Pull requests as a triage surface, Wayfinding operations
+
+### Community 93 - "Galaxy Watch 8 validation"
+Cohesion: 0.40
+Nodes (4): Build, install, and identity checks, Galaxy Watch 8 validation, Manual matrix, Prerequisites
+
+### Community 94 - "Architecture"
+Cohesion: 0.40
+Nodes (5): Android architecture, Architecture, Modern desktop architecture, Overall flow, Python architecture
+
+### Community 95 - "overview.md"
+Cohesion: 0.40
+Nodes (3): Files, Electron process boundary, System architecture
+
+### Community 96 - "FinanceRepository.kt"
+Cohesion: 0.50
+Nodes (3): Flow, JsonObject, FixedCost
+
+### Community 97 - "NetWorthChart"
+Cohesion: 0.50
+Nodes (4): NetWorthChart, Allocation, Breakdown, NetWorth
+
+### Community 98 - "Technology Stack"
+Cohesion: 0.50
+Nodes (4): Android, Modern desktop, Python desktop, Technology Stack
+
+### Community 99 - "Installation and Running"
+Cohesion: 0.50
+Nodes (4): Android, Installation and Running, Modern desktop, Python desktop
+
+### Community 100 - "Development Commands"
+Cohesion: 0.50
+Nodes (4): Android, Development Commands, Modern desktop, Python
+
+### Community 101 - "Test Coverage"
+Cohesion: 0.50
+Nodes (4): Android tests, Modern desktop tests, Python tests, Test Coverage
+
+### Community 103 - "mapNotNullIndexed"
+Cohesion: 0.67
+Nodes (3): R, T, mapNotNullIndexed()
+
+### Community 105 - "Migration and Recovery"
+Cohesion: 0.67
+Nodes (3): Legacy migration, Migration and Recovery, Warnings and invalid files
 
 ## Ambiguous Edges - Review These
 - `Finance Tracker Package` → `Empty Test File`  [AMBIGUOUS]
   test_file.txt · relation: conceptually_related_to
 
 ## Knowledge Gaps
-- **192 isolated node(s):** `Bundle`, `AssetBalances`, `CategoryState`, `Flow`, `FinanceTransaction` (+187 more)
+- **316 isolated node(s):** `Budget`, `NetWorth`, `Loans`, `SavingsGoals`, `Pending` (+311 more)
   These have ≤1 connection - possible missing edges or undocumented components.
-- **18 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
+- **17 thin communities (<3 nodes) omitted from report** — run `graphify query` to explore isolated nodes.
 
 ## Suggested Questions
 _Questions this graph is uniquely positioned to answer:_
 
 - **What is the exact relationship between `Finance Tracker Package` and `Empty Test File`?**
   _Edge tagged AMBIGUOUS (relation: conceptually_related_to) - confidence is low._
-- **Why does `money()` connect `Android Compose UI Layer` to `Android ViewModel & Settings`, `Android Theme & UI Constants`?**
-  _High betweenness centrality (0.077) - this node is a cross-community bridge._
-- **Why does `DashboardScreen()` connect `Android Theme & UI Constants` to `Android Compose UI Layer`?**
-  _High betweenness centrality (0.072) - this node is a cross-community bridge._
-- **Why does `T` connect `Android Theme & UI Constants` to `Desktop Data Models`, `Android JSON Serialization`?**
-  _High betweenness centrality (0.062) - this node is a cross-community bridge._
-- **What connects `Bundle`, `AssetBalances`, `CategoryState` to the rest of the system?**
-  _340 weakly-connected nodes found - possible documentation gaps or missing edges._
-- **Should `Desktop Data Models` be split into smaller, more focused modules?**
-  _Cohesion score 0.09943502824858758 - nodes in this community are weakly interconnected._
-- **Should `Android Compose UI Layer` be split into smaller, more focused modules?**
-  _Cohesion score 0.07017543859649122 - nodes in this community are weakly interconnected._
+- **Why does `FinanceViewModel` connect `FinanceViewModel` to `money`, `FinanceRepository`, `DashboardScreen.kt`, `BudgetScreen.kt`, `todayIsoDate`, `FinanceApp`, `SavingsGoalsScreen.kt`, `TransactionsScreen.kt`, `FinanceViewModel.kt`?**
+  _High betweenness centrality (0.034) - this node is a cross-community bridge._
+- **Why does `TransactionType` connect `BudgetMath` to `FinanceJsonCodec`, `FinanceRepository.kt`, `FinanceDirectoryStore`, `Models.kt`, `DashboardScreen.kt`, `todayIsoDate`, `PhoneTransactionIntake.kt`, `FinanceApp`, `FinanceJsonCodecTest`, `TransactionsScreen.kt`, `FinanceViewModel.kt`?**
+  _High betweenness centrality (0.030) - this node is a cross-community bridge._
+- **Why does `FinanceRepository` connect `FinanceRepository` to `FinanceRepository.kt`, `FinanceViewModel`, `FinanceDirectoryStore`, `DashboardScreen.kt`, `InMemoryFinanceDirectory`, `PhoneTransactionIntake.kt`, `CategorySnapshotPublisher.kt`, `FinanceViewModel.kt`?**
+  _High betweenness centrality (0.025) - this node is a cross-community bridge._
+- **Are the 13 inferred relationships involving `FinanceDirectoryStore` (e.g. with `.categoriesCreateDeleteRenameAndBlockUnsafeDeletion()` and `.migratedDirectory()`) actually correct?**
+  _`FinanceDirectoryStore` has 13 INFERRED edges - model-reasoned connections that need verification._
+- **Are the 3 inferred relationships involving `FinanceRepository` (e.g. with `CategorySnapshotPublisher` and `RoomSubmissionLedger`) actually correct?**
+  _`FinanceRepository` has 3 INFERRED edges - model-reasoned connections that need verification._
+- **What connects `Budget`, `NetWorth`, `Loans` to the rest of the system?**
+  _316 weakly-connected nodes found - possible documentation gaps or missing edges._
