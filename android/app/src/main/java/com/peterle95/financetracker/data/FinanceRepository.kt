@@ -13,17 +13,11 @@ import com.peterle95.financetracker.domain.IncomeSource
 import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionType
-import com.peterle95.financetracker.protocol.AcknowledgementStatus
-import com.peterle95.financetracker.protocol.TransactionAcknowledgement
-import com.peterle95.financetracker.protocol.TransactionSubmission
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -39,9 +33,6 @@ class FinanceRepository(context: Context) {
     private val document = MutableStateFlow(FinanceDocument.empty())
     private val _syncStatus = MutableStateFlow(SyncedFileStatus())
     private var store: FinanceDirectoryStore? = null
-    private var watchIntake: PhoneTransactionIntake? = null
-    private val watchLedger = RoomSubmissionLedger(appContext)
-    private val categoryPublisher = CategorySnapshotPublisher(appContext)
 
     val transactions: Flow<List<FinanceTransaction>> = document.map { it.transactions }
     val categories: Flow<CategoryState> = document.map { it.categories }
@@ -75,9 +66,7 @@ class FinanceRepository(context: Context) {
             runCatching { candidate.reload() }.onSuccess { result ->
                 settingsDataStore.setSyncedTreeUri(uri.toString())
                 store = candidate
-                watchIntake = null
                 document.value = result.document
-                publishCategories(result.document.categories)
                 _syncStatus.value = SyncedFileStatus(
                     uri = uri.toString(),
                     fileName = displayName(uri),
@@ -98,9 +87,7 @@ class FinanceRepository(context: Context) {
             val activeStore = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
             runCatching { activeStore.reload() }.onSuccess { result ->
                 store = activeStore
-                watchIntake = null
                 document.value = result.document
-                publishCategories(result.document.categories)
                 _syncStatus.value = _syncStatus.value.copy(
                     uri = uri.toString(),
                     fileName = displayName(uri),
@@ -148,37 +135,6 @@ class FinanceRepository(context: Context) {
     suspend fun setCategories(type: TransactionType, categories: List<String>) = mutate {
         it.setCategories(type, categories)
     }
-
-    suspend fun intakeWatchSubmission(submission: TransactionSubmission): TransactionAcknowledgement? =
-        withContext(Dispatchers.IO) {
-            mutex.withLock {
-                try {
-                    val uri = requireConfiguredTreeUri()
-                    val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also {
-                        it.reload()
-                        store = it
-                    }
-                    val acknowledgement = (watchIntake ?: PhoneTransactionIntake(activeStore, watchLedger).also { watchIntake = it })
-                        .intake(submission)
-                        ?: return@withLock null
-                    document.value = activeStore.document.value
-                    publishCategories(activeStore.document.value.categories)
-                    if (acknowledgement.status != AcknowledgementStatus.Rejected) {
-                        _syncStatus.value = _syncStatus.value.copy(
-                            uri = uri.toString(),
-                            fileName = displayName(uri),
-                            lastLoadedAt = nowText(),
-                            lastWrittenAt = if (acknowledgement.status == AcknowledgementStatus.Accepted) nowText() else _syncStatus.value.lastWrittenAt,
-                            lastError = null,
-                            warnings = activeStore.warnings(),
-                        )
-                    }
-                    acknowledgement
-                } catch (error: Throwable) {
-                    null
-                }
-            }
-        }
 
     suspend fun updateBalances(bank: Double, wallet: Double, savings: Double, investments: Double) =
         mutateOwner(FileOwner.NetWorth) { latest ->
@@ -269,7 +225,6 @@ class FinanceRepository(context: Context) {
             val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also { store = it }
             runCatching { block(activeStore) }.onSuccess {
                 document.value = activeStore.document.value
-                publishCategories(activeStore.document.value.categories)
                 _syncStatus.value = _syncStatus.value.copy(
                     uri = uri.toString(),
                     fileName = displayName(uri),
@@ -300,14 +255,6 @@ class FinanceRepository(context: Context) {
     private suspend fun requireConfiguredTreeUri(): Uri = configuredTreeUriOrNull()
         ?: error("Connect a synced finance data directory in Settings first.")
 
-    private fun publishCategories(categories: CategoryState) {
-        check(categoryPublicationRequestSequence < Long.MAX_VALUE) { "Category publication request sequence exhausted." }
-        val requestSequence = ++categoryPublicationRequestSequence
-        publicationScope.launch {
-            runCatching { categoryPublisher.publish(categories, requestSequence) }
-        }
-    }
-
     private fun displayName(uri: Uri): String = uri.lastPathSegment?.substringAfterLast(':') ?: "Finance data directory"
 
     private fun nowText(): String =
@@ -315,7 +262,5 @@ class FinanceRepository(context: Context) {
 
     private companion object {
         val sharedMutex = Mutex()
-        val publicationScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-        var categoryPublicationRequestSequence = 0L
     }
 }
