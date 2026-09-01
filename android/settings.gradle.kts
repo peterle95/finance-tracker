@@ -16,6 +16,3 @@ dependencyResolutionManagement {
 
 rootProject.name = "FinanceTrackerAndroid"
 include(":app")
-include(":shared-protocol")
-include(":shared-domain")
-include(":wear")
