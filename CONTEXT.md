@@ -1,20 +1,8 @@
 # Finance Tracker Context
 
-This context covers recording personal finance transactions across the phone app and its Galaxy Watch companion.
+This context covers recording personal finance transactions.
 
 ## Language
-
-**Watch capture**:
-A transaction input created on the watch for delivery to the phone.
-_Avoid_: Watch transaction, watch-side record
-
-**Phone intake**:
-The phone's handling of a watch capture before it becomes part of the shared finance data.
-_Avoid_: Sync import, watch sync
-
-**Transaction submission**:
-A watch capture plus its stable delivery identity, sent to the phone for processing.
-_Avoid_: Event, message
 
 **Booking date**:
 The date stored for a transaction and used by month-based finance calculations.
