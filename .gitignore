@@ -60,6 +60,7 @@ modern-desktop/out/
 modern-desktop/release/
 modern-desktop/playwright-report/
 modern-desktop/test-results/
+modern-desktop/projections/
 
 # Syncthing files
 .stfolder/
