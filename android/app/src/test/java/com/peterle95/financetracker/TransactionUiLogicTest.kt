@@ -84,7 +84,7 @@ class TransactionUiLogicTest {
             searchText = "",
         )
 
-        assertEquals(listOf("bnpl", "july-income"), july.map { it.uiKey })
+        assertEquals(listOf("july-income", "bnpl"), july.map { it.uiKey })
         assertEquals(listOf("june-food"), june.map { it.uiKey })
     }
 
@@ -98,7 +98,23 @@ class TransactionUiLogicTest {
             searchText = "",
         )
 
-        assertEquals(rows.map { it.uiKey }, filtered.map { it.uiKey })
+        assertEquals(listOf("july-income", "bnpl", "june-food"), filtered.map { it.uiKey })
+    }
+
+    @Test
+    fun sameBookingDateUsesBehaviorDateAsSecondarySort() {
+        val filtered = TransactionUiLogic.filterTransactions(
+            transactions = listOf(
+                FinanceTransaction("first", "first", TransactionType.Expense, "2026-08-01", 1.0, "Food", "First", "2026-07-22"),
+                FinanceTransaction("second", "second", TransactionType.Expense, "2026-08-01", 2.0, "Food", "Second", "2026-07-03"),
+            ),
+            selectedMonthKey = TransactionUiLogic.ALL_MONTHS_KEY,
+            categoryFilter = "All",
+            typeFilter = null,
+            searchText = "",
+        )
+
+        assertEquals(listOf("second", "first"), filtered.map { it.uiKey })
     }
 
     @Test

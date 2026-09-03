@@ -14,6 +14,11 @@ export type TransactionDateBasis = "transaction" | "behavior";
 export type HistoricalBreakdownMode = "categories" | "flexible" | "over-under";
 export type SnapshotChangeMode = "month-by-month" | "from-beginning";
 
+export function compareTransactionsByDate(first: FinanceTransaction, second: FinanceTransaction): number {
+  return second.date.localeCompare(first.date)
+    || (first.behavior_date ?? "").localeCompare(second.behavior_date ?? "");
+}
+
 export const DEFAULT_EXPENSE_CATEGORIES = [
   "Food",
   "Transportation",

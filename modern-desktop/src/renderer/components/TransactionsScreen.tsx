@@ -1,6 +1,6 @@
 import { ArrowDownRight, ArrowUpRight, ChevronLeft, ChevronRight, Pencil, Plus, Search, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
-import { currentMonth, formatCurrency, getActiveMonthlyIncome, monthOffset, sumFixedCosts } from "../../shared/finance";
+import { compareTransactionsByDate, currentMonth, formatCurrency, getActiveMonthlyIncome, monthOffset, sumFixedCosts } from "../../shared/finance";
 import type { FinanceDocument, FinanceTransaction, TransactionType } from "../../shared/types";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
 
@@ -65,6 +65,10 @@ export function TransactionsScreen({
         return value.includes(query.toLocaleLowerCase());
       })
       .sort((first, second) => {
+        if (sortKey === "date") {
+          const compared = compareTransactionsByDate(first.transaction, second.transaction);
+          return descending ? compared : -compared;
+        }
         const firstValue = first.transaction[sortKey];
         const secondValue = second.transaction[sortKey];
         const compared = typeof firstValue === "number" && typeof secondValue === "number"

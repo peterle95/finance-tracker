@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   assetAllocation,
+  compareTransactionsByDate,
   createSnapshot,
   dailyBudgetDevelopment,
   defaultDocument,
@@ -19,6 +20,19 @@ import {
 } from "./finance";
 
 describe("shared finance compatibility", () => {
+  it("sorts transactions by booking date, then behavior date", () => {
+    const transactions = [
+      { date: "2026-08-01", behavior_date: "2026-07-22", amount: 1, category: "Food", description: "First" },
+      { date: "2026-08-01", behavior_date: "2026-07-03", amount: 2, category: "Food", description: "Second" },
+      { date: "2026-07-31", amount: 3, category: "Food", description: "Third" }
+    ];
+
+    expect([...transactions].sort(compareTransactionsByDate).map((transaction) => transaction.description)).toEqual([
+      "Second",
+      "First",
+      "Third"
+    ]);
+  });
   it("preserves unknown root and budget fields during a save merge", () => {
     const current = defaultDocument();
     current.desktop_only = { retain: true };

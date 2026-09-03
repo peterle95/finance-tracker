@@ -68,6 +68,9 @@ object TransactionUiLogic {
                     normalizedSearch.isBlank() ||
                         row.description.contains(normalizedSearch, ignoreCase = true)
                     )
-        }
+        }.sortedWith(transactionDateComparator)
     }
+
+    private val transactionDateComparator = compareByDescending<FinanceTransaction> { it.date }
+        .thenBy { it.behaviorDate ?: "" }
 }
