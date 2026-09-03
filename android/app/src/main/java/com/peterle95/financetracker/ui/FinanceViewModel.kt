@@ -205,6 +205,13 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
         }
     }
 
+    fun setDefaultNetWorthSinceMonth(month: String) {
+        viewModelScope.launch {
+            runCatching { repository.setDefaultNetWorthSinceMonth(month) }
+                .onFailure { messages.emit(it.message ?: "Could not update net worth settings.") }
+        }
+    }
+
     fun addIncomeSource(amount: String, description: String, startDate: String, endDate: String) {
         viewModelScope.launch {
             runCatching {

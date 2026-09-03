@@ -294,7 +294,7 @@ export function App() {
       case "reports":
         return <ReportsScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onExport={(name, text) => void exportText(name, text)} />;
       case "net-worth":
-        return <NetWorthScreen document={activeDocument} defaultBehaviors={defaultBehaviors} defaultNetWorthPeriod={activeDocument.budget_settings.defaultNetWorthPeriod} defaultNetWorthBreakdownPeriod={activeDocument.budget_settings.defaultNetWorthBreakdownPeriod} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
+        return <NetWorthScreen document={activeDocument} defaultBehaviors={defaultBehaviors} defaultNetWorthPeriod={activeDocument.budget_settings.defaultNetWorthPeriod} defaultNetWorthBreakdownPeriod={activeDocument.budget_settings.defaultNetWorthBreakdownPeriod} defaultNetWorthSinceMonth={activeDocument.budget_settings.defaultNetWorthSinceMonth} onSave={(next) => void persist(next)} onExport={(name, text) => void exportText(name, text)} />;
       case "projection":
         return <ProjectionScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onExport={(name, text) => void exportText(name, text)} />;
       case "reconciliation":
@@ -308,7 +308,7 @@ export function App() {
           const updated = cloneDocument(activeDocument);
           updated.budget_settings.default_behaviors = next;
           void persist(updated);
-        }} onDefaultNetWorthPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthPeriod = value; void persist(updated); }} onDefaultNetWorthBreakdownPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthBreakdownPeriod = value; void persist(updated); }} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
+        }} onDefaultNetWorthPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthPeriod = value; void persist(updated); }} onDefaultNetWorthBreakdownPeriodChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthBreakdownPeriod = value; void persist(updated); }} onDefaultNetWorthSinceMonthChange={(value) => { const updated = cloneDocument(activeDocument); updated.budget_settings.defaultNetWorthSinceMonth = value; void persist(updated); }} onChooseFile={() => void chooseDataFile()} onCreateFile={() => void createDataFile()} onReload={() => void loadData()} />;
       case "dashboard":
       default:
         return <DashboardScreen document={activeDocument} defaultRanges={defaultRanges} defaultBehaviors={defaultBehaviors} onAddTransaction={openEditor} onNavigate={(next) => navigate(next as Page)} />;

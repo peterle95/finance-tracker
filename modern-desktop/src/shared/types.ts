@@ -79,6 +79,7 @@ export interface BudgetSettings {
   ai_settings?: Record<string, unknown>;
   defaultNetWorthPeriod?: number | "All";
   defaultNetWorthBreakdownPeriod?: number | "All";
+  defaultNetWorthSinceMonth?: string;
   [key: string]: unknown;
 }
 

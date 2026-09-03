@@ -66,6 +66,7 @@ export function DefaultBehaviorsDialog({ open, settings, onOpenChange, onSave }:
               <select aria-label="Net-worth change mode" value={draft.netWorthChangeMode} onChange={(event) => setDraft((current) => ({ ...current, netWorthChangeMode: event.target.value as DefaultBehaviorSettings["netWorthChangeMode"] }))}>
                 <option value="month-by-month">Month-by-month</option>
                 <option value="from-beginning">Since beginning</option>
+                <option value="since-month">Since selected month</option>
               </select>
             </label>
 

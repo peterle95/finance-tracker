@@ -12,7 +12,7 @@ import type {
 
 export type TransactionDateBasis = "transaction" | "behavior";
 export type HistoricalBreakdownMode = "categories" | "flexible" | "over-under";
-export type SnapshotChangeMode = "month-by-month" | "from-beginning";
+export type SnapshotChangeMode = "month-by-month" | "from-beginning" | "since-month";
 
 export function compareTransactionsByDate(first: FinanceTransaction, second: FinanceTransaction): number {
   return second.date.localeCompare(first.date)
@@ -628,12 +628,15 @@ export function snapshots(document: FinanceDocument): AssetSnapshot[] {
     .sort((first, second) => first.date.localeCompare(second.date));
 }
 
-export function snapshotChanges(history: AssetSnapshot[], mode: SnapshotChangeMode = "month-by-month") {
-  const firstNetWorth = history[0]?.net_worth ?? 0;
+export function snapshotChanges(history: AssetSnapshot[], mode: SnapshotChangeMode = "month-by-month", sinceMonth?: string) {
+  const selectedMonth = sinceMonth ?? "";
+  const firstNetWorth = mode === "since-month"
+    ? history.find((snapshot) => snapshot.date.slice(0, 7) >= selectedMonth)?.net_worth ?? history[0]?.net_worth ?? 0
+    : history[0]?.net_worth ?? 0;
 
   return history.map((snapshot, index) => ({
     ...snapshot,
-    change: mode === "from-beginning"
+    change: mode === "from-beginning" || mode === "since-month"
       ? roundCurrency(snapshot.net_worth - firstNetWorth)
       : index === 0
         ? 0

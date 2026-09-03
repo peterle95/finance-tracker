@@ -198,6 +198,14 @@ object FinanceJsonCodec {
     fun setDailySavingsGoal(document: FinanceDocument, amount: Double): FinanceDocument =
         updateBudgetSettings(document) { it.copy(dailySavingsGoal = amount) }
 
+    fun setDefaultNetWorthSinceMonth(document: FinanceDocument, month: String): FinanceDocument =
+        updateBudgetSettings(document) { settings ->
+            settings.copy(extraJson = buildJsonObject {
+                settings.extraJson.forEach { (key, value) -> put(key, value) }
+                put("defaultNetWorthSinceMonth", month)
+            })
+        }
+
     fun addIncomeSource(document: FinanceDocument, source: IncomeSource): FinanceDocument =
         updateBudgetSettings(document) { settings ->
             settings.copy(monthlyIncome = settings.monthlyIncome + source.copy(key = ""))

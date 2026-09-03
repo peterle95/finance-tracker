@@ -62,6 +62,12 @@ private enum class NetWorthChart(val label: String) {
     Breakdown("Breakdown"),
 }
 
+private enum class SnapshotChangeMode(val label: String) {
+    MonthByMonth("Month-by-month"),
+    FromBeginning("Since beginning"),
+    SinceMonth("Since"),
+}
+
 private val netWorthColors = listOf(
     Color(0xFF2563EB),
     Color(0xFF16A34A),
@@ -81,8 +87,11 @@ fun NetWorthScreen(viewModel: FinanceViewModel) {
     var showReport by remember { mutableStateOf(false) }
     var historyPeriod by remember(settings.defaultNetWorthPeriod) { mutableStateOf(settings.defaultNetWorthPeriod ?: 12) }
     var breakdownPeriod by remember(settings.defaultNetWorthBreakdownPeriod) { mutableStateOf(settings.defaultNetWorthBreakdownPeriod ?: 12) }
+    var changeMode by remember { mutableStateOf(SnapshotChangeMode.MonthByMonth) }
     val historySnapshots = if (historyPeriod == 0) settings.assetSnapshots else settings.assetSnapshots.takeLast(historyPeriod)
     val breakdownSnapshots = if (breakdownPeriod == 0) settings.assetSnapshots else settings.assetSnapshots.takeLast(breakdownPeriod)
+    val sinceMonth = settings.defaultNetWorthSinceMonth ?: settings.assetSnapshots.firstOrNull()?.date?.take(7).orEmpty()
+    val historyChangeSnapshots = historySnapshots.filter { changeMode != SnapshotChangeMode.SinceMonth || it.date.take(7) >= sinceMonth }
 
     LazyColumn(
         modifier = Modifier
@@ -129,6 +138,7 @@ fun NetWorthScreen(viewModel: FinanceViewModel) {
                 ) {
                      Text("Visualization", style = MaterialTheme.typography.titleLarge)
                      PeriodChips("History", historyPeriod) { historyPeriod = it }
+                     SnapshotChangeChips(changeMode, sinceMonth) { changeMode = it }
                      if (chart == NetWorthChart.Breakdown) {
                          PeriodChips("Breakdown", breakdownPeriod) { breakdownPeriod = it }
                      }
@@ -145,7 +155,7 @@ fun NetWorthScreen(viewModel: FinanceViewModel) {
                         }
                     }
                     when (chart) {
-                        NetWorthChart.NetWorth -> NetWorthLineChart(historySnapshots)
+                        NetWorthChart.NetWorth -> NetWorthLineChart(historyChangeSnapshots, changeMode, sinceMonth)
                         NetWorthChart.Allocation -> AllocationChart(summary.allocation)
                         NetWorthChart.Breakdown -> AssetBreakdownChart(breakdownSnapshots)
                     }
@@ -254,6 +264,19 @@ private fun PeriodChips(label: String, period: Int, onChange: (Int) -> Unit) {
 }
 
 @Composable
+private fun SnapshotChangeChips(mode: SnapshotChangeMode, sinceMonth: String, onChange: (SnapshotChangeMode) -> Unit) {
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+        SnapshotChangeMode.entries.forEach { option ->
+            FilterChip(
+                selected = mode == option,
+                onClick = { onChange(option) },
+                label = { Text(if (option == SnapshotChangeMode.SinceMonth) "Since: $sinceMonth" else option.label) },
+            )
+        }
+    }
+}
+
+@Composable
 private fun SnapshotRow(snapshot: AssetSnapshot, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Row(
@@ -278,8 +301,15 @@ private fun SnapshotRow(snapshot: AssetSnapshot, onDelete: () -> Unit) {
 }
 
 @Composable
-private fun NetWorthLineChart(snapshots: List<AssetSnapshot>) {
-    val points = snapshots.map { it.date to it.netWorth }
+private fun NetWorthLineChart(snapshots: List<AssetSnapshot>, mode: SnapshotChangeMode, sinceMonth: String) {
+    val visible = snapshots.filter { mode != SnapshotChangeMode.SinceMonth || it.date.take(7) >= sinceMonth }
+    val baseline = visible.firstOrNull()?.netWorth ?: 0.0
+    val points = visible.mapIndexed { index, snapshot ->
+        snapshot.date to when (mode) {
+            SnapshotChangeMode.MonthByMonth -> if (index == 0) 0.0 else snapshot.netWorth - visible[index - 1].netWorth
+            SnapshotChangeMode.FromBeginning, SnapshotChangeMode.SinceMonth -> snapshot.netWorth - baseline
+        }
+    }
     if (points.isEmpty()) {
         Text("No snapshots recorded yet.")
         return

@@ -305,6 +305,8 @@ data class BudgetSettings(
         get() = extraJson["defaultNetWorthPeriod"]?.jsonPrimitive?.contentOrNull?.let { if (it == "All") 0 else it.toIntOrNull() }?.takeIf { it == 0 || it in listOf(3, 6, 12, 24) }
     val defaultNetWorthBreakdownPeriod: Int?
         get() = extraJson["defaultNetWorthBreakdownPeriod"]?.jsonPrimitive?.contentOrNull?.let { if (it == "All") 0 else it.toIntOrNull() }?.takeIf { it == 0 || it in listOf(3, 6, 12, 24) }
+    val defaultNetWorthSinceMonth: String?
+        get() = extraJson["defaultNetWorthSinceMonth"]?.jsonPrimitive?.contentOrNull?.takeIf { Regex("\\d{4}-\\d{2}").matches(it) }
 
     fun toJsonObjectPreserving(raw: JsonObject = buildJsonObject {}): JsonObject =
         buildJsonObject {

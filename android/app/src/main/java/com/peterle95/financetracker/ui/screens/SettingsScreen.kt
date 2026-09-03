@@ -37,6 +37,8 @@ import com.peterle95.financetracker.ui.FinanceViewModel
 fun SettingsScreen(viewModel: FinanceViewModel) {
     val categories by viewModel.categories.collectAsState()
     val syncStatus by viewModel.syncStatus.collectAsState()
+    val budgetSettings by viewModel.budgetSettingsModel.collectAsState()
+    var sinceMonth by remember(budgetSettings.defaultNetWorthSinceMonth) { mutableStateOf(budgetSettings.defaultNetWorthSinceMonth.orEmpty()) }
     var type by remember { mutableStateOf(TransactionType.Expense) }
     var newCategory by remember { mutableStateOf("") }
     var categoryToDelete by remember { mutableStateOf<String?>(null) }
@@ -53,6 +55,29 @@ fun SettingsScreen(viewModel: FinanceViewModel) {
     ) {
         Text("Settings", style = MaterialTheme.typography.headlineMedium)
         Text("Chart period defaults are managed in the desktop app and shared with this phone.")
+        Card {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(12.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Net worth", style = MaterialTheme.typography.titleMedium)
+                OutlinedTextField(
+                    value = sinceMonth,
+                    onValueChange = { sinceMonth = it },
+                    label = { Text("Since month (YYYY-MM)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Button(
+                    onClick = { viewModel.setDefaultNetWorthSinceMonth(sinceMonth) },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Save month")
+                }
+            }
+        }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             TransactionType.entries.forEach { item ->
                 FilterChip(

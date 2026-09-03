@@ -43,7 +43,7 @@ const NET_WORTH_KEYS = [
   "money_lent_balance",
   "asset_snapshots"
 ] as const;
-const PREFERENCE_KEYS = ["ai_settings", "default_behaviors", "default_ranges", "defaultNetWorthPeriod", "defaultNetWorthBreakdownPeriod"] as const;
+const PREFERENCE_KEYS = ["ai_settings", "default_behaviors", "default_ranges", "defaultNetWorthPeriod", "defaultNetWorthBreakdownPeriod", "defaultNetWorthSinceMonth"] as const;
 
 async function exists(filePath: string): Promise<boolean> {
   try {

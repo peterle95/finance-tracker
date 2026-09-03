@@ -15,7 +15,7 @@ describe("NetWorthScreen snapshot changes", () => {
 
     render(<NetWorthScreen document={financeDocument} onSave={vi.fn()} onExport={vi.fn()} />);
 
-    expect(screen.getByRole("heading", { name: "Changes over time" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Changes over time" })).toBeNull();
     expect(screen.getByText("Record and review snapshots")).toBeTruthy();
     expect(screen.queryByPlaceholderText("Month end or milestone")).toBeNull();
     expect(document.querySelector(".snapshot-history-list")).toBeTruthy();
@@ -31,5 +31,9 @@ describe("NetWorthScreen snapshot changes", () => {
     expect(monthByMonth.getAttribute("aria-pressed")).toBe("false");
     expect(fromBeginning.getAttribute("aria-pressed")).toBe("true");
     expect(screen.getByText(/Since beginning: \+200,00/)).toBeTruthy();
+
+    const sinceMonth = screen.getByRole("button", { name: "Since: 2026-05" });
+    await user.click(sinceMonth);
+    expect(sinceMonth.getAttribute("aria-pressed")).toBe("true");
   });
 });

@@ -42,6 +42,7 @@ export function NetWorthScreen({
   defaultBehaviors = DEFAULT_BEHAVIOR_SETTINGS,
   defaultNetWorthPeriod,
   defaultNetWorthBreakdownPeriod,
+  defaultNetWorthSinceMonth,
   onSave,
   onExport
 }: {
@@ -49,6 +50,7 @@ export function NetWorthScreen({
   defaultBehaviors?: DefaultBehaviorSettings;
   defaultNetWorthPeriod?: number | "All";
   defaultNetWorthBreakdownPeriod?: number | "All";
+  defaultNetWorthSinceMonth?: string;
   onSave(document: FinanceDocument): void;
   onExport(name: string, text: string): void;
 }) {
@@ -57,9 +59,11 @@ export function NetWorthScreen({
   const [historyPeriod, setHistoryPeriod] = useState<number | "All">(defaultNetWorthPeriod ?? 12);
   const [breakdownPeriod, setBreakdownPeriod] = useState<number | "All">(defaultNetWorthBreakdownPeriod ?? 12);
   const allHistory = snapshots(document);
-  const history = historyPeriod === "All" ? allHistory : allHistory.slice(-historyPeriod);
+  const sinceMonth = defaultNetWorthSinceMonth ?? allHistory[0]?.date.slice(0, 7) ?? "";
+  const history = (historyPeriod === "All" ? allHistory : allHistory.slice(-historyPeriod))
+    .filter((snapshot) => changeMode !== "since-month" || snapshot.date.slice(0, 7) >= sinceMonth);
   const breakdown = breakdownPeriod === "All" ? allHistory : allHistory.slice(-breakdownPeriod);
-  const changeRows = snapshotChanges(history, changeMode);
+  const changeRows = snapshotChanges(history, changeMode, sinceMonth);
   const changeByDate = new Map(changeRows.map((row) => [row.date, row.change]));
   const allocation = assetAllocation(document);
   const currentNetWorth = netWorth(document);
@@ -138,7 +142,7 @@ export function NetWorthScreen({
                 <small className={snapshot.date === history[0]?.date ? "" : (changeByDate.get(snapshot.date) ?? 0) >= 0 ? "amount-income" : "amount-expense"}>
                   {snapshot.date === history[0]?.date
                     ? "Starting point"
-                    : (changeMode === "month-by-month" ? "Since previous: " : "Since beginning: ") + formatSignedCurrency(changeByDate.get(snapshot.date) ?? 0)}
+                    : (changeMode === "month-by-month" ? "Since previous: " : changeMode === "since-month" ? "Since: " + sinceMonth + ": " : "Since beginning: ") + formatSignedCurrency(changeByDate.get(snapshot.date) ?? 0)}
                 </small>
               </span>
               <strong>{formatCurrency(snapshot.net_worth)}</strong>
@@ -148,10 +152,11 @@ export function NetWorthScreen({
         </div>
       </Card>
       <Card className="chart-card">
-        <div className="card-heading"><div><p className="eyebrow">Snapshot flow</p><h2>Changes over time</h2></div><select aria-label="Default Net Worth" value={String(historyPeriod)} onChange={(e) => setHistoryPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></div>
+        <div className="card-heading"><div><p className="eyebrow">Snapshot flow</p></div><select aria-label="Default Net Worth" value={String(historyPeriod)} onChange={(e) => setHistoryPeriod(e.target.value === "All" ? "All" : Number(e.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></div>
         <div className="segmented-control" aria-label="Snapshot change mode">
           <button type="button" aria-pressed={changeMode === "month-by-month"} className={changeMode === "month-by-month" ? "selected" : ""} onClick={() => setChangeMode("month-by-month")}>Month-by-month</button>
           <button type="button" aria-pressed={changeMode === "from-beginning"} className={changeMode === "from-beginning" ? "selected" : ""} onClick={() => setChangeMode("from-beginning")}>Since beginning</button>
+          <button type="button" aria-pressed={changeMode === "since-month"} className={changeMode === "since-month" ? "selected" : ""} onClick={() => setChangeMode("since-month")}>Since: {sinceMonth}</button>
         </div>
         {history.length > 1 ? (
           <ResponsiveContainer width="100%" height={300}>
@@ -159,7 +164,7 @@ export function NetWorthScreen({
               <XAxis dataKey="date" tickLine={false} axisLine={false} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
               <YAxis tickFormatter={(value) => (Number(value) >= 0 ? "+" : "-") + "\u20AC" + Math.round(Math.abs(Number(value)))} tickLine={false} axisLine={false} width={80} tick={{ fill: "#a2c4bb", fontSize: 12 }} />
               <Tooltip contentStyle={tooltipStyle} labelStyle={tooltipTextStyle} itemStyle={tooltipTextStyle} formatter={(value) => formatSignedCurrency(Number(value))} />
-              <Line type="monotone" dataKey="change" name={changeMode === "month-by-month" ? "Change from previous snapshot" : "Change since beginning"} stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
+              <Line type="monotone" dataKey="change" name={changeMode === "month-by-month" ? "Change from previous snapshot" : changeMode === "since-month" ? "Change since " + sinceMonth : "Change since beginning"} stroke="#f5c451" strokeWidth={3} dot={{ r: 4 }} />
             </LineChart>
           </ResponsiveContainer>
         ) : <EmptyState title="Record two snapshots to see changes" detail="Snapshots retain your balance on the chosen day." />}

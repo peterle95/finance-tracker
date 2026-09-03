@@ -214,6 +214,7 @@ describe("shared finance compatibility", () => {
 
     expect(snapshotChanges(history).map((snapshot) => snapshot.change)).toEqual([0, 200, -100]);
     expect(snapshotChanges(history, "from-beginning").map((snapshot) => snapshot.change)).toEqual([0, 200, 100]);
+    expect(snapshotChanges(history, "since-month", "2026-02").map((snapshot) => snapshot.change)).toEqual([-200, 0, -100]);
   });
 
   it("rounds signed loan balances and excludes liabilities from asset allocation", () => {

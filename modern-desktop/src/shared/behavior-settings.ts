@@ -1,5 +1,5 @@
 export type DefaultProjectionMode = "target" | "net-worth";
-export type DefaultNetWorthChangeMode = "month-by-month" | "from-beginning";
+export type DefaultNetWorthChangeMode = "month-by-month" | "from-beginning" | "since-month";
 export type DefaultReportView = "pie" | "history" | "line" | "heatmap" | "pace";
 export type DefaultReportType = "Expense" | "Income";
 export type DefaultReportDateBasis = "transaction" | "behavior";
@@ -44,7 +44,7 @@ export function normalizeDefaultBehaviorSettings(value: unknown): DefaultBehavio
     projectionMode: source.projectionMode === "target" || source.projectionMode === "net-worth"
       ? source.projectionMode
       : DEFAULT_BEHAVIOR_SETTINGS.projectionMode,
-    netWorthChangeMode: source.netWorthChangeMode === "month-by-month" || source.netWorthChangeMode === "from-beginning"
+    netWorthChangeMode: source.netWorthChangeMode === "month-by-month" || source.netWorthChangeMode === "from-beginning" || source.netWorthChangeMode === "since-month"
       ? source.netWorthChangeMode
       : DEFAULT_BEHAVIOR_SETTINGS.netWorthChangeMode,
     reportView: source.reportView === "pie" || source.reportView === "history" || source.reportView === "line" || source.reportView === "heatmap" || source.reportView === "pace"

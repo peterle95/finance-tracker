@@ -611,7 +611,7 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
             "bank_account_balance", "wallet_balance", "savings_balance", "investment_balance",
             "money_lent_balance", "cash_balance", "asset_snapshots",
         )
-        private val preferenceKeys = setOf("ai_settings", "default_behaviors", "default_ranges", "defaultNetWorthPeriod", "defaultNetWorthBreakdownPeriod")
+        private val preferenceKeys = setOf("ai_settings", "default_behaviors", "default_ranges", "defaultNetWorthPeriod", "defaultNetWorthBreakdownPeriod", "defaultNetWorthSinceMonth")
         private val legacyRootKeys = setOf("expenses", "incomes", "budget_settings", "categories")
         private val transactionKeys = setOf("id", "date", "amount", "category", "description", "behavior_date")
         private val fileKeyRegex = Regex("[a-z0-9]+(?:-[a-z0-9]+)*")

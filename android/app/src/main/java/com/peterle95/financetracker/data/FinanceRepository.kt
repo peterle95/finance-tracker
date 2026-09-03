@@ -198,6 +198,10 @@ class FinanceRepository(context: Context) {
         FinanceJsonCodec.setDailySavingsGoal(it, amount)
     }
 
+    suspend fun setDefaultNetWorthSinceMonth(month: String) = mutateOwner(FileOwner.NetWorth) {
+        FinanceJsonCodec.setDefaultNetWorthSinceMonth(it, month)
+    }
+
     suspend fun addIncomeSource(source: IncomeSource) = mutateOwner(FileOwner.Budget) {
         FinanceJsonCodec.addIncomeSource(it, source)
     }

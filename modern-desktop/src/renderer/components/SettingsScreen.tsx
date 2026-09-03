@@ -23,6 +23,7 @@ interface SettingsScreenProps {
   onDefaultBehaviorsChange(settings: DefaultBehaviorSettings): void;
   onDefaultNetWorthPeriodChange(value: number | "All"): void;
   onDefaultNetWorthBreakdownPeriodChange(value: number | "All"): void;
+  onDefaultNetWorthSinceMonthChange?(value: string): void;
   onChooseFile(): void;
   onCreateFile(): void;
   onReload(): void;
@@ -44,6 +45,7 @@ export function SettingsScreen({
   onDefaultBehaviorsChange,
   onDefaultNetWorthPeriodChange,
   onDefaultNetWorthBreakdownPeriodChange,
+  onDefaultNetWorthSinceMonthChange,
   onChooseFile,
   onCreateFile,
   onReload,
@@ -113,6 +115,7 @@ export function SettingsScreen({
           <div className="card-heading"><div><p className="eyebrow">Net worth</p><h2>Default Net Worth</h2></div></div>
           <label><span>Default Net Worth</span><select value={String(document.budget_settings.defaultNetWorthPeriod ?? 12)} onChange={(event) => onDefaultNetWorthPeriodChange(event.target.value === "All" ? "All" : Number(event.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></label>
           <label><span>Default Net Worth Breakdown</span><select value={String(document.budget_settings.defaultNetWorthBreakdownPeriod ?? 12)} onChange={(event) => onDefaultNetWorthBreakdownPeriodChange(event.target.value === "All" ? "All" : Number(event.target.value))}><option>3</option><option>6</option><option>12</option><option>24</option><option>All</option></select></label>
+          <label><span>Net Worth Since Month</span><input type="month" value={document.budget_settings.defaultNetWorthSinceMonth ?? ""} onChange={(event) => onDefaultNetWorthSinceMonthChange?.(event.target.value)} /></label>
         </Card>
 
         <Card>
