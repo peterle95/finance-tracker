@@ -62,11 +62,14 @@ describe("ProjectionScreen", () => {
     ];
     render(<ProjectionScreen document={document} onExport={exportReport} />);
 
+    await user.click(screen.getByRole("button", { name: "Export projection" }));
+    expect(exportReport).toHaveBeenLastCalledWith(expect.stringMatching(/^financial_projection_target_savings_\d{4}-\d{2}-\d{2}\.txt$/), expect.stringContaining("TARGET SAVINGS PROJECTION"));
+
     await user.click(screen.getByRole("button", { name: "Net worth trend" }));
     expect(screen.getByRole("heading", { name: "Continue your recorded trajectory" })).toBeTruthy();
     expect(screen.getByText("2026-05-01 → 2026-06-01")).toBeTruthy();
 
     await user.click(screen.getByRole("button", { name: "Export projection" }));
-    expect(exportReport).toHaveBeenCalledWith(expect.stringMatching(/^financial_projection_/), expect.stringContaining("NET WORTH TREND PROJECTION"));
+    expect(exportReport).toHaveBeenLastCalledWith(expect.stringMatching(/^financial_projection_net_worth_trend_\d{4}-\d{2}-\d{2}\.txt$/), expect.stringContaining("NET WORTH TREND PROJECTION"));
   });
 });
