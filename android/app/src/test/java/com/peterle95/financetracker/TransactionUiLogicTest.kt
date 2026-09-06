@@ -98,7 +98,26 @@ class TransactionUiLogicTest {
             searchText = "",
         )
 
-        assertEquals(rows.map { it.uiKey }, filtered.map { it.uiKey })
+        assertEquals(listOf("july-income", "bnpl", "june-food"), filtered.map { it.uiKey })
+    }
+
+    @Test
+    fun transactionsSortByBookingDateThenBehaviorDateThenCategory() {
+        val sameDayRows = listOf(
+            FinanceTransaction("third", "third", TransactionType.Expense, "2026-09-01", 1.0, "Bakery", "Third", "2026-08-02"),
+            FinanceTransaction("first", "first", TransactionType.Expense, "2026-09-01", 1.0, "Bar", "First", "2026-08-08"),
+            FinanceTransaction("second", "second", TransactionType.Expense, "2026-09-01", 1.0, "Cafe", "Second", "2026-08-02"),
+        )
+
+        val filtered = TransactionUiLogic.filterTransactions(
+            transactions = sameDayRows,
+            selectedMonthKey = TransactionUiLogic.ALL_MONTHS_KEY,
+            categoryFilter = "All",
+            typeFilter = null,
+            searchText = "",
+        )
+
+        assertEquals(listOf("first", "second", "third"), filtered.map { it.uiKey })
     }
 
     @Test

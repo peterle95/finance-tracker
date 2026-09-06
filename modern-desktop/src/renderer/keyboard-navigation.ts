@@ -97,6 +97,8 @@ export function useKeyboardNavigation({ activationKey = " ", alphabet = "ASDFJKL
     const activate = (target: HTMLElement) => {
       clearTimer();
       target.focus({ preventScroll: true });
+      target.dataset.keyboardActivated = "true";
+      window.setTimeout(() => delete target.dataset.keyboardActivated, 500);
       target.click();
       buffer = "";
       clearHints();

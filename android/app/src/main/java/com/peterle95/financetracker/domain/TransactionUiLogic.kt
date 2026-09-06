@@ -59,15 +59,21 @@ object TransactionUiLogic {
         searchText: String,
     ): List<FinanceTransaction> {
         val normalizedSearch = searchText.trim()
-        return transactions.filter { row ->
-            val rowMonth = row.date.take(7)
-            (selectedMonthKey == ALL_MONTHS_KEY || rowMonth == selectedMonthKey) &&
-                (typeFilter == null || row.type == typeFilter) &&
-                (categoryFilter.isBlank() || categoryFilter == "All" || row.category == categoryFilter) &&
-                (
-                    normalizedSearch.isBlank() ||
-                        row.description.contains(normalizedSearch, ignoreCase = true)
-                    )
-        }
+        return transactions
+            .filter { row ->
+                val rowMonth = row.date.take(7)
+                (selectedMonthKey == ALL_MONTHS_KEY || rowMonth == selectedMonthKey) &&
+                    (typeFilter == null || row.type == typeFilter) &&
+                    (categoryFilter.isBlank() || categoryFilter == "All" || row.category == categoryFilter) &&
+                    (
+                        normalizedSearch.isBlank() ||
+                            row.description.contains(normalizedSearch, ignoreCase = true)
+                        )
+            }
+            .sortedWith(
+                compareByDescending<FinanceTransaction> { it.date }
+                    .thenByDescending { it.behaviorDate.orEmpty() }
+                    .thenByDescending { it.category },
+            )
     }
 }

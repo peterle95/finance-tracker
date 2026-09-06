@@ -6,7 +6,6 @@ import type { DataConnection, FinanceDocument } from "../../shared/types";
 import { DefaultBehaviorsDialog } from "./DefaultBehaviorsDialog";
 import { DefaultRangesDialog } from "./DefaultRangesDialog";
 import { Button, Card, PageHeader } from "./ui";
-import { KeyboardNavigationPrototype } from "./KeyboardNavigationPrototype";
 import type { KeyboardNavigationSettings } from "../keyboard-navigation";
 
 
@@ -79,13 +78,12 @@ export function SettingsScreen({
         </Card>
 
         <Card>
-          <div className="card-heading"><div><p className="eyebrow">Prototype</p><h2>Keyboard navigation</h2></div><Keyboard size={22} /></div>
+          <div className="card-heading"><div><p className="eyebrow">Accessibility</p><h2>Keyboard navigation</h2></div><Keyboard size={22} /></div>
           <p className="muted-copy">Configure the keyboard hints used throughout the app.</p>
           <div className="form-grid compact-form">
             <label><span>Activation key</span><input aria-label="Activation key" value={keyboardNavigation.activationKey} maxLength={1} onChange={(event) => onKeyboardNavigationChange({ ...keyboardNavigation, activationKey: event.target.value })} />{activationKeyError ? <small className="error-copy">{activationKeyError}</small> : null}</label>
             <label><span>Hint alphabet</span><input aria-label="Hint alphabet" value={keyboardNavigation.hintAlphabet} onChange={(event) => onKeyboardNavigationChange({ ...keyboardNavigation, hintAlphabet: event.target.value })} />{hintAlphabetError ? <small className="error-copy">{hintAlphabetError}</small> : null}</label>
             <div className="form-actions span-two"><Button variant="ghost" onClick={onKeyboardNavigationReset}>Reset keyboard defaults</Button></div>
-            <div className="span-two"><KeyboardNavigationPrototype reducedMotion={reducedMotion} /></div>
           </div>
         </Card>
 
