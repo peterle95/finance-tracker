@@ -5,6 +5,24 @@ import { currentMonth, defaultDocument, monthOffset } from "../../shared/finance
 import { TransactionsScreen } from "./TransactionsScreen";
 
 describe("TransactionsScreen summary", () => {
+  it("sorts by booking date, behavior date, then category by default", () => {
+    const document = defaultDocument();
+    const month = currentMonth();
+    document.expenses = [
+      { date: month + "-01", behavior_date: month + "-02", amount: 1, category: "Cafe", description: "Second" },
+      { date: month + "-01", behavior_date: month + "-08", amount: 1, category: "Bar", description: "First" },
+      { date: month + "-01", behavior_date: month + "-02", amount: 1, category: "Bakery", description: "Third" }
+    ];
+
+    render(<TransactionsScreen document={document} onAdd={vi.fn()} onEdit={vi.fn()} onDelete={vi.fn()} />);
+
+    expect(screen.getAllByRole("row").slice(1).map((row) => row.textContent)).toEqual([
+      expect.stringContaining("First"),
+      expect.stringContaining("Second"),
+      expect.stringContaining("Third")
+    ]);
+  });
+
   it("shows total income minus total costs", () => {
     const document = defaultDocument();
     const month = currentMonth();

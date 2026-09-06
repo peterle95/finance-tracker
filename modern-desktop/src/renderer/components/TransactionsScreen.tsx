@@ -65,6 +65,12 @@ export function TransactionsScreen({
         return value.includes(query.toLocaleLowerCase());
       })
       .sort((first, second) => {
+        if (sortKey === "date") {
+          const compared = first.transaction.date.localeCompare(second.transaction.date)
+            || (first.transaction.behavior_date ?? "").localeCompare(second.transaction.behavior_date ?? "")
+            || first.transaction.category.localeCompare(second.transaction.category);
+          return descending ? -compared : compared;
+        }
         const firstValue = first.transaction[sortKey];
         const secondValue = second.transaction[sortKey];
         const compared = typeof firstValue === "number" && typeof secondValue === "number"

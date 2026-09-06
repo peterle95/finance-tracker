@@ -55,7 +55,7 @@ export function ProjectionScreen({
         eyebrow="Forward view"
         title="Projection"
         description="Project target savings or continue the average month-by-month trend from your net worth snapshots."
-        action={<Button variant="secondary" onClick={() => onExport("financial_projection_" + isoToday() + ".txt", report)}><Download size={16} /> Export projection</Button>}
+        action={<Button variant="secondary" onClick={() => onExport("financial_projection_" + (mode === "target" ? "target_savings_" : "net_worth_trend_") + isoToday() + ".txt", report)}><Download size={16} /> Export projection</Button>}
       />
 
       <Card className="report-controls">
