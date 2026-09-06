@@ -28,6 +28,7 @@ describe("keyboard navigation", () => {
     expect(document.documentElement.dataset.keyboardMode).toBe("active");
     expect(document.querySelector("button[data-keyboard-hint='A']")).toBeTruthy();
     await user.keyboard("a");
+    expect(document.querySelector("button")?.dataset.keyboardActivated).toBe("true");
     await new Promise((resolve) => window.setTimeout(resolve));
     expect(document.documentElement.dataset.keyboardMode).toBe("active");
     expect(document.querySelector("button[data-keyboard-hint='A']")).toBeTruthy();
