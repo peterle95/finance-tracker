@@ -1,20 +1,24 @@
 import { describe, expect, it } from "vitest";
 import {
   assetAllocation,
+  autoDistributeGoals,
   createSnapshot,
   dailyBudgetDevelopment,
   defaultDocument,
   getActiveFixedCosts,
   getActiveMonthlyIncome,
+  getGoals,
   historicalBreakdown,
   historicalTotals,
   makeTransaction,
   mergeDocuments,
+  monthlyGoalAllocation,
   monthTransactions,
   netWorthTrendProjection,
   negativeCarryover,
   normalizeDocument,
   rawNetAvailableForSpending,
+  setMonthlyGoalAllocation,
   snapshotChanges
 } from "./finance";
 
@@ -220,5 +224,75 @@ describe("shared finance compatibility", () => {
     expect(normalized.budget_settings.money_lent_balance).toBe(-4347.04);
     expect(allocation.assets).toEqual([{ name: "Bank", value: 2305.77 }]);
     expect(allocation.liabilities).toEqual([{ name: "Money owed", value: -4347.04 }]);
+  });
+
+  it("records and reverses the current month's goal allocation", () => {
+    const goal = {
+      name: "Emergency fund",
+      target_amount: 1200,
+      allocated_amount: 0,
+      target_date: "2026-03-02"
+    };
+    const now = new Date(2026, 0, 1, 12);
+
+    expect(monthlyGoalAllocation(goal, now)).toEqual({ month: "2026-01", amount: 600, isComplete: false });
+
+    const completed = setMonthlyGoalAllocation(goal, monthlyGoalAllocation(goal, now), true);
+    expect(completed).toMatchObject({
+      allocated_amount: 600,
+      monthly_allocation: { month: "2026-01", amount: 600, allocated_amount_before: 0 }
+    });
+    expect(monthlyGoalAllocation(completed, now)).toEqual({ month: "2026-01", amount: 600, isComplete: true });
+
+    const undone = setMonthlyGoalAllocation(completed, monthlyGoalAllocation(completed, now), false);
+    expect(undone.allocated_amount).toBe(0);
+    expect(undone.monthly_allocation).toBeUndefined();
+
+    const manuallyChanged = { ...completed, allocated_amount: 100 };
+    expect(setMonthlyGoalAllocation(manuallyChanged, monthlyGoalAllocation(manuallyChanged, now), false).allocated_amount).toBe(100);
+  });
+
+  it("marks a past target date overdue instead of recommending its full balance", () => {
+    const goal = {
+      name: "Bike",
+      target_amount: 300,
+      allocated_amount: 0,
+      target_date: "2026-04-15"
+    };
+
+    expect(monthlyGoalAllocation(goal, new Date(2026, 8, 10, 12))).toEqual({
+      month: "2026-09",
+      amount: null,
+      isComplete: false,
+      isOverdue: true
+    });
+  });
+
+  it("uses legacy current_amount for goals", () => {
+    const document = normalizeDocument({
+      ...defaultDocument(),
+      budget_settings: {
+        ...defaultDocument().budget_settings,
+        savings_goals: [{ name: "Emergency fund", target_amount: 1000, current_amount: 250 }]
+      }
+    });
+
+    expect(getGoals(document)[0].allocated_amount).toBe(250);
+  });
+
+  it("clears a monthly marker when auto-distributing", () => {
+    const document = defaultDocument();
+    document.budget_settings.savings_balance = 100;
+    document.budget_settings.savings_goals = [{
+      name: "Emergency fund",
+      target_amount: 100,
+      allocated_amount: 20,
+      monthly_allocation: { month: "2026-01", amount: 20, allocated_amount_before: 0 }
+    }];
+
+    const goal = autoDistributeGoals(document)[0];
+
+    expect(goal.allocated_amount).toBe(100);
+    expect(goal.monthly_allocation).toBeUndefined();
   });
 });

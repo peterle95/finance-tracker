@@ -41,10 +41,17 @@ export interface SavingsGoal {
   name: string;
   target_amount: number;
   allocated_amount: number;
+  monthly_allocation?: GoalMonthlyAllocationRecord;
   priority?: "High" | "Medium" | "Low";
   description?: string;
   target_date?: string;
   [key: string]: unknown;
+}
+
+export interface GoalMonthlyAllocationRecord {
+  month: string;
+  amount: number;
+  allocated_amount_before: number;
 }
 
 export interface AssetSnapshot {

@@ -6,7 +6,10 @@ import {
   formatCurrency,
   getGoals,
   goalSummary,
-  isoToday
+  isoToday,
+  monthlyGoalAllocation,
+  roundCurrency,
+  setMonthlyGoalAllocation
 } from "../../shared/finance";
 import type { FinanceDocument, SavingsGoal } from "../../shared/types";
 import { Button, Card, EmptyState, PageHeader } from "./ui";
@@ -110,6 +113,9 @@ export function GoalsScreen({ document, onSave, onExport }: GoalsScreenProps) {
             .sort((first, second) => (first.goal.priority === "High" ? -1 : 1) - (second.goal.priority === "High" ? -1 : 1))
             .map(({ goal, index }) => {
               const progress = goal.target_amount ? Math.min((goal.allocated_amount / goal.target_amount) * 100, 100) : 0;
+              const monthlyAllocation = monthlyGoalAllocation(goal);
+              const canAllocateThisMonth = monthlyAllocation.amount !== null
+                && roundCurrency(monthlyAllocation.amount) <= roundCurrency(summary.unallocated);
               return (
                 <Card className="goal-card" key={goal.name + index}>
                   <div className="card-heading">
@@ -129,13 +135,39 @@ export function GoalsScreen({ document, onSave, onExport }: GoalsScreenProps) {
                   </div>
                   <div className="budget-track goal-track"><span style={{ width: progress + "%" }} /></div>
                   <div className="goal-controls">
-                    <label><span>Allocated</span><input type="number" step="0.01" value={goal.allocated_amount} onChange={(event) => updateGoal(index, (current) => ({ ...current, allocated_amount: Number(event.target.value) }))} /></label>
+                    <label><span>Allocated</span><input type="number" step="0.01" value={goal.allocated_amount} onChange={(event) => updateGoal(index, (current) => ({ ...current, allocated_amount: Number(event.target.value), monthly_allocation: undefined }))} /></label>
                     <label><span>Target</span><input type="number" step="0.01" value={goal.target_amount} onChange={(event) => updateGoal(index, (current) => ({ ...current, target_amount: Number(event.target.value) }))} /></label>
                     <label><span>Target date</span><input type="date" value={goal.target_date ?? ""} onChange={(event) => updateGoal(index, (current) => ({ ...current, target_date: event.target.value }))} /></label>
                   </div>
                   <div className="card-action-row">
                     <span>{progress.toFixed(0)}% complete</span>
                     {goal.target_date ? <span>{goal.target_date}</span> : <span>No target date</span>}
+                  </div>
+                  <div className="goal-monthly-allocation">
+                    <div>
+                      <p className="eyebrow">This month</p>
+                      <strong>{monthlyAllocation.isComplete
+                        ? "Monthly allocation complete"
+                        : monthlyAllocation.isOverdue
+                          ? "Overdue: " + formatCurrency(Math.max(goal.target_amount - goal.allocated_amount, 0)) + " remaining"
+                        : monthlyAllocation.amount !== null
+                          ? "Allocate " + formatCurrency(monthlyAllocation.amount)
+                          : goal.allocated_amount >= goal.target_amount
+                            ? "Goal fully allocated"
+                            : "Set a target date for monthly advice"}</strong>
+                      {monthlyAllocation.isComplete
+                        ? <span>{formatCurrency(monthlyAllocation.amount ?? 0)} allocated for {monthlyAllocation.month}</span>
+                        : monthlyAllocation.amount !== null && !canAllocateThisMonth
+                          ? <span>Only {formatCurrency(summary.unallocated)} is unallocated</span>
+                          : null}
+                    </div>
+                    {monthlyAllocation.isComplete ? (
+                      <Button variant="secondary" onClick={() => updateGoal(index, (current) => setMonthlyGoalAllocation(current, monthlyAllocation, false))}>Undo</Button>
+                    ) : monthlyAllocation.amount !== null ? (
+                      <Button disabled={!canAllocateThisMonth} onClick={() => updateGoal(index, (current) => setMonthlyGoalAllocation(current, monthlyAllocation, true))}>
+                        Allocate {formatCurrency(monthlyAllocation.amount)}
+                      </Button>
+                    ) : null}
                   </div>
                 </Card>
               );

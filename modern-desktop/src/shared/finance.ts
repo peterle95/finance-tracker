@@ -6,6 +6,7 @@ import type {
   FixedCost,
   IncomeSource,
   Loan,
+  GoalMonthlyAllocationRecord,
   SavingsGoal,
   TransactionType
 } from "./types";
@@ -134,6 +135,22 @@ function normalizeLoan(value: unknown): Loan | null {
     description: asString(value.description),
     notes: asString(value.notes),
     date: asDate(value.date, "2000-01-01") ?? "2000-01-01"
+  };
+}
+
+function normalizeMonthlyAllocation(value: unknown): GoalMonthlyAllocationRecord | undefined {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+  const month = asString(value.month);
+  const amount = roundCurrency(asNumber(value.amount));
+  if (!/^\d{4}-(0[1-9]|1[0-2])$/.test(month) || amount <= 0) {
+    return undefined;
+  }
+  return {
+    month,
+    amount,
+    allocated_amount_before: Math.max(roundCurrency(asNumber(value.allocated_amount_before)), 0)
   };
 }
 
@@ -530,11 +547,83 @@ export function getGoals(document: FinanceDocument): SavingsGoal[] {
     ...goal,
     name: asString(goal.name, "Untitled goal"),
     target_amount: asNumber(goal.target_amount),
-    allocated_amount: asNumber(goal.allocated_amount),
+    allocated_amount: asNumber(goal.allocated_amount, asNumber(goal.current_amount)),
+    monthly_allocation: normalizeMonthlyAllocation(goal.monthly_allocation),
     priority: ["High", "Medium", "Low"].includes(asString(goal.priority))
       ? asString(goal.priority) as SavingsGoal["priority"]
       : "Medium"
   }));
+}
+
+export function monthlyGoalAllocation(goal: SavingsGoal, now = new Date()): {
+  month: string;
+  amount: number | null;
+  isComplete: boolean;
+  isOverdue?: boolean;
+} {
+  const month = now.getFullYear() + "-" + String(now.getMonth() + 1).padStart(2, "0");
+  if (goal.monthly_allocation?.month === month) {
+    return { month, amount: goal.monthly_allocation.amount, isComplete: true };
+  }
+
+  const remaining = Math.max(goal.target_amount - goal.allocated_amount, 0);
+  const targetDate = asDate(goal.target_date);
+  if (!targetDate || remaining <= 0) {
+    return { month, amount: null, isComplete: false };
+  }
+
+  const [targetYear, targetMonth, targetDay] = targetDate.split("-").map(Number);
+  const target = new Date(targetYear, targetMonth - 1, targetDay, 12);
+  if (target.getFullYear() !== targetYear || target.getMonth() !== targetMonth - 1 || target.getDate() !== targetDay) {
+    return { month, amount: null, isComplete: false };
+  }
+  const daysRemaining = (Date.UTC(targetYear, targetMonth - 1, targetDay)
+    - Date.UTC(now.getFullYear(), now.getMonth(), now.getDate())) / 86_400_000;
+  if (daysRemaining <= 0) {
+    return { month, amount: null, isComplete: false, isOverdue: true };
+  }
+  const monthsRemaining = Math.max(daysRemaining / 30, 1);
+  const amount = roundCurrency(Math.min(remaining, remaining / monthsRemaining));
+  return {
+    month,
+    amount: amount > 0 ? amount : null,
+    isComplete: false
+  };
+}
+
+export function setMonthlyGoalAllocation(goal: SavingsGoal, allocation: {
+  month: string;
+  amount: number | null;
+  isComplete: boolean;
+}, isComplete: boolean): SavingsGoal {
+  if (isComplete) {
+    if (allocation.isComplete || allocation.amount === null) {
+      return goal;
+    }
+    return {
+      ...goal,
+      allocated_amount: roundCurrency(goal.allocated_amount + allocation.amount),
+      monthly_allocation: {
+        month: allocation.month,
+        amount: allocation.amount,
+        allocated_amount_before: roundCurrency(goal.allocated_amount)
+      }
+    };
+  }
+
+  const recorded = goal.monthly_allocation;
+  if (!allocation.isComplete || !recorded || recorded.month !== allocation.month) {
+    return goal;
+  }
+  const allocatedAmount = roundCurrency(goal.allocated_amount);
+  const expectedAmount = roundCurrency(recorded.allocated_amount_before + recorded.amount);
+  return {
+    ...goal,
+    allocated_amount: allocatedAmount >= expectedAmount
+      ? Math.max(roundCurrency(allocatedAmount - recorded.amount), 0)
+      : allocatedAmount,
+    monthly_allocation: undefined
+  };
 }
 
 export function goalSummary(document: FinanceDocument) {
@@ -564,6 +653,9 @@ export function autoDistributeGoals(document: FinanceDocument): SavingsGoal[] {
       const need = Math.max(goal.target_amount - goal.allocated_amount, 0);
       const allocation = Math.min(need, available);
       goal.allocated_amount += allocation;
+      if (allocation > 0) {
+        goal.monthly_allocation = undefined;
+      }
       available -= allocation;
     });
   return goals;
