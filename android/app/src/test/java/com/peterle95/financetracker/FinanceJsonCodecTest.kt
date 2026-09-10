@@ -328,6 +328,18 @@ class FinanceJsonCodecTest {
 
         assertEquals(20.0, existing.allocatedAmount, 0.0)
 
+        val renamed = FinanceJsonCodec.updateSavingsGoal(
+            document,
+            existing.key,
+            existing.copy(name = "Trip Renamed"),
+        )
+        val renamedTrip = Json.parseToJsonElement(FinanceJsonCodec.encode(renamed))
+            .jsonObject["budget_settings"]!!
+            .jsonObject["savings_goals"]!!
+            .jsonArray[0]
+            .jsonObject
+        assertTrue(renamedTrip.containsKey("monthly_allocation"))
+
         val added = FinanceJsonCodec.addSavingsGoal(
             document,
             SavingsGoal(
@@ -355,10 +367,23 @@ class FinanceJsonCodecTest {
         assertEquals("Trip Updated", trip["name"]!!.jsonPrimitive.content)
         assertEquals(50.0, trip["allocated_amount"]!!.jsonPrimitive.content.toDouble(), 0.0)
         assertFalse(trip.containsKey("current_amount"))
+        assertFalse(trip.containsKey("monthly_allocation"))
         assertEquals("desktop", trip["source"]!!.jsonPrimitive.content)
         assertEquals("Laptop", laptop["name"]!!.jsonPrimitive.content)
         assertEquals("2026-07-07", laptop["created_date"]!!.jsonPrimitive.content)
         assertTrue(budget["desktop_only"]!!.jsonPrimitive.content == "keep-me")
+    }
+
+    @Test
+    fun autoDistributingSavingsClearsMonthlyAllocationMarker() {
+        val distributed = FinanceJsonCodec.autoDistributeSavings(FinanceJsonCodec.parse(savingsGoalsJson))
+        val trip = Json.parseToJsonElement(FinanceJsonCodec.encode(distributed))
+            .jsonObject["budget_settings"]!!
+            .jsonObject["savings_goals"]!!
+            .jsonArray[0]
+            .jsonObject
+
+        assertFalse(trip.containsKey("monthly_allocation"))
     }
 
     @Test
@@ -490,6 +515,11 @@ class FinanceJsonCodecTest {
                 "priority": "High",
                 "target_date": "2026-08-01",
                 "created_date": "2026-06-01",
+                "monthly_allocation": {
+                  "month": "2026-06",
+                  "amount": 20,
+                  "allocated_amount_before": 0
+                },
                 "source": "desktop"
               }
             ],

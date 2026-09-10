@@ -582,6 +582,8 @@ class GoalsTab:
                 
                 old_allocation = goal.get('allocated_amount', 0)
                 goal['allocated_amount'] = new_allocation
+                if new_allocation != old_allocation:
+                    goal.pop('monthly_allocation', None)
                 
                 # Check if goal just completed
                 was_complete = old_allocation >= goal['target_amount']

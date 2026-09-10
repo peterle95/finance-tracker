@@ -143,6 +143,8 @@ def auto_distribute_savings(state):
     
     # Reset all allocations first
     for goal in goals:
+        if goal.get('allocated_amount', 0) != 0:
+            goal.pop('monthly_allocation', None)
         goal['allocated_amount'] = 0
     
     # Sort goals by priority and then by how close they are to completion
@@ -170,6 +172,8 @@ def auto_distribute_savings(state):
         
         needed = goal['target_amount'] - goal.get('allocated_amount', 0)
         allocation = min(needed, remaining_savings)
+        if allocation != 0:
+            goal.pop('monthly_allocation', None)
         goal['allocated_amount'] = goal.get('allocated_amount', 0) + allocation
         remaining_savings -= allocation
     

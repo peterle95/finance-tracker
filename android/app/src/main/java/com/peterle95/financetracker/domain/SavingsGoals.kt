@@ -3,6 +3,7 @@ package com.peterle95.financetracker.domain
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.temporal.ChronoUnit
+import kotlinx.serialization.json.JsonObject
 import kotlin.math.max
 
 data class SavingsGoalProgress(
@@ -82,7 +83,13 @@ object SavingsGoals {
 
         var remainingSavings = totalSavings
         val activeGoals = settings.savingsGoals
-            .map { it.copy(allocatedAmount = 0.0, completionDate = null) }
+            .map {
+                it.copy(
+                    allocatedAmount = 0.0,
+                    completionDate = null,
+                    extraJson = JsonObject(it.extraJson.filterKeys { key -> key != "monthly_allocation" }),
+                )
+            }
             .sortedWith(
                 compareByDescending<SavingsGoal> { priorityRank(it.priority) }
                     .thenByDescending {

@@ -182,6 +182,11 @@ This array owns loans. `id` is the stable identity. Loan changes may also update
     "description": "",
     "target_amount": 5000,
     "allocated_amount": 1200,
+    "monthly_allocation": {
+      "month": "2026-09",
+      "amount": 250,
+      "allocated_amount_before": 950
+    },
     "priority": "High",
     "target_date": null,
     "created_date": "2026-01-01",
@@ -190,7 +195,7 @@ This array owns loans. `id` is the stable identity. Loan changes may also update
 ]
 ```
 
-`priority` is normally `High`, `Medium`, or `Low`. Readers accept legacy `current_amount` as `allocated_amount`. Unknown goal fields remain inline.
+`priority` is normally `High`, `Medium`, or `Low`. `monthly_allocation` records the most recently completed month, its allocation, and the prior total so the action can be safely undone. Readers accept legacy `current_amount` as `allocated_amount`. Unknown goal fields remain inline.
 
 ### `preferences.json`
 

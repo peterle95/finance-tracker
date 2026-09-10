@@ -365,6 +365,8 @@ object FinanceJsonCodec {
                             !isComplete -> null
                             else -> goal.completionDate
                         },
+                        extraJson = if (amount == goal.allocatedAmount) goal.extraJson
+                        else JsonObject(goal.extraJson.filterKeys { it != "monthly_allocation" }),
                     )
                 } else {
                     goal
