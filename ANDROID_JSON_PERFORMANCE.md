@@ -4,7 +4,8 @@ Issue: https://github.com/peterle95/finance-tracker/issues/109
 
 ## Outcome
 
-**Awaiting user verification.** No reporter feedback on this implementation yet.
+**Worked.** Reporter confirmed on 2026-10-04 that the app is now clearly faster.
+No remaining slowness was reported. Issue #109 is intentionally left open.
 
 The reported symptoms are 3–4 seconds before real finance data appears on the
 phone and noticeably slow JSON saves, despite a responsive interface.
@@ -147,15 +148,17 @@ Gradle/build time is excluded from the printed operation durations. Use
   completed command above separates that operational interruption from the
   pre-existing assertion failures.
 - Final Standards review: no open findings. Final Spec review: no open code
-  findings; real-device measurements and reporter acceptance remain outstanding.
+  findings. Reporter acceptance has now been received (see below); quantitative
+  real-device timings were never measured.
 - ADB reported only `emulator-5554 offline`. No install or device timing was
-  attempted. The reporter's phone/provider/dataset remains unmeasured.
+  attempted. The reporter's phone/provider/dataset remains unmeasured
+  quantitatively; acceptance is qualitative.
 - The loaded document is rebuilt in memory after edits; unrelated shared files
   are reconciled on explicit/startup/resume refresh. A private cold-start
   snapshot is deferred until actual phone measurements justify it.
 
-The issue remains open and the outcome remains **Awaiting user verification**.
-Tests and synthetic timings do not establish that the phone symptom is fixed.
+The issue remains open per the reporter's request, even though the outcome is
+now recorded as **Worked**.
 
 ### Review corrections and final probe — 2026-10-04
 
@@ -184,7 +187,13 @@ It retains the earlier sample above rather than replacing the attempt history.
 
 ## Reporter verification
 
-Did this work on your phone: does your data appear quickly after opening, and are
-JSON saves now fast enough? Please answer yes, no, or partially, and tell me what
-remains slow. I need your answer to complete this task and record the result in
-`ANDROID_JSON_PERFORMANCE.md`.
+Asked:
+
+> Did this work on your phone: does your data appear quickly after opening, and are
+> JSON saves now fast enough? Please answer yes, no, or partially, and tell me what
+> remains slow. I need your answer to complete this task and record the result in
+> `ANDROID_JSON_PERFORMANCE.md`.
+
+Answer received 2026-10-04: yes — "this worked, that app is now clearly faster."
+No remaining slow areas were reported. Outcome recorded as **Worked** above.
+Issue #109 remains open at the reporter's request; it was not closed.
