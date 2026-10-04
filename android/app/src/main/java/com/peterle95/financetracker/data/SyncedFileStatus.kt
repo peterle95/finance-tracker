@@ -7,6 +7,7 @@ data class SyncedFileStatus(
     val lastWrittenAt: String? = null,
     val lastError: String? = null,
     val warnings: List<String> = emptyList(),
+    val isLoading: Boolean = false,
 ) {
     val isConnected: Boolean = uri != null
 }

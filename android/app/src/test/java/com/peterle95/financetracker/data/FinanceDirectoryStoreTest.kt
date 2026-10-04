@@ -1,8 +1,10 @@
 package com.peterle95.financetracker.data
 
 import com.peterle95.financetracker.domain.Loan
+import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.delay
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -16,8 +18,167 @@ import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Test
+import kotlin.system.measureNanoTime
 
 class FinanceDirectoryStoreTest {
+    @Test
+    fun reloadReadsEachLiveFileOnce() = runBlocking {
+        val directory = performanceDirectory()
+        val result = FinanceDirectoryStore(directory).reload()
+
+        assertEquals(60, result.document.transactions.size)
+        assertEquals(66, directory.reads.size)
+        assertEquals(66, directory.reads.distinct().size)
+        assertEquals(1, directory.listings)
+        assertTrue(directory.writes.isEmpty())
+    }
+
+    @Test
+    fun ordinarySavesReadOnlyTheirOwnersAndPublishExternalRows() = runBlocking {
+        val directory = performanceDirectory()
+        val store = FinanceDirectoryStore(directory)
+        store.reload()
+        val owner = "transactions_expense_category-60.json"
+        directory.append(owner, transaction("external", "Category 60", "External"))
+        directory.clearOperations()
+
+        store.addTransaction(TransactionType.Expense, "2026-10-04", 5.0, "Category 60", "Added", null, "added")
+        assertEquals(listOf("categories.json", owner, owner), directory.reads)
+        assertEquals(1, directory.listings)
+        assertEquals(62, store.document.value.records.size)
+        assertTrue(store.document.value.transactions.any { it.exportId == "external" })
+
+        directory.clearOperations()
+        store.updateTransaction("added", TransactionType.Expense, "2026-10-04", 7.0, "Category 60", "Updated", null)
+        assertEquals(listOf("categories.json", owner, owner), directory.reads)
+        assertEquals(7.0, store.document.value.transactions.first { it.exportId == "added" }.amount, 0.0)
+
+        directory.clearOperations()
+        store.deleteTransaction("added")
+        assertEquals(listOf("categories.json", owner, owner), directory.reads)
+        assertEquals(61, store.document.value.records.size)
+
+        directory.files["budget.json"] = """{"daily_savings_goal":2,"monthly_income":[{"amount":9,"description":"External","custom":true}],"unknown":"kept"}"""
+        directory.clearOperations()
+        store.mutateOwner(FileOwner.Budget) { FinanceJsonCodec.setDailySavingsGoal(it, 12.0) }
+        assertEquals(listOf("budget.json", "budget.json"), directory.reads)
+        assertEquals(listOf("budget.json"), directory.writes)
+        assertEquals(1, directory.listings)
+        assertEquals(12.0, store.document.value.budgetSettingsModel.dailySavingsGoal, 0.0)
+        assertEquals(9.0, store.document.value.budgetSettingsModel.monthlyIncome.single().amount, 0.0)
+        assertEquals("kept", store.document.value.budgetSettings["unknown"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun externallyMovedTransactionIsFoundWithoutLeavingACachedDuplicate() = runBlocking {
+        val directory = migratedDirectory()
+        val store = FinanceDirectoryStore(directory)
+        store.reload()
+        directory.files["transactions_expense_travel.json"] = directory.files.getValue("transactions_expense_food.json")
+        directory.files["transactions_expense_food.json"] = "[]"
+
+        store.updateTransaction("food-1", TransactionType.Expense, "2026-10-04", 6.0, "Travel", "Updated", null)
+
+        val record = store.document.value.records.single()
+        assertEquals("Travel", record.transaction.category)
+        assertEquals("food-1", record.transaction.exportId)
+        assertEquals("kept", record.extraJson["extra"]!!.jsonPrimitive.content)
+        assertEquals(store.document.value, store.reload().document)
+    }
+
+    @Test
+    fun addingToAnExternallyMovedDestinationReplacesTheCachedSource() = runBlocking {
+        val directory = migratedDirectory()
+        val store = FinanceDirectoryStore(directory)
+        store.reload()
+        directory.files["transactions_expense_travel.json"] = directory.files.getValue("transactions_expense_food.json")
+        directory.files["transactions_expense_food.json"] = "[]"
+
+        store.addTransaction(TransactionType.Expense, "2026-10-04", 5.0, "Travel", "Added", null)
+
+        assertEquals(2, store.document.value.transactions.size)
+        assertEquals("Travel", store.document.value.transactions.single { it.exportId == "food-1" }.category)
+        assertEquals(store.document.value, store.reload().document)
+    }
+
+    @Test
+    fun newlyReadExternalRowsReceivePersistedIdsBeforePublication() = runBlocking {
+        val directory = migratedDirectory()
+        val store = FinanceDirectoryStore(directory)
+        store.reload()
+        val owner = "transactions_expense_food.json"
+        directory.append(owner, JsonObject(transaction("external", "Food", "External") - "id"))
+
+        store.addTransaction(TransactionType.Expense, "2026-10-04", 5.0, "Food", "Added", null)
+
+        val externalId = store.document.value.transactions.single { it.description == "External" }.exportId
+        assertNotNull(externalId)
+        assertEquals(externalId, directory.element(owner).jsonArray[1].jsonObject["id"]!!.jsonPrimitive.content)
+        store.deleteTransaction(externalId!!)
+        assertFalse(store.document.value.transactions.any { it.description == "External" })
+    }
+
+    @Test
+    fun failedVerificationAndReloadKeepLastGoodDocument() = runBlocking {
+        val directory = migratedDirectory()
+        val store = FinanceDirectoryStore(directory)
+        val lastGood = store.reload().document
+        directory.corruptWrites = true
+
+        expectFailure("did not verify") {
+            store.addTransaction(TransactionType.Expense, "2026-10-04", 5.0, "Food", "Failed", null)
+        }
+        assertEquals(lastGood, store.document.value)
+        directory.files["budget.json"] = "[]"
+        expectFailure("budget.json is missing or is not a JSON object.") { store.reload() }
+        assertEquals(lastGood, store.document.value)
+    }
+
+    @Test
+    fun savingsAllocationUsesLatestBalanceAndExternalGoals() = runBlocking {
+        val directory = migratedDirectory()
+        val store = FinanceDirectoryStore(directory)
+        store.reload()
+        store.mutateOwner(FileOwner.SavingsGoals) {
+            FinanceJsonCodec.addSavingsGoal(it, SavingsGoal(name = "Target", targetAmount = 100.0))
+        }
+        val key = store.document.value.budgetSettingsModel.savingsGoals.single().key
+        directory.files["net_worth.json"] = """{"savings_balance":10}"""
+        directory.append("savings_goals.json", Json.parseToJsonElement("""{"name":"External","target_amount":20,"allocated_amount":8,"custom":true}""").jsonObject)
+        directory.clearOperations()
+
+        expectFailure("Insufficient savings") {
+            store.mutateOwner(FileOwner.SavingsGoals) { FinanceJsonCodec.allocateSavingsGoal(it, key, 3.0) }
+        }
+        assertTrue(directory.writes.isEmpty())
+        directory.clearOperations()
+        store.mutateOwner(FileOwner.SavingsGoals) { FinanceJsonCodec.allocateSavingsGoal(it, key, 2.0) }
+        assertEquals(listOf("savings_goals.json", "net_worth.json", "savings_goals.json"), directory.reads)
+        assertEquals(2, store.document.value.budgetSettingsModel.savingsGoals.size)
+        assertEquals(10.0, store.document.value.budgetSettingsModel.balances.savings, 0.0)
+        assertEquals(store.document.value, store.reload().document)
+    }
+
+    @Test
+    fun syntheticLatencyProbe() = runBlocking {
+        val directory = performanceDirectory()
+        directory.delayMillis = System.getenv("FINANCE_TEST_IO_DELAY_MS")?.toLong() ?: 0L
+        val store = FinanceDirectoryStore(directory)
+        suspend fun measure(label: String, action: suspend () -> Unit) {
+            directory.clearOperations()
+            val elapsed = measureNanoTime { action(); store.warnings() } / 1_000_000
+            println("$label: delay=${directory.delayMillis}ms reads=${directory.reads.size} listings=${directory.listings} writes=${directory.writes.size} elapsed=${elapsed}ms")
+        }
+        measure("cold reload") { store.reload() }
+        measure("warm reload") { store.reload() }
+        measure("add") { store.addTransaction(TransactionType.Expense, "2026-10-04", 5.0, "Category 60", "Added", null, "probe") }
+        measure("update") { store.updateTransaction("probe", TransactionType.Expense, "2026-10-04", 7.0, "Category 60", "Updated", null) }
+        measure("delete") { store.deleteTransaction("probe") }
+        measure("budget") { store.mutateOwner(FileOwner.Budget) { FinanceJsonCodec.setDailySavingsGoal(it, 12.0) } }
+        assertEquals(60, store.document.value.transactions.size)
+        assertEquals(12.0, store.document.value.budgetSettingsModel.dailySavingsGoal, 0.0)
+    }
+
     @Test
     fun migrationReconstructsNormalizedLegacyAndPreservesUnknownData() = runBlocking {
         val legacy = """
@@ -85,6 +246,7 @@ class FinanceDirectoryStoreTest {
         }
         assertFalse(directory.files.containsKey("transactions_expense_cafe.json"))
         assertEquals(listOf("Salary", "Gift"), store.document.value.categories.incomes)
+        assertEquals(store.document.value, store.reload().document)
     }
 
     @Test
@@ -115,6 +277,8 @@ class FinanceDirectoryStoreTest {
             listOf("transactions_expense_travel.json", "transactions_expense_food.json"),
             directory.writes,
         )
+        assertEquals(5, directory.reads.size)
+        assertEquals(setOf("categories.json", "transactions_expense_food.json", "transactions_expense_travel.json"), directory.reads.toSet())
         assertTrue(directory.element("transactions_expense_food.json").jsonArray.any { it.jsonObject["id"]?.jsonPrimitive?.content == "external" })
         val moved = directory.element("transactions_expense_travel.json").jsonArray.single().jsonObject
         assertEquals(addedId, moved["id"]!!.jsonPrimitive.content)
@@ -147,6 +311,7 @@ class FinanceDirectoryStoreTest {
         }
 
         assertEquals(listOf("loans.json", "net_worth.json"), directory.writes)
+        assertEquals(listOf("loans.json", "net_worth.json", "loans.json", "net_worth.json"), directory.reads)
         assertEquals(budgetBefore, directory.files.getValue("budget.json"))
         assertEquals(2, directory.element("loans.json").jsonArray.size)
         val writtenNetWorth = directory.element("net_worth.json").jsonObject
@@ -174,6 +339,7 @@ class FinanceDirectoryStoreTest {
         assertEquals(listOf("loans.json", "net_worth.json"), directory.writes)
         assertEquals(3.0, directory.element("net_worth.json").jsonObject["money_lent_balance"]!!.jsonPrimitive.content.toDouble(), 0.0)
         assertEquals("external-loan", directory.element("loans.json").jsonArray.single().jsonObject["id"]!!.jsonPrimitive.content)
+        assertTrue(store.reload().document.transactions.any { it.exportId == "external-income" })
     }
 
     @Test
@@ -202,6 +368,22 @@ class FinanceDirectoryStoreTest {
         val duplicate = migratedDirectory()
         duplicate.files["categories.json"] = """{"Expense":[{"name":"Food","file_key":"food"},{"name":"food","file_key":"food-2"}],"Income":[]}"""
         expectFailure("Duplicate Expense category name") { FinanceDirectoryStore(duplicate).reload() }
+    }
+
+    private fun performanceDirectory(): InMemoryFinanceDirectory {
+        val categories = (1..60).joinToString(",") { """{"name":"Category $it","file_key":"category-$it"}""" }
+        val files = mutableMapOf(
+            "categories.json" to """{"Expense":[$categories],"Income":[]}""",
+            "budget.json" to "{}",
+            "net_worth.json" to "{}",
+            "preferences.json" to "{}",
+            "loans.json" to "[]",
+            "savings_goals.json" to "[]",
+        )
+        (1..60).forEach {
+            files["transactions_expense_category-$it.json"] = JsonArray(listOf(transaction("id-$it", "Category $it", "Existing"))).toString()
+        }
+        return InMemoryFinanceDirectory(files)
     }
 
     private suspend fun migratedDirectory(): InMemoryFinanceDirectory {
@@ -246,12 +428,26 @@ class FinanceDirectoryStoreTest {
     ) : FinanceDirectory {
         val writes = mutableListOf<String>()
         val deletes = mutableListOf<String>()
+        val reads = mutableListOf<String>()
+        var listings = 0
+        var corruptWrites = false
+        var delayMillis = 0L
 
-        override suspend fun listFiles() = files.keys.toList()
-        override suspend fun readText(name: String) = files[name]
+        override suspend fun listFiles(): List<String> {
+            listings++
+            delay(delayMillis)
+            return files.keys.toList()
+        }
+
+        override suspend fun readText(name: String): String? {
+            reads += name
+            delay(delayMillis)
+            return files[name]
+        }
         override suspend fun writeText(name: String, content: String) {
             writes += name
-            files[name] = content
+            delay(delayMillis)
+            files[name] = if (corruptWrites) "{}" else content
         }
 
         override suspend fun delete(name: String) {
@@ -262,6 +458,8 @@ class FinanceDirectoryStoreTest {
         fun clearOperations() {
             writes.clear()
             deletes.clear()
+            reads.clear()
+            listings = 0
         }
 
         fun element(name: String) = Json.parseToJsonElement(files.getValue(name))

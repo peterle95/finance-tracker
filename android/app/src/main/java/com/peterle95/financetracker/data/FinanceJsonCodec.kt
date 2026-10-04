@@ -61,8 +61,9 @@ object FinanceJsonCodec {
     private val rootKeys = setOf("expenses", "incomes", "budget_settings", "categories")
     private val transactionKeys = setOf("id", "date", "amount", "category", "description", "behavior_date")
 
-    fun parse(content: String): FinanceDocument {
-        val root = json.parseToJsonElement(content).jsonObject
+    fun parse(content: String): FinanceDocument = parse(json.parseToJsonElement(content).jsonObject)
+
+    fun parse(root: JsonObject): FinanceDocument {
         val expenses = root["expenses"].arrayOrEmpty()
             .mapNotNullIndexed { index, element ->
                 (element as? JsonObject)?.toRecord(TransactionType.Expense, index)

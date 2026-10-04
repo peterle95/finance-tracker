@@ -59,7 +59,7 @@ class FinanceViewModel(application: Application) : AndroidViewModel(application)
     val syncStatus: StateFlow<SyncedFileStatus> = repository.syncStatus.stateIn(
         scope = viewModelScope,
         started = SharingStarted.WhileSubscribed(5_000),
-        initialValue = SyncedFileStatus(),
+        initialValue = SyncedFileStatus(isLoading = true),
     )
 
     val dashboard: StateFlow<DashboardSummary> = combine(transactions, budgetSettings) { rows, budget ->
