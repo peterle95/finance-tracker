@@ -14,6 +14,10 @@ import com.peterle95.financetracker.domain.Loan
 import com.peterle95.financetracker.domain.SavingsGoal
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
@@ -31,8 +35,12 @@ class FinanceRepository(context: Context) {
     private val settingsDataStore = SettingsDataStore(appContext)
     private val mutex = sharedMutex
     private val document = MutableStateFlow(FinanceDocument.empty())
-    private val _syncStatus = MutableStateFlow(SyncedFileStatus())
+    private val _syncStatus = MutableStateFlow(SyncedFileStatus(isLoading = true))
     private var store: FinanceDirectoryStore? = null
+    private var storeUri: Uri? = null
+    private val reloadMutex = Mutex()
+    private var reloadRequest: Deferred<Unit>? = null
+    private var refreshError: String? = null
 
     val transactions: Flow<List<FinanceTransaction>> = document.map { it.transactions }
     val categories: Flow<CategoryState> = document.map { it.categories }
@@ -63,48 +71,69 @@ class FinanceRepository(context: Context) {
             val flags = Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
             contentResolver.takePersistableUriPermission(uri, flags)
             val candidate = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
-            runCatching { candidate.reload() }.onSuccess { result ->
+            runCatching { loadStore(candidate) }.onSuccess { result ->
                 settingsDataStore.setSyncedTreeUri(uri.toString())
-                store = candidate
-                document.value = result.document
-                _syncStatus.value = SyncedFileStatus(
-                    uri = uri.toString(),
-                    fileName = displayName(uri),
-                    lastLoadedAt = nowText(),
-                    lastWrittenAt = if (result.migratedLegacy) nowText() else null,
-                    warnings = result.warnings,
-                )
+                publishLoaded(uri, candidate, result)
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _syncStatus.value = _syncStatus.value.copy(lastError = error.message ?: "Could not connect directory.")
                 throw error
             }
         }
     }
 
-    suspend fun reloadConnectedFile() = withContext(Dispatchers.IO) {
+    suspend fun reloadConnectedFile(): Unit = coroutineScope {
+        val request = reloadMutex.withLock {
+            reloadRequest?.takeUnless { it.isCompleted } ?: async(Dispatchers.IO) {
+                reloadDirectory()
+            }.also { reloadRequest = it }
+        }
+        request.await()
+    }
+
+    private suspend fun reloadDirectory() {
         mutex.withLock {
             val uri = requireConfiguredTreeUri()
-            val activeStore = FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
-            runCatching { activeStore.reload() }.onSuccess { result ->
-                store = activeStore
-                document.value = result.document
-                _syncStatus.value = _syncStatus.value.copy(
-                    uri = uri.toString(),
-                    fileName = displayName(uri),
-                    lastLoadedAt = nowText(),
-                    lastWrittenAt = if (result.migratedLegacy) nowText() else _syncStatus.value.lastWrittenAt,
-                    lastError = null,
-                    warnings = result.warnings,
-                )
+            val activeStore = store?.takeIf { storeUri == uri } ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
+            runCatching { loadStore(activeStore) }.onSuccess { result ->
+                publishLoaded(uri, activeStore, result)
             }.onFailure { error ->
+                if (error is CancellationException) throw error
+                refreshError = error.message ?: "Could not reload synced directory."
                 _syncStatus.value = _syncStatus.value.copy(
                     uri = uri.toString(),
                     fileName = displayName(uri),
-                    lastError = error.message ?: "Could not reload synced directory.",
+                    lastError = refreshError,
                 )
                 throw error
             }
         }
+    }
+
+    private suspend fun loadStore(activeStore: FinanceDirectoryStore): DirectoryLoadResult {
+        _syncStatus.value = _syncStatus.value.copy(isLoading = true)
+        return try {
+            activeStore.reload()
+        } finally {
+            _syncStatus.value = _syncStatus.value.copy(isLoading = false)
+        }
+    }
+
+    private fun publishLoaded(uri: Uri, activeStore: FinanceDirectoryStore, result: DirectoryLoadResult) {
+        val previous = _syncStatus.value.takeIf { it.uri == uri.toString() } ?: SyncedFileStatus()
+        store = activeStore
+        storeUri = uri
+        refreshError = null
+        document.value = result.document
+        _syncStatus.value = previous.copy(
+            uri = uri.toString(),
+            fileName = displayName(uri),
+            lastLoadedAt = nowText(),
+            lastWrittenAt = if (result.migratedLegacy) nowText() else previous.lastWrittenAt,
+            lastError = null,
+            isLoading = false,
+            warnings = result.warnings,
+        )
     }
 
     suspend fun addTransaction(
@@ -222,18 +251,24 @@ class FinanceRepository(context: Context) {
     private suspend fun mutate(block: suspend (FinanceDirectoryStore) -> Unit) = withContext(Dispatchers.IO) {
         mutex.withLock {
             val uri = requireConfiguredTreeUri()
-            val activeStore = store ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri)).also { store = it }
-            runCatching { block(activeStore) }.onSuccess {
+            val activeStore = store?.takeIf { storeUri == uri } ?: FinanceDirectoryStore(SafFinanceDirectory(contentResolver, uri))
+            runCatching {
+                if (store !== activeStore) publishLoaded(uri, activeStore, loadStore(activeStore))
+                block(activeStore)
+            }.onSuccess {
+                store = activeStore
+                storeUri = uri
                 document.value = activeStore.document.value
                 _syncStatus.value = _syncStatus.value.copy(
                     uri = uri.toString(),
                     fileName = displayName(uri),
-                    lastLoadedAt = nowText(),
                     lastWrittenAt = nowText(),
-                    lastError = null,
+                    isLoading = false,
+                    lastError = refreshError,
                     warnings = activeStore.warnings(),
                 )
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _syncStatus.value = _syncStatus.value.copy(
                     uri = uri.toString(),
                     fileName = displayName(uri),

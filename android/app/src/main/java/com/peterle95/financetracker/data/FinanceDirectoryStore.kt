@@ -1,8 +1,6 @@
 package com.peterle95.financetracker.data
 
-import com.peterle95.financetracker.domain.BudgetSettings
 import com.peterle95.financetracker.domain.CategoryDefaults
-import com.peterle95.financetracker.domain.FinanceTransaction
 import com.peterle95.financetracker.domain.TransactionType
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -39,8 +37,11 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
     private val json = Json { prettyPrint = true }
     private val _document = MutableStateFlow(FinanceDocument.empty())
     val document: StateFlow<FinanceDocument> = _document.asStateFlow()
+    private var loadedFiles: Map<String, JsonElement> = emptyMap()
+    private var listedFiles: Set<String> = emptySet()
 
     suspend fun reload(): DirectoryLoadResult {
+        listedFiles = directory.listFiles().toSet()
         val migrated = ensureInitialized()
         val loaded = loadSplit()
         _document.value = loaded
@@ -58,7 +59,9 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         allowUnregisteredCategory: Boolean = false,
     ) {
         require(transactionId.isNotBlank()) { "Transaction id is required." }
-        val target = categoryRecord(type, category, allowUnregisteredCategory)
+        prepareMutation()
+        val changes = mutableMapOf<String, JsonElement>(CATEGORIES_FILE to readObject(CATEGORIES_FILE))
+        val target = categoryRecord(changes, type, category, allowUnregisteredCategory)
         val filename = transactionFilename(type, target.fileKey)
         val rows = readArray(filename).toMutableList()
         rows += buildJsonObject {
@@ -69,19 +72,24 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
             put("description", description)
             behaviorDate?.takeIf { it.isNotBlank() }?.let { put("behavior_date", it) }
         }
-        writeVerified(filename, JsonArray(rows))
-        publishLatest()
+        changes[filename] = JsonArray(rows)
+        writeVerified(filename, changes.getValue(filename))
+        publishLatest(changes)
     }
 
     suspend fun deleteTransaction(exportId: String) {
         require(exportId.isNotBlank()) { "This transaction has no JSON id and cannot be deleted from Android." }
-        val location = findTransaction(exportId)
-        val updated = readArray(location.filename).filterNot { it.idOrNull() == exportId }
-        writeVerified(location.filename, JsonArray(updated))
-        publishLatest()
+        prepareMutation()
+        val changes = mutableMapOf<String, JsonElement>(CATEGORIES_FILE to readObject(CATEGORIES_FILE))
+        val location = findTransaction(exportId, changes)
+        val updated = JsonArray(location.rows.filterNot { it.idOrNull() == exportId })
+        writeVerified(location.filename, updated)
+        changes[location.filename] = updated
+        publishLatest(changes)
     }
 
     suspend fun containsTransaction(exportId: String): Boolean {
+        directory.listFiles()
         val categories = readObject(CATEGORIES_FILE)
         for (type in TransactionType.entries) {
             for (record in categoryRecords(categories, type)) {
@@ -101,8 +109,10 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         behaviorDate: String?,
     ) {
         require(exportId.isNotBlank()) { "This transaction has no JSON id and cannot be modified from Android." }
-        val source = findTransaction(exportId)
-        val targetCategory = categoryRecord(type, category)
+        prepareMutation()
+        val changes = mutableMapOf<String, JsonElement>(CATEGORIES_FILE to readObject(CATEGORIES_FILE))
+        val source = findTransaction(exportId, changes)
+        val targetCategory = categoryRecord(changes, type, category)
         val targetFilename = transactionFilename(type, targetCategory.fileKey)
         val old = source.rows.first { it.idOrNull() == exportId }.jsonObject
         val replacement = buildJsonObject {
@@ -117,17 +127,16 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
             behaviorDate?.takeIf { it.isNotBlank() }?.let { put("behavior_date", it) }
         }
         if (targetFilename == source.filename) {
-            val latest = readArray(source.filename)
-            writeVerified(
-                source.filename,
-                JsonArray(latest.map { if (it.idOrNull() == exportId) replacement else it }),
-            )
+            changes[source.filename] = JsonArray(source.rows.map { if (it.idOrNull() == exportId) replacement else it })
+            writeVerified(source.filename, changes.getValue(source.filename))
         } else {
             val destination = readArray(targetFilename).filterNot { it.idOrNull() == exportId } + replacement
-            writeVerified(targetFilename, JsonArray(destination))
-            writeVerified(source.filename, JsonArray(readArray(source.filename).filterNot { it.idOrNull() == exportId }))
+            changes[targetFilename] = JsonArray(destination)
+            changes[source.filename] = JsonArray(source.rows.filterNot { it.idOrNull() == exportId })
+            writeVerified(targetFilename, changes.getValue(targetFilename))
+            writeVerified(source.filename, changes.getValue(source.filename))
         }
-        publishLatest()
+        publishLatest(changes)
     }
 
     suspend fun setCategories(type: TransactionType, names: List<String>) {
@@ -135,6 +144,8 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         require(normalized.distinctBy(String::lowercase).size == normalized.size) {
             "${type.label} category names must be non-empty and unique."
         }
+        prepareMutation()
+        val changes = mutableMapOf<String, JsonElement>()
         val root = readObject(CATEGORIES_FILE)
         val old = categoryRecords(root, type)
         val unused = old.toMutableList()
@@ -166,7 +177,9 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         newIndexes.forEach { index ->
             val key = newFileKey(normalized[index], old + records.filterNotNull())
             records[index] = CategoryRecord(normalized[index], key)
-            writeVerified(transactionFilename(type, key), JsonArray(emptyList()))
+            val filename = transactionFilename(type, key)
+            changes[filename] = JsonArray(emptyList())
+            writeVerified(filename, changes.getValue(filename))
         }
         val renamedCategories = mutableListOf<Pair<String, String>>()
         records.filterNotNull().forEach { record ->
@@ -181,7 +194,8 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
                         row
                     }
                 }
-                writeVerified(filename, JsonArray(renamed))
+                changes[filename] = JsonArray(renamed)
+                writeVerified(filename, changes.getValue(filename))
                 renamedCategories += previous.name to record.name
             }
         }
@@ -190,6 +204,7 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
             put(type.label, JsonArray(records.filterNotNull().map(CategoryRecord::toJson)))
         }
         writeVerified(CATEGORIES_FILE, updatedRoot)
+        changes[CATEGORIES_FILE] = updatedRoot
         if (renamedCategories.isNotEmpty()) {
             val budget = readObject(BUDGET_FILE)
             val categoryBudgets = (budget["category_budgets"] as? JsonObject)?.toMutableMap() ?: mutableMapOf()
@@ -200,53 +215,64 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
                 }
             }
             categoryBudgets[type.label] = JsonObject(typeBudgets)
-            writeVerified(BUDGET_FILE, JsonObject(budget + ("category_budgets" to JsonObject(categoryBudgets))))
+            changes[BUDGET_FILE] = JsonObject(budget + ("category_budgets" to JsonObject(categoryBudgets)))
+            writeVerified(BUDGET_FILE, changes.getValue(BUDGET_FILE))
         }
-        unused.forEach { directory.delete(transactionFilename(type, it.fileKey)) }
-        publishLatest()
+        val removed = unused.map { transactionFilename(type, it.fileKey) }
+        removed.forEach { directory.delete(it) }
+        listedFiles = listedFiles - removed.toSet()
+        publishLatest(changes, removed)
     }
 
     suspend fun mutateOwner(owner: FileOwner, transform: (FinanceDocument) -> FinanceDocument) {
-        val latest = loadSplit()
+        prepareMutation()
+        val changes = when (owner) {
+            FileOwner.Budget -> mutableMapOf<String, JsonElement>(BUDGET_FILE to readObject(BUDGET_FILE))
+            FileOwner.NetWorth -> mutableMapOf<String, JsonElement>(NET_WORTH_FILE to readObject(NET_WORTH_FILE))
+            FileOwner.Loans -> mutableMapOf(LOANS_FILE to readArray(LOANS_FILE), NET_WORTH_FILE to readObject(NET_WORTH_FILE))
+            FileOwner.SavingsGoals -> mutableMapOf(SAVINGS_GOALS_FILE to readArray(SAVINGS_GOALS_FILE), NET_WORTH_FILE to readObject(NET_WORTH_FILE))
+        }
+        val latest = assembleDocument(loadedFiles + changes)
         val updated = transform(latest)
         val normalizedLatest = latest.budgetSettingsModel.toJsonObjectPreserving(latest.budgetSettings)
         when (owner) {
-            FileOwner.Budget -> writeSettingsOwner(
+            FileOwner.Budget -> changes[BUDGET_FILE] = writeSettingsOwner(
                 BUDGET_FILE,
+                changes.getValue(BUDGET_FILE).jsonObject,
                 budgetKeys.filterTo(mutableSetOf()) { normalizedLatest[it] != updated.budgetSettings[it] },
                 updated.budgetSettings,
             )
-            FileOwner.NetWorth -> writeSettingsOwner(
+            FileOwner.NetWorth -> changes[NET_WORTH_FILE] = writeSettingsOwner(
                 NET_WORTH_FILE,
+                changes.getValue(NET_WORTH_FILE).jsonObject,
                 netWorthKeys.filterTo(mutableSetOf()) { normalizedLatest[it] != updated.budgetSettings[it] },
                 updated.budgetSettings,
             )
             FileOwner.Loans -> {
-                writeVerified(LOANS_FILE, updated.budgetSettings["loans"] as? JsonArray ?: JsonArray(emptyList()))
-                val raw = readObject(NET_WORTH_FILE)
+                changes[LOANS_FILE] = updated.budgetSettings["loans"] as? JsonArray ?: JsonArray(emptyList())
+                writeVerified(LOANS_FILE, changes.getValue(LOANS_FILE))
+                val raw = changes.getValue(NET_WORTH_FILE).jsonObject
                 val currentBalance = raw["money_lent_balance"]?.jsonPrimitive?.doubleOrNull ?: 0.0
                 val delta = updated.budgetSettingsModel.balances.moneyLent - latest.budgetSettingsModel.balances.moneyLent
-                writeVerified(
-                    NET_WORTH_FILE,
-                    JsonObject(raw + ("money_lent_balance" to JsonPrimitive(currentBalance + delta))),
-                )
+                changes[NET_WORTH_FILE] = JsonObject(raw + ("money_lent_balance" to JsonPrimitive(currentBalance + delta)))
+                writeVerified(NET_WORTH_FILE, changes.getValue(NET_WORTH_FILE))
             }
-            FileOwner.SavingsGoals -> writeVerified(
-                SAVINGS_GOALS_FILE,
-                updated.budgetSettings["savings_goals"] as? JsonArray ?: JsonArray(emptyList()),
-            )
+            FileOwner.SavingsGoals -> {
+                changes[SAVINGS_GOALS_FILE] = updated.budgetSettings["savings_goals"] as? JsonArray ?: JsonArray(emptyList())
+                writeVerified(SAVINGS_GOALS_FILE, changes.getValue(SAVINGS_GOALS_FILE))
+            }
         }
-        publishLatest()
+        publishLatest(changes)
     }
 
     private suspend fun ensureInitialized(): Boolean {
-        if (directory.readText(CATEGORIES_FILE) != null) return false
+        if (CATEGORIES_FILE in listedFiles) return false
         val legacyText = directory.readText(LEGACY_FILE)
         if (legacyText != null) {
             migrateLegacy(legacyText)
             return true
         }
-        require(directory.listFiles().isEmpty()) {
+        require(listedFiles.isEmpty()) {
             "$CATEGORIES_FILE is missing; refusing to initialize a non-empty directory."
         }
         createDefaults()
@@ -340,17 +366,42 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
 
     private suspend fun loadSplit(): FinanceDocument {
         val categoriesRoot = readObject(CATEGORIES_FILE)
-        val budget = settingsFromOwner(readObject(BUDGET_FILE), budgetKeys)
-        val netWorth = settingsFromOwner(readObject(NET_WORTH_FILE), netWorthKeys)
-        val preferences = readObject(PREFERENCES_FILE)
+        val files = mutableMapOf<String, JsonElement>(CATEGORIES_FILE to categoriesRoot)
+        listOf(BUDGET_FILE, NET_WORTH_FILE, PREFERENCES_FILE).forEach { files[it] = readObject(it) }
+        listOf(LOANS_FILE, SAVINGS_GOALS_FILE).forEach { files[it] = readArray(it) }
+        for (type in TransactionType.entries) {
+            categoryRecords(categoriesRoot, type).forEach { record ->
+                val filename = transactionFilename(type, record.fileKey)
+                val text = directory.readText(filename)
+                val source = if (text == null) {
+                    JsonArray(emptyList()).also { writeVerified(filename, it) }
+                } else {
+                    json.parseToJsonElement(text) as? JsonArray ?: error("$filename is missing or is not a JSON array.")
+                }
+                val identified = assignTransactionIds(filename, source)
+                val rows = JsonArray(identified.map { element ->
+                    JsonObject(element.jsonObject + ("category" to JsonPrimitive(record.name)))
+                })
+                if (identified != source) writeVerified(filename, rows)
+                files[filename] = rows
+            }
+        }
+        return assembleDocument(files).also { loadedFiles = files }
+    }
+
+    private fun assembleDocument(files: Map<String, JsonElement>): FinanceDocument {
+        val categoriesRoot = files.getValue(CATEGORIES_FILE).jsonObject
+        val budget = settingsFromOwner(files.getValue(BUDGET_FILE).jsonObject, budgetKeys)
+        val netWorth = settingsFromOwner(files.getValue(NET_WORTH_FILE).jsonObject, netWorthKeys)
+        val preferences = files.getValue(PREFERENCES_FILE).jsonObject
         val preferenceExtra = preferences["_extra"] as? JsonObject ?: JsonObject(emptyMap())
         val settings = buildJsonObject {
             budget.forEach(::put)
             netWorth.forEach(::put)
             preferences.forEach { (key, value) -> if (key in preferenceKeys) put(key, value) }
             (preferenceExtra["legacy_budget_settings"] as? JsonObject)?.forEach(::put)
-            put("loans", readArray(LOANS_FILE))
-            put("savings_goals", readArray(SAVINGS_GOALS_FILE))
+            put("loans", files.getValue(LOANS_FILE))
+            put("savings_goals", files.getValue(SAVINGS_GOALS_FILE))
         }
         val expenses = mutableListOf<JsonElement>()
         val incomes = mutableListOf<JsonElement>()
@@ -358,25 +409,14 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
             val target = if (type == TransactionType.Expense) expenses else incomes
             categoryRecords(categoriesRoot, type).forEach { record ->
                 val filename = transactionFilename(type, record.fileKey)
-                if (directory.readText(filename) == null) writeVerified(filename, JsonArray(emptyList()))
-                var changed = false
-                val rows = readArray(filename).map { element ->
-                    val row = element as? JsonObject ?: error("$filename must contain transaction objects.")
-                    val withId = if (row.idOrNull() == null) {
-                        changed = true
-                        JsonObject(row + ("id" to JsonPrimitive(UUID.randomUUID().toString())))
-                    } else {
-                        row
-                    }
-                    JsonObject(withId + ("category" to JsonPrimitive(record.name)))
+                target += (files[filename] as? JsonArray).orEmpty().map { element ->
+                    JsonObject(element.jsonObject + ("category" to JsonPrimitive(record.name)))
                 }
-                if (changed) writeVerified(filename, JsonArray(rows))
-                target += rows
             }
         }
         val rootExtra = preferenceExtra["legacy_root"] as? JsonObject ?: JsonObject(emptyMap())
         return FinanceJsonCodec.parse(
-            encode(buildJsonObject {
+            buildJsonObject {
                 rootExtra.forEach(::put)
                 put("expenses", JsonArray(expenses))
                 put("incomes", JsonArray(incomes))
@@ -385,48 +425,76 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
                     put("Expense", JsonArray(categoryRecords(categoriesRoot, TransactionType.Expense).map { JsonPrimitive(it.name) }))
                     put("Income", JsonArray(categoryRecords(categoriesRoot, TransactionType.Income).map { JsonPrimitive(it.name) }))
                 })
-            }),
+            },
         )
     }
 
-    private suspend fun publishLatest() {
-        _document.value = loadSplit()
+    private suspend fun prepareMutation() {
+        if (loadedFiles.isEmpty()) reload() else listedFiles = directory.listFiles().toSet()
     }
 
-    private suspend fun findTransaction(id: String): TransactionLocation {
-        val categories = readObject(CATEGORIES_FILE)
-        for (type in TransactionType.entries) {
-            for (record in categoryRecords(categories, type)) {
-                val filename = transactionFilename(type, record.fileKey)
-                val rows = readArray(filename)
-                if (rows.any { it.idOrNull() == id }) return TransactionLocation(filename, rows)
+    private fun publishLatest(changes: Map<String, JsonElement>, removed: List<String> = emptyList()) {
+        val changedIds = changes.filterKeys { it.startsWith("transactions_") }.values
+            .flatMap { it.jsonArray.mapNotNull(JsonElement::idOrNull) }.toSet()
+        val retained = loadedFiles.mapValues { (name, value) ->
+            if (name.startsWith("transactions_") && name !in changes && changedIds.isNotEmpty()) {
+                JsonArray(value.jsonArray.filterNot { it.idOrNull() in changedIds })
+            } else {
+                value
             }
+        }
+        val files = (retained + changes) - removed.toSet()
+        val latest = assembleDocument(files)
+        loadedFiles = files
+        _document.value = latest
+    }
+
+    private suspend fun findTransaction(id: String, changes: MutableMap<String, JsonElement>): TransactionLocation {
+        val categories = changes.getValue(CATEGORIES_FILE).jsonObject
+        val filenames = TransactionType.entries.flatMap { type ->
+            categoryRecords(categories, type).map { transactionFilename(type, it.fileKey) }
+        }
+        val hint = filenames.firstOrNull { filename ->
+            (loadedFiles[filename] as? JsonArray)?.any { it.idOrNull() == id } == true
+        }
+        for (filename in listOfNotNull(hint) + filenames.filterNot { it == hint }) {
+            val rows = readArray(filename)
+            changes[filename] = rows
+            if (rows.any { it.idOrNull() == id }) return TransactionLocation(filename, rows)
         }
         error("Transaction not found.")
     }
 
-    private suspend fun categoryRecord(type: TransactionType, name: String, allowUnregistered: Boolean = false): CategoryRecord {
-        val root = readObject(CATEGORIES_FILE)
+    private suspend fun categoryRecord(
+        changes: MutableMap<String, JsonElement>,
+        type: TransactionType,
+        name: String,
+        allowUnregistered: Boolean = false,
+    ): CategoryRecord {
+        val root = changes.getValue(CATEGORIES_FILE).jsonObject
         val records = categoryRecords(root, type)
         val trimmedName = name.trim()
         records.firstOrNull { it.name.equals(trimmedName, true) }?.let { return it }
         require(allowUnregistered) { "Unknown ${type.label} category: $name" }
+        require(trimmedName.isNotEmpty()) { "Category name is required." }
         val record = CategoryRecord(trimmedName, newFileKey(trimmedName, records))
         writeVerified(transactionFilename(type, record.fileKey), JsonArray(emptyList()))
-        writeVerified(CATEGORIES_FILE, buildJsonObject {
+        changes[CATEGORIES_FILE] = buildJsonObject {
             root.forEach { (key, value) -> if (key != type.label) put(key, value) }
             put(type.label, JsonArray((records + record).map(CategoryRecord::toJson)))
-        })
+        }
+        writeVerified(CATEGORIES_FILE, changes.getValue(CATEGORIES_FILE))
         return record
     }
 
-    private suspend fun writeSettingsOwner(filename: String, keys: Set<String>, settings: JsonObject) {
-        if (keys.isEmpty()) return
-        val raw = readObject(filename)
-        writeVerified(filename, buildJsonObject {
+    private suspend fun writeSettingsOwner(filename: String, raw: JsonObject, keys: Set<String>, settings: JsonObject): JsonObject {
+        if (keys.isEmpty()) return raw
+        val updated = buildJsonObject {
             raw.forEach(::put)
             keys.forEach { key -> settings[key]?.let { put(key, it) } }
-        })
+        }
+        writeVerified(filename, updated)
+        return updated
     }
 
     private fun settingsFromOwner(raw: JsonObject, keys: Set<String>) = buildJsonObject {
@@ -435,14 +503,14 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         raw.forEach { (key, value) -> if (key !in keys && key != "_extra") put(key, value) }
     }
 
-    suspend fun warnings(): List<String> {
+    fun warnings(): List<String> {
         val expected = buildSet {
-            val categories = readObject(CATEGORIES_FILE)
+            val categories = loadedFiles.getValue(CATEGORIES_FILE).jsonObject
             TransactionType.entries.forEach { type ->
                 categoryRecords(categories, type).forEach { add(transactionFilename(type, it.fileKey)) }
             }
         }
-        return directory.listFiles().mapNotNull { name ->
+        return listedFiles.mapNotNull { name ->
             when {
                 "conflict" in name.lowercase() -> "Sync conflict file detected: $name"
                 name.startsWith("transactions_") && name.endsWith(".json") && name !in expected ->
@@ -456,15 +524,30 @@ class FinanceDirectoryStore(private val directory: FinanceDirectory) {
         directory.readText(name)?.let { json.parseToJsonElement(it) as? JsonObject }
             ?: error("$name is missing or is not a JSON object.")
 
-    private suspend fun readArray(name: String): JsonArray =
-        directory.readText(name)?.let { json.parseToJsonElement(it) as? JsonArray }
+    private suspend fun readArray(name: String): JsonArray {
+        val rows = directory.readText(name)?.let { json.parseToJsonElement(it) as? JsonArray }
             ?: error("$name is missing or is not a JSON array.")
+        if (!name.startsWith("transactions_")) return rows
+        val identified = assignTransactionIds(name, rows)
+        if (identified != rows) writeVerified(name, identified)
+        return identified
+    }
+
+    private fun assignTransactionIds(name: String, rows: JsonArray) = JsonArray(rows.map { element ->
+        val row = element as? JsonObject ?: error("$name must contain transaction objects.")
+        if (row.idOrNull() == null) {
+            JsonObject(row + ("id" to JsonPrimitive(UUID.randomUUID().toString())))
+        } else {
+            row
+        }
+    })
 
     private suspend fun writeVerified(name: String, value: JsonElement) {
         val content = encode(value)
         directory.writeText(name, content)
         val written = directory.readText(name) ?: error("Could not verify $name after writing.")
         require(json.parseToJsonElement(written) == value) { "$name did not verify after writing." }
+        listedFiles = listedFiles + name
     }
 
     private fun migrationCategories(root: JsonObject): JsonObject {

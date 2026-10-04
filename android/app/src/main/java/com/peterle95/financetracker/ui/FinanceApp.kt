@@ -1,6 +1,7 @@
 package com.peterle95.financetracker.ui
 
 import android.net.Uri
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.automirrored.outlined.ArrowBack
 import androidx.compose.material.icons.automirrored.outlined.List
@@ -15,6 +16,7 @@ import androidx.compose.material.icons.outlined.TrendingUp
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.Scaffold
@@ -23,6 +25,7 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -31,6 +34,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -71,6 +75,7 @@ private val destinations = listOf(
 fun FinanceApp(viewModel: FinanceViewModel) {
     val navController = rememberNavController()
     val snackbarHostState = remember { SnackbarHostState() }
+    val syncStatus by viewModel.syncStatus.collectAsState()
     val currentBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = currentBackStackEntry?.destination?.route
     var settingsReturnRoute by rememberSaveable { mutableStateOf(destinations.first().route) }
@@ -229,34 +234,48 @@ fun FinanceApp(viewModel: FinanceViewModel) {
             }
         },
     ) { padding ->
-        NavHost(
-            navController = navController,
-            startDestination = "dashboard",
-            modifier = Modifier.padding(padding),
-        ) {
-            composable("dashboard") {
-                DashboardScreen(viewModel = viewModel)
-            }
-            composable("add") { AddTransactionScreen(viewModel) }
-            composable("transactions") { TransactionsScreen(viewModel) }
-            composable("budget") {
-                BudgetScreen(viewModel) { loanKey ->
-                    navController.navigate("loan_editor/${Uri.encode(loanKey)}")
-                }
-            }
-            composable("net_worth") { NetWorthScreen(viewModel) }
-            composable("settings") { SettingsScreen(viewModel) }
-            composable("projection") { ProjectionScreen(viewModel) }
-            composable("savings_goals") { SavingsGoalsScreen(viewModel) }
-            composable(
-                route = "loan_editor/{loanKey}",
-                arguments = listOf(navArgument("loanKey") { type = NavType.StringType }),
-            ) { backStackEntry ->
-                LoanEditorScreen(
-                    viewModel = viewModel,
-                    loanKey = backStackEntry.arguments?.getString("loanKey").orEmpty(),
-                    onDone = { closeLoanEditor() },
+        Column(Modifier.padding(padding)) {
+            if (syncStatus.isLoading) {
+                Text(
+                    if (syncStatus.lastLoadedAt == null) "Loading finance data…" else "Refreshing finance data…",
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
                 )
+            } else if (syncStatus.lastError != null) {
+                Text(
+                    "${if (syncStatus.lastLoadedAt == null) "Finance data unavailable" else "Showing last loaded data"}: ${syncStatus.lastError}",
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+                )
+            }
+            NavHost(
+                navController = navController,
+                startDestination = "dashboard",
+                modifier = Modifier.weight(1f),
+            ) {
+                composable("dashboard") {
+                    DashboardScreen(viewModel = viewModel)
+                }
+                composable("add") { AddTransactionScreen(viewModel) }
+                composable("transactions") { TransactionsScreen(viewModel) }
+                composable("budget") {
+                    BudgetScreen(viewModel) { loanKey ->
+                        navController.navigate("loan_editor/${Uri.encode(loanKey)}")
+                    }
+                }
+                composable("net_worth") { NetWorthScreen(viewModel) }
+                composable("settings") { SettingsScreen(viewModel) }
+                composable("projection") { ProjectionScreen(viewModel) }
+                composable("savings_goals") { SavingsGoalsScreen(viewModel) }
+                composable(
+                    route = "loan_editor/{loanKey}",
+                    arguments = listOf(navArgument("loanKey") { type = NavType.StringType }),
+                ) { backStackEntry ->
+                    LoanEditorScreen(
+                        viewModel = viewModel,
+                        loanKey = backStackEntry.arguments?.getString("loanKey").orEmpty(),
+                        onDone = { closeLoanEditor() },
+                    )
+                }
             }
         }
     }
