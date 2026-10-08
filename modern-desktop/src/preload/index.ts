@@ -6,6 +6,8 @@ const financeApi: FinanceApi = {
   chooseDataFile: () => ipcRenderer.invoke("finance:chooseDataFile"),
   createDataFile: () => ipcRenderer.invoke("finance:createDataFile"),
   saveDocument: (previous: FinanceDocument, document: FinanceDocument) => ipcRenderer.invoke("finance:saveDocument", previous, document),
+  readConflict: (fileName) => ipcRenderer.invoke("finance:readConflict", fileName),
+  resolveConflict: (preview, resolution) => ipcRenderer.invoke("finance:resolveConflict", preview, resolution),
   chooseBankCsv: () => ipcRenderer.invoke("finance:chooseBankCsv"),
   exportText: (defaultName: string, text: string) => ipcRenderer.invoke("finance:exportText", defaultName, text)
 };
