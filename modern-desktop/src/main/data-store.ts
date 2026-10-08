@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
-import { access, readFile, readdir, rm, writeFile } from "node:fs/promises";
-import { dirname, join, resolve } from "node:path";
+import { access, lstat, readFile, readdir, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, join, resolve } from "node:path";
 import { isDeepStrictEqual } from "node:util";
 import type { BrowserWindow, OpenDialogOptions, SaveDialogOptions } from "electron";
 import { dialog } from "electron";
@@ -8,13 +8,17 @@ import { defaultDocument, normalizeDocument } from "../shared/finance";
 import { parseBankCsvText } from "../shared/reconciliation";
 import type {
   BudgetSettings,
+  ConflictPreview,
+  ConflictResolution,
   CsvImportResult,
+  DataConflict,
   DataLoadResult,
   FinanceDocument,
   FinanceTransaction,
   TransactionType
 } from "../shared/types";
 import { writeJsonAtomically } from "./file-utils";
+import { compareConflict, conflictOriginalName, resolveConflictValue } from "./conflict-resolution";
 
 interface LocalConfig {
   dataDirectory?: string;
@@ -158,13 +162,13 @@ export class DataStore {
       }
       const result = await this.readDirectory(dataPath);
       return {
-        document: result.document,
-        warnings: result.warnings,
+        ...result,
         connection: { path: dataPath, isConnected: true }
       };
     } catch (error) {
       return {
         document: null,
+        conflicts: await this.findConflicts(dataPath).catch(() => []),
         connection: {
           path: dataPath,
           isConnected: false,
@@ -194,6 +198,138 @@ export class DataStore {
     const operation = this.saveQueue.then(() => this.saveDocumentNow(previous, requested));
     this.saveQueue = operation.then(() => undefined, () => undefined);
     return operation;
+  }
+
+  public async readConflict(fileName: string): Promise<ConflictPreview> {
+    const originalFileName = typeof fileName === "string" ? conflictOriginalName(fileName) : null;
+    if (!originalFileName) throw new Error("Choose a supported Syncthing conflict file.");
+    const dataPath = await this.resolveDataPath();
+    if (!dataPath) throw new Error("Choose a finance data directory before resolving conflicts.");
+    const currentText = await this.readConflictText(join(dataPath, originalFileName), true);
+    const conflictText = (await this.readConflictText(join(dataPath, fileName)))!;
+    const comparison = compareConflict(originalFileName, currentText, conflictText);
+    return {
+      directory: dataPath, fileName, originalFileName, currentText, conflictText,
+      currentError: comparison.current.error, conflictError: comparison.conflict.error,
+      canMerge: comparison.canMerge, differences: comparison.differences
+    };
+  }
+
+  public async resolveConflict(preview: ConflictPreview, resolution: ConflictResolution): Promise<DataLoadResult> {
+    const operation = this.saveQueue.then(() => this.resolveConflictNow(preview, resolution));
+    this.saveQueue = operation.then(() => undefined, () => undefined);
+    return operation;
+  }
+
+  private async readConflictText(filePath: string, optional = false): Promise<string | null> {
+    try {
+      if (!(await lstat(filePath)).isFile()) throw new Error(`${basename(filePath)} is not a regular file.`);
+      return await readFile(filePath, "utf8");
+    } catch (error) {
+      if (optional && (error as NodeJS.ErrnoException).code === "ENOENT") return null;
+      throw error;
+    }
+  }
+
+  private async checkConflictPreview(preview: ConflictPreview): Promise<ConflictPreview> {
+    if (!isRecord(preview) || typeof preview.fileName !== "string") throw new Error("Reload the conflict preview before resolving it.");
+    const latest = await this.readConflict(preview.fileName);
+    if (latest.directory !== preview.directory || latest.originalFileName !== preview.originalFileName
+      || latest.currentText !== preview.currentText || latest.conflictText !== preview.conflictText) {
+      throw new Error("The data directory or a conflict version changed. Refresh the preview and review it again.");
+    }
+    return latest;
+  }
+
+  private async resolveConflictNow(preview: ConflictPreview, resolution: ConflictResolution): Promise<DataLoadResult> {
+    const latest = await this.checkConflictPreview(preview);
+    if (!isRecord(resolution)) throw new Error("Choose a valid conflict resolution.");
+    const comparison = compareConflict(latest.originalFileName, latest.currentText, latest.conflictText);
+    const value = resolveConflictValue(comparison, resolution);
+    await this.validateConflictValue(latest.directory, latest.originalFileName, value, resolution.source !== "current");
+    await this.checkConflictPreview(preview);
+    let expectedText = latest.currentText;
+    if (resolution.source !== "current") {
+      await writeJsonAtomically(join(latest.directory, latest.originalFileName), value);
+      expectedText = JSON.stringify(value, null, 2) + "\n";
+    }
+    const result = await this.readDirectory(latest.directory);
+    await this.checkConflictPreview({ ...latest, currentText: expectedText });
+    await rm(join(latest.directory, latest.fileName));
+    return {
+      document: result.document,
+      warnings: await this.findWarnings(latest.directory, this.categories!),
+      conflicts: await this.findConflicts(latest.directory),
+      connection: { path: latest.directory, isConnected: true }
+    };
+  }
+
+  private async validateConflictValue(dataPath: string, fileName: string, value: unknown, replacing: boolean): Promise<void> {
+    const arrayFile = fileName === "loans.json" || fileName === "savings_goals.json" || fileName.startsWith("transactions_");
+    if (arrayFile) {
+      if (!Array.isArray(value) || !value.every(isRecord)) throw new Error(`${fileName} must contain an array of objects.`);
+      const identity = fileName === "savings_goals.json" ? "name" : "id";
+      const ids = value.map((item) => item[identity]).filter((id) => id !== undefined);
+      if (ids.some((id) => typeof id !== "string" || !id.trim()) || new Set(ids).size !== ids.length) {
+        throw new Error(`${fileName} has invalid or duplicate ${identity} values.`);
+      }
+      for (const item of value) {
+        if (fileName === "savings_goals.json") {
+          if (typeof item.name !== "string" || !item.name.trim() || typeof item.target_amount !== "number"
+            || !Number.isFinite(item.target_amount)
+            || (item.allocated_amount !== undefined && (typeof item.allocated_amount !== "number" || !Number.isFinite(item.allocated_amount)))) {
+            throw new Error(`${fileName} contains an invalid savings goal.`);
+          }
+        } else if (typeof item.amount !== "number" || !Number.isFinite(item.amount)
+          || typeof item.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)
+          || (fileName === "loans.json" && typeof item.borrower !== "string")) {
+          throw new Error(`${fileName} entries require a valid amount and date${fileName === "loans.json" ? " and borrower" : ""}.`);
+        }
+      }
+      return;
+    }
+    if (!isRecord(value)) throw new Error(`${fileName} must contain a JSON object.`);
+    if (fileName === "categories.json") {
+      const categories = this.parseCategories(value);
+      const registered = new Set(((["Expense", "Income"] as const).flatMap((type) =>
+        categories[type].map((category) => transactionFile(type, category.file_key)))));
+      for (const name of replacing ? await readdir(dataPath) : []) {
+        if (/^transactions_(expense|income)_[a-z0-9]+(?:-[a-z0-9]+)*\.json$/.test(name)
+          && !registered.has(name) && (await this.readArray(join(dataPath, name))).length) {
+          throw new Error(`This category version would hide transactions in ${name}. Keep or restore its category first.`);
+        }
+      }
+    }
+    const numberKeys = fileName === "net_worth.json" ? NET_WORTH_KEYS.filter((key) => key !== "asset_snapshots")
+      : fileName === "budget.json" ? ["daily_savings_goal"] : [];
+    if (numberKeys.some((key) => value[key] !== undefined && (typeof value[key] !== "number" || !Number.isFinite(value[key])))) {
+      throw new Error(`${fileName} balance and savings values must be numbers.`);
+    }
+    const arrayKeys = fileName === "budget.json" ? ["fixed_costs"] : fileName === "net_worth.json" ? ["asset_snapshots"] : [];
+    if (arrayKeys.some((key) => value[key] !== undefined && (!Array.isArray(value[key]) || !value[key].every(isRecord)))
+      || (fileName === "budget.json" && value.monthly_income !== undefined && typeof value.monthly_income !== "number"
+        && (!Array.isArray(value.monthly_income) || !value.monthly_income.every(isRecord)))) {
+      throw new Error(`${fileName} contains an invalid record array.`);
+    }
+    if (fileName === "budget.json") {
+      if ((typeof value.monthly_income === "number" && !Number.isFinite(value.monthly_income))
+        || [value.fixed_costs, value.monthly_income].some((items) => Array.isArray(items)
+          && items.some((item) => typeof item.amount !== "number" || !Number.isFinite(item.amount)))) {
+        throw new Error("budget.json income and cost amounts must be numbers.");
+      }
+      const categoryBudgets = value.category_budgets;
+      if (categoryBudgets !== undefined && (!isRecord(categoryBudgets)
+        || ["Expense", "Income"].some((type) => categoryBudgets[type] !== undefined
+          && (!isRecord(categoryBudgets[type]) || Object.values(categoryBudgets[type]).some((amount) => typeof amount !== "number" || !Number.isFinite(amount)))))) {
+        throw new Error("budget.json category budgets must contain percentage maps.");
+      }
+    }
+    if (fileName === "net_worth.json" && Array.isArray(value.asset_snapshots)
+      && value.asset_snapshots.some((item) => typeof item.date !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(item.date)
+        || ["bank_balance", "wallet_balance", "savings_balance", "investment_balance", "money_lent_balance", "net_worth"]
+          .some((key) => item[key] !== undefined && (typeof item[key] !== "number" || !Number.isFinite(item[key]))))) {
+      throw new Error("net_worth.json contains an invalid asset snapshot.");
+    }
   }
 
   private async saveDocumentNow(previous: FinanceDocument, requested: FinanceDocument): Promise<DataLoadResult> {
@@ -304,7 +440,7 @@ export class DataStore {
     this.categories = categories;
   }
 
-  private async readDirectory(dataPath: string): Promise<{ document: FinanceDocument; warnings: string[] }> {
+  private async readDirectory(dataPath: string): Promise<{ document: FinanceDocument; warnings: string[]; conflicts: DataConflict[] }> {
     const categoriesRaw = await this.readJson(join(dataPath, "categories.json"));
     if (!isRecord(categoriesRaw)) {
       throw new Error("categories.json must contain a JSON object.");
@@ -343,7 +479,7 @@ export class DataStore {
         ...Object.fromEntries(PREFERENCE_KEYS.map((key) => [key, preferences[key]])) }
     });
     this.categories = categories;
-    return { document, warnings: await this.findWarnings(dataPath, categories) };
+    return { document, warnings: await this.findWarnings(dataPath, categories), conflicts: await this.findConflicts(dataPath) };
   }
 
   private parseCategories(raw: Record<string, unknown>): CategoriesFile {
@@ -394,6 +530,14 @@ export class DataStore {
       }
     }
     return warnings;
+  }
+
+  private async findConflicts(dataPath: string): Promise<DataConflict[]> {
+    const entries = await readdir(dataPath, { withFileTypes: true });
+    return entries.flatMap((entry) => {
+      const originalFileName = conflictOriginalName(entry.name);
+      return entry.isFile() && originalFileName ? [{ fileName: entry.name, originalFileName }] : [];
+    }).sort((left, right) => left.fileName.localeCompare(right.fileName));
   }
 
   private async saveCategoryChanges(

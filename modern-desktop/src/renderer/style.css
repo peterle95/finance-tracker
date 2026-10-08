@@ -1676,6 +1676,96 @@ tbody tr:hover td {
   box-shadow: var(--shadow);
   color: var(--text);
   font-size: 0.83rem;
+  display: grid;
+  gap: 0.7rem;
+  overflow-wrap: anywhere;
+}
+
+.conflict-notice {
+  padding: 0;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  text-align: left;
+  cursor: pointer;
+}
+
+.conflict-notice strong {
+  display: block;
+  margin-top: 0.4rem;
+  color: var(--accent);
+}
+
+.conflict-dialog {
+  z-index: 41;
+  width: min(1100px, calc(100vw - 2rem));
+}
+
+.conflict-overlay {
+  z-index: 40;
+}
+
+.conflict-dialog > p, .conflict-paths, .conflict-confirmation {
+  font-size: 0.85rem;
+  overflow-wrap: anywhere;
+}
+
+.conflict-toolbar {
+  display: flex;
+  align-items: flex-end;
+  gap: 0.8rem;
+}
+
+.conflict-toolbar label {
+  flex: 1;
+  min-width: 0;
+}
+
+.conflict-toolbar label span {
+  display: block;
+  margin-bottom: 0.4rem;
+}
+
+.conflict-table-scroll {
+  overflow: auto;
+  max-height: 45vh;
+}
+
+.conflict-comparison th, .conflict-comparison td {
+  vertical-align: top;
+  white-space: normal;
+}
+
+.conflict-comparison tbody th {
+  min-width: 180px;
+  max-width: 260px;
+  overflow-wrap: anywhere;
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+  color: var(--text);
+  font-size: 0.82rem;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.conflict-comparison pre {
+  min-width: 180px;
+  max-width: 340px;
+  margin: 0;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 0.78rem;
+}
+
+.conflict-dialog .dialog-actions {
+  flex-wrap: wrap;
+}
+
+.conflict-confirmation {
+  margin-top: 1rem;
+  padding: 1rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 11px;
 }
 
 .loading-screen,

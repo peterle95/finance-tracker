@@ -20,6 +20,7 @@ import { normalizeDefaultBehaviorSettings } from "../shared/behavior-settings";
 import { normalizeDefaultRangeSettings } from "../shared/range-settings";
 import type {
   DataConnection,
+  DataConflict,
   DataLoadResult,
   FinanceDocument,
   FinanceTransaction,
@@ -27,6 +28,7 @@ import type {
 } from "../shared/types";
 import { BudgetScreen } from "./components/BudgetScreen";
 import { CategoryLimitsScreen } from "./components/CategoryLimitsScreen";
+import { ConflictResolver } from "./components/ConflictResolver";
 import { DashboardScreen } from "./components/DashboardScreen";
 import { GoalsScreen } from "./components/GoalsScreen";
 import { NetWorthScreen } from "./components/NetWorthScreen";
@@ -116,7 +118,10 @@ export function App() {
   const [keyboardSettings, setKeyboardSettings] = useState<KeyboardNavigationSettings>(initialKeyboardNavigation);
   const [collapsed, setCollapsed] = useState(false);
   const [toast, setToast] = useState("");
+  const [conflicts, setConflicts] = useState<DataConflict[]>([]);
+  const [conflictFile, setConflictFile] = useState<string | null>(null);
   const editorReturnFocus = useRef<HTMLElement | null>(null);
+  const conflictReturnFocus = useRef<HTMLElement | null>(null);
   const effectiveKeyboardSettings = normalizeKeyboardNavigationSettings(keyboardSettings);
   const keyboardNavigation = useKeyboardNavigation({ activationKey: effectiveKeyboardSettings.activationKey, alphabet: effectiveKeyboardSettings.hintAlphabet });
 
@@ -142,7 +147,10 @@ export function App() {
   function applyLoadResult(result: DataLoadResult) {
     setDocument(result.document);
     setConnection(result.connection);
-    setToast(result.warnings?.join(" ") ?? "");
+    const nextConflicts = result.conflicts ?? [];
+    setConflicts(nextConflicts);
+    const conflictWarnings = new Set(nextConflicts.map((conflict) => `Ignored conflict file: ${conflict.fileName}`));
+    setToast(result.warnings?.filter((warning) => !conflictWarnings.has(warning)).join(" ") ?? "");
     setLoading(false);
   }
 
@@ -181,8 +189,7 @@ export function App() {
     setSaving(true);
     try {
       const result = await window.finance.saveDocument(previous, next);
-      setDocument(result.document);
-      setConnection(result.connection);
+      applyLoadResult(result);
       setToast("Saved to the shared finance file.");
     } catch (error) {
       setDocument(previous);
@@ -253,6 +260,32 @@ export function App() {
     }
   }, [editor]);
 
+  useEffect(() => {
+    if (!conflictFile && conflictReturnFocus.current) {
+      if (conflictReturnFocus.current.isConnected) conflictReturnFocus.current.focus();
+      else document.querySelector<HTMLElement>(".conflict-notice, .topbar button, .connect-actions button")?.focus();
+      conflictReturnFocus.current = null;
+    }
+  }, [conflictFile]);
+
+  const conflictNotice = <>
+    {toast || conflicts.length ? <div className="toast" role="status" aria-live="polite">
+      {toast ? <div>{toast}</div> : null}
+      {conflicts.length ? <button className="conflict-notice" disabled={saving} aria-label="Resolve sync conflicts" onClick={() => {
+        conflictReturnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+        setConflictFile(conflicts[0].fileName);
+      }}>
+        Ignored conflict file: {conflicts[0].fileName}
+        <strong>Review and resolve{conflicts.length > 1 ? ` (${conflicts.length} files)` : ""}</strong>
+      </button> : null}
+    </div> : null}
+    {conflictFile ? <ConflictResolver fileName={conflictFile} conflicts={conflicts} onClose={() => setConflictFile(null)} onResolved={(result) => {
+      applyLoadResult(result);
+      setConflictFile(null);
+      setToast("Sync conflict resolved.");
+    }} /> : null}
+  </>;
+
   if (loading) {
     return <LoadingScreen />;
   }
@@ -273,6 +306,7 @@ export function App() {
           </div>
           <small>Legacy finance_data.json files are left untouched after migration.</small>
         </section>
+        {conflictNotice}
       </main>
     );
   }
@@ -350,7 +384,7 @@ export function App() {
             <button className="icon-button" onClick={() => setTheme(theme === "dark" ? "light" : "dark")} aria-label="Toggle theme"><Moon size={18} /></button>
           </div>
         </header>
-        {toast ? <div className="toast" role="status" aria-live="polite">{toast}</div> : null}
+        {conflictNotice}
         <div className="page-scroll" data-keyboard-region="main">{content()}</div>
       </main>
 

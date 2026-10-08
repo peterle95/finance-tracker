@@ -1,7 +1,7 @@
 import { app, BrowserWindow, ipcMain } from "electron";
 import { join, resolve } from "node:path";
 import { DataStore } from "./data-store";
-import type { FinanceDocument } from "../shared/types";
+import type { ConflictPreview, ConflictResolution, FinanceDocument } from "../shared/types";
 
 let mainWindow: BrowserWindow | null = null;
 let dataStore: DataStore;
@@ -47,6 +47,8 @@ app.whenReady().then(() => {
   ipcMain.handle("finance:chooseDataFile", () => dataStore.chooseDataFile(mainWindow ?? undefined));
   ipcMain.handle("finance:createDataFile", () => dataStore.createDataFile(mainWindow ?? undefined));
   ipcMain.handle("finance:saveDocument", (_event, previous: FinanceDocument, document: FinanceDocument) => dataStore.saveDocument(previous, document));
+  ipcMain.handle("finance:readConflict", (_event, fileName: string) => dataStore.readConflict(fileName));
+  ipcMain.handle("finance:resolveConflict", (_event, preview: ConflictPreview, resolution: ConflictResolution) => dataStore.resolveConflict(preview, resolution));
   ipcMain.handle("finance:chooseBankCsv", () => dataStore.chooseBankCsv(mainWindow ?? undefined));
   ipcMain.handle("finance:exportText", (_event, defaultName: string, text: string) => {
     return dataStore.exportText(defaultName, text, mainWindow ?? undefined);

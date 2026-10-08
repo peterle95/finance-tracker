@@ -278,7 +278,7 @@ The legacy file is never modified or deleted and is the migration recovery copy;
 - Missing registered transaction file: clients recreate it as `[]`.
 - Missing static owner file: modern desktop and Android stop loading. Python currently supplies defaults and rewrites the missing file. Restore the missing version before opening a client when data may have existed.
 - Orphan transaction file: a transaction filename not referenced by `categories.json` is ignored, retained, and reported. Reattach or recover it manually; clients do not merge or delete it automatically.
-- Conflict copy: filenames containing Syncthing conflict markers are ignored and reported, not merged. Resolve them manually before further edits.
+- Conflict copy: ignored during normal reads and reported. Modern desktop offers an explicit resolver from the conflict notice: compare versions, keep a whole version or choose differing records/settings, confirm the result, then delete only that conflict copy. Resolution preserves the normal filename, validates the chosen content, and refuses stale previews. Python and Android report conflicts for resolution on desktop. There is no automatic conflict merge.
 - Invalid JSON or wrong root type blocks that file from loading; clients do not silently repair malformed content.
 
 Do not rename files manually. Change categories through a client so registry, transaction rows, budgets, and files stay aligned.

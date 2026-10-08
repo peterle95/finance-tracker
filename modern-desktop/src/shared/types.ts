@@ -107,6 +107,34 @@ export interface DataLoadResult {
   document: FinanceDocument | null;
   connection: DataConnection;
   warnings?: string[];
+  conflicts?: DataConflict[];
+}
+
+export interface DataConflict {
+  fileName: string;
+  originalFileName: string;
+}
+
+export interface ConflictDifference {
+  key: string;
+  label: string;
+  currentText: string;
+  conflictText: string;
+}
+
+export interface ConflictPreview extends DataConflict {
+  directory: string;
+  currentText: string | null;
+  conflictText: string;
+  currentError?: string;
+  conflictError?: string;
+  canMerge: boolean;
+  differences: ConflictDifference[];
+}
+
+export interface ConflictResolution {
+  source: "current" | "conflict" | "merge";
+  choices?: Record<string, "current" | "conflict">;
 }
 
 export type ReconciliationStatus = "matched" | "possible" | "missing";
@@ -142,6 +170,8 @@ export interface FinanceApi {
   chooseDataFile(): Promise<DataLoadResult>;
   createDataFile(): Promise<DataLoadResult>;
   saveDocument(previous: FinanceDocument, document: FinanceDocument): Promise<DataLoadResult>;
+  readConflict(fileName: string): Promise<ConflictPreview>;
+  resolveConflict(preview: ConflictPreview, resolution: ConflictResolution): Promise<DataLoadResult>;
   chooseBankCsv(): Promise<CsvImportResult | null>;
   exportText(defaultName: string, text: string): Promise<string | null>;
 }
